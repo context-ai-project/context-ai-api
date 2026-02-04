@@ -209,7 +209,8 @@ git push origin v1.0.0
 
 Los badges en el README muestran el estado actual de:
 - ✅ CI (tests, lint, build)
-- ✅ CodeQL (análisis de seguridad)
+- ✅ CodeQL (análisis de seguridad estático)
+- ✅ Snyk (escaneo de vulnerabilidades en dependencias)
 - ✅ Versión de Node.js requerida
 - ✅ Versión de TypeScript
 - ✅ Licencia del proyecto
