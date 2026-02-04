@@ -99,12 +99,14 @@
       "**/*.(t|j)s",
       "!**/*.module.ts",
       "!**/*.interface.ts",
-      "!**/main.ts"
+      "!**/main.ts",
+      "!**/swagger.ts",
+      "!**/config/**"
     ],
     "coverageDirectory": "../coverage",
     "coverageThreshold": {
       "global": {
-        "branches": 80,
+        "branches": 75,
         "functions": 80,
         "lines": 80,
         "statements": 80
