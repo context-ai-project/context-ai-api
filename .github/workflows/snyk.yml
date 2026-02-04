@@ -52,7 +52,7 @@ jobs:
   snyk-monitor:
     name: Snyk Monitor
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.SNYK_ORG_ID != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
       - name: Checkout code
@@ -73,11 +73,12 @@ jobs:
 
       - name: Monitor with Snyk
         uses: snyk/actions/node@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-          args: --all-projects --org=${{ secrets.SNYK_ORG_ID }}
+          args: --all-projects
 
   snyk-docker:
     name: Snyk Docker Scan
