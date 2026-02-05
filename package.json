@@ -90,20 +90,24 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/test"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s",
-      "!**/*.module.ts",
-      "!**/*.interface.ts",
-      "!**/main.ts",
-      "!**/swagger.ts",
-      "!**/config/**"
+      "src/**/*.(t|j)s",
+      "!src/**/*.module.ts",
+      "!src/**/*.interface.ts",
+      "!src/**/main.ts",
+      "!src/**/swagger.ts",
+      "!src/**/config/**"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "coverage",
     "coverageThreshold": {
       "global": {
         "branches": 75,
@@ -112,6 +116,9 @@
         "statements": 80
       }
     },
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@context-ai/shared$": "<rootDir>/../context-ai-shared/src"
+    }
   }
 }
