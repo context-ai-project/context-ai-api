@@ -20,9 +20,16 @@ export class Fragment {
   public createdAt: Date;
 
   // Supported embedding dimensions
-  private static readonly VALID_DIMENSIONS = [768, 1536];
   private static readonly GEMINI_DIMENSION = 768; // Gemini text-embedding-004
   private static readonly OPENAI_DIMENSION = 1536; // OpenAI text-embedding-3-small
+  private static readonly VALID_DIMENSIONS = [
+    Fragment.GEMINI_DIMENSION,
+    Fragment.OPENAI_DIMENSION,
+  ];
+
+  // Content validation constants
+  private static readonly MIN_CONTENT_LENGTH = 10;
+  private static readonly CHARS_PER_TOKEN = 4; // Rough estimate: 1 token ≈ 4 characters
 
   constructor(data: {
     sourceId: string;
@@ -60,8 +67,10 @@ export class Fragment {
       throw new Error('Content cannot be empty');
     }
 
-    if (data.content.length < 10) {
-      throw new Error('Content must be at least 10 characters long');
+    if (data.content.length < Fragment.MIN_CONTENT_LENGTH) {
+      throw new Error(
+        `Content must be at least ${Fragment.MIN_CONTENT_LENGTH} characters long`,
+      );
     }
 
     // Position validation
@@ -100,6 +109,7 @@ export class Fragment {
 
   /**
    * Returns the length of the content in characters
+   * @returns The number of characters in the content
    */
   public getContentLength(): number {
     return this.content.length;
@@ -108,14 +118,16 @@ export class Fragment {
   /**
    * Estimates the number of tokens in the content
    * Rough estimate: 1 token ≈ 4 characters
+   * @returns Estimated token count
    */
   public estimateTokenCount(): number {
-    return Math.ceil(this.content.length / 4);
+    return Math.ceil(this.content.length / Fragment.CHARS_PER_TOKEN);
   }
 
   /**
    * Checks if the content contains a specific term (case insensitive)
    * @param term - The term to search for
+   * @returns True if the term is found in the content
    */
   public containsTerm(term: string): boolean {
     return this.content.toLowerCase().includes(term.toLowerCase());
@@ -139,6 +151,7 @@ export class Fragment {
   /**
    * Checks if the fragment belongs to a specific source
    * @param sourceId - The source ID to check
+   * @returns True if the fragment belongs to the specified source
    */
   public belongsToSource(sourceId: string): boolean {
     return this.sourceId === sourceId;
@@ -147,6 +160,7 @@ export class Fragment {
   /**
    * Checks if this fragment comes before another fragment
    * @param other - The other fragment to compare with
+   * @returns True if this fragment's position is less than the other's
    */
   public isBefore(other: Fragment): boolean {
     return this.position < other.position;
@@ -155,6 +169,7 @@ export class Fragment {
   /**
    * Checks if this fragment comes after another fragment
    * @param other - The other fragment to compare with
+   * @returns True if this fragment's position is greater than the other's
    */
   public isAfter(other: Fragment): boolean {
     return this.position > other.position;
@@ -162,6 +177,7 @@ export class Fragment {
 
   /**
    * Checks if this is the first fragment in the document
+   * @returns True if the fragment's position is 0
    */
   public isFirstFragment(): boolean {
     return this.position === 0;
@@ -171,6 +187,7 @@ export class Fragment {
 
   /**
    * Returns the dimension of the embedding vector
+   * @returns The length of the embedding array (768 or 1536)
    */
   public getEmbeddingDimension(): number {
     return this.embedding.length;
@@ -179,6 +196,7 @@ export class Fragment {
   /**
    * Updates the embedding vector (for reprocessing scenarios)
    * @param newEmbedding - The new embedding vector
+   * @throws Error if the embedding dimension is invalid
    */
   public updateEmbedding(newEmbedding: number[]): void {
     this.validateEmbeddingDimension(newEmbedding);
@@ -187,6 +205,7 @@ export class Fragment {
 
   /**
    * Checks if this fragment uses Gemini embeddings
+   * @returns True if the embedding dimension is 768 (Gemini text-embedding-004)
    */
   public usesGeminiEmbedding(): boolean {
     return this.embedding.length === Fragment.GEMINI_DIMENSION;
@@ -194,6 +213,7 @@ export class Fragment {
 
   /**
    * Checks if this fragment uses OpenAI embeddings
+   * @returns True if the embedding dimension is 1536 (OpenAI text-embedding-3-small)
    */
   public usesOpenAIEmbedding(): boolean {
     return this.embedding.length === Fragment.OPENAI_DIMENSION;

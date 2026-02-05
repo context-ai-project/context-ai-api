@@ -9,6 +9,16 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
 
+/**
+ * Application Root Module
+ *
+ * Orchestrates the application by importing and configuring:
+ * - ConfigModule: Global configuration management
+ * - TypeOrmModule: Database connection and entity management
+ * - Feature modules: Domain-specific modules (to be added)
+ *
+ * This module follows the modular monolith architecture pattern
+ */
 @Module({
   imports: [
     // Configuration Module

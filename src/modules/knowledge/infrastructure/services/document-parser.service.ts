@@ -5,6 +5,10 @@ import { SourceType } from '@context-ai/shared';
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
 const pdfParse: any = require('pdf-parse');
 
+// Constants for buffer validation and parsing
+const PDF_SIGNATURE_LENGTH = 4;
+const PDF_SIGNATURE = '%PDF';
+
 interface PdfParseResult {
   text: string;
   numpages: number;
@@ -145,25 +149,25 @@ export class DocumentParserService {
         .replace(/^#{1,6}\s+/gm, '')
         // Remove bold (**text** or __text__)
         .replace(/(\*\*|__)(.*?)\1/g, '$2')
-        // Remove italic (*text* or _text_)
-        .replace(/(\*|_)(.*?)\1/g, '$2')
+        // Remove italic (*text* or _text_) - Using character class instead of alternation
+        .replace(/[*_]([^*_]+)[*_]/g, '$1')
         // Remove strikethrough (~~text~~)
-        .replace(/~~(.*?)~~/g, '$1')
-        // Remove links [text](url)
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
-        // Remove images ![alt](url)
-        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$1')
-        // Remove code blocks ```language\ncode\n``` but keep content
-        .replace(/```[a-z]*\n?([\s\S]*?)```/g, '$1')
+        .replace(/~~([^~]+)~~/g, '$1')
+        // Remove links [text](url) - Using non-greedy with atomic grouping
+        .replace(/\[([^\]]{1,500})\]\(([^)]{1,500})\)/g, '$1 ($2)')
+        // Remove images ![alt](url) - Using limited length to prevent backtracking
+        .replace(/!\[([^\]]{0,200})\]\(([^)]{1,500})\)/g, '$1')
+        // Remove code blocks ```language\ncode\n``` - Limit language identifier and use atomic match
+        .replace(/```[a-z]{0,20}\n?([^`]{1,10000})```/g, '$1')
         // Remove inline code `code`
         .replace(/`([^`]+)`/g, '$1')
         // Remove horizontal rules (---, ***, ___)
         .replace(/^(\*{3,}|-{3,}|_{3,})$/gm, '')
         // Remove blockquotes (> text)
         .replace(/^>\s+/gm, '')
-        // Remove list markers (-, *, +, 1.)
-        .replace(/^[\s]*[-*+]\s+/gm, '')
-        .replace(/^[\s]*\d+\.\s+/gm, '')
+        // Remove list markers (-, *, +, 1.) - Limited whitespace to prevent ReDoS
+        .replace(/^\s{0,10}[-*+]\s+/gm, '')
+        .replace(/^\s{0,10}\d+\.\s+/gm, '')
     );
   }
 
@@ -174,7 +178,7 @@ export class DocumentParserService {
    */
   private stripHtmlTags(html: string): string {
     return html
-      .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+      .replace(/<[^>]{1,200}>/g, ' ') // Remove HTML tags - Limited length to prevent ReDoS
       .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
       .replace(/&lt;/g, '<') // Decode HTML entities
       .replace(/&gt;/g, '>')
@@ -189,13 +193,13 @@ export class DocumentParserService {
    * @returns True if the buffer starts with PDF signature
    */
   public isPdfBuffer(buffer: Buffer): boolean {
-    if (!buffer || buffer.length < 4) {
+    if (!buffer || buffer.length < PDF_SIGNATURE_LENGTH) {
       return false;
     }
 
     // PDF files start with %PDF
-    const signature = buffer.toString('utf-8', 0, 4);
-    return signature === '%PDF';
+    const signature = buffer.toString('utf-8', 0, PDF_SIGNATURE_LENGTH);
+    return signature === PDF_SIGNATURE;
   }
 }
 
