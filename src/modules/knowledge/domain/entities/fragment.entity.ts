@@ -1,4 +1,22 @@
 /**
+ * Type-safe metadata value
+ * Represents JSON-serializable values
+ */
+export type MetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MetadataValue[]
+  | { [key: string]: MetadataValue };
+
+/**
+ * Fragment metadata type
+ * Stores additional context about the fragment
+ */
+export type FragmentMetadata = Record<string, MetadataValue>;
+
+/**
  * Fragment Entity
  *
  * Represents a chunk of content from a knowledge source with its vector embedding.
@@ -16,7 +34,7 @@ export class Fragment {
   public content: string;
   public position: number;
   public embedding: number[];
-  public metadata?: Record<string, any>;
+  public metadata?: FragmentMetadata;
   public createdAt: Date;
 
   // Supported embedding dimensions
@@ -36,7 +54,7 @@ export class Fragment {
     content: string;
     position: number;
     embedding: number[];
-    metadata?: Record<string, any>;
+    metadata?: FragmentMetadata;
   }) {
     this.validate(data);
 
@@ -139,7 +157,7 @@ export class Fragment {
    * Updates the metadata, merging with existing data
    * @param newMetadata - The new metadata to merge
    */
-  public updateMetadata(newMetadata: Record<string, any>): void {
+  public updateMetadata(newMetadata: FragmentMetadata): void {
     this.metadata = {
       ...this.metadata,
       ...newMetadata,

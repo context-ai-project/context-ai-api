@@ -120,7 +120,8 @@ describe('EmbeddingService', () => {
       // Arrange
       const text = 'This is a test sentence for embedding generation.';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      // Genkit returns an array with objects containing the embedding
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(text);
@@ -142,7 +143,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const text = 'Test text';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       await service.generateEmbedding(text);
@@ -211,7 +212,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const longText = 'word '.repeat(1000); // 1000 words
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(longText);
@@ -231,7 +232,7 @@ describe('EmbeddingService', () => {
         'Third test sentence',
       ];
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embeddings = await service.generateEmbeddings(texts);
@@ -261,7 +262,7 @@ describe('EmbeddingService', () => {
       const customService = new EmbeddingService({ batchSize: 2 });
       const texts = ['Text 1', 'Text 2', 'Text 3', 'Text 4', 'Text 5'];
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embeddings = await customService.generateEmbeddings(texts);
@@ -279,9 +280,9 @@ describe('EmbeddingService', () => {
       
       // First call succeeds, second fails, third succeeds
       mockEmbedFn
-        .mockResolvedValueOnce(mockEmbedding)
+        .mockResolvedValueOnce([{ embedding: mockEmbedding }])
         .mockRejectedValueOnce(new Error('API Error'))
-        .mockResolvedValueOnce(mockEmbedding);
+        .mockResolvedValueOnce([{ embedding: mockEmbedding }]);
 
       // Act & Assert
       await expect(service.generateEmbeddings(texts)).rejects.toThrow(
@@ -325,7 +326,7 @@ describe('EmbeddingService', () => {
       const customService = new EmbeddingService({ dimensions: 512 });
       const text = 'Test text';
       const mockEmbedding = Array(512).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       await customService.generateEmbedding(text);
@@ -348,7 +349,7 @@ describe('EmbeddingService', () => {
         .fill(null)
         .map((_, i) => `Test sentence ${i}`);
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
       const startTime = Date.now();
 
       // Act
@@ -367,7 +368,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const text = 'This is content for a Fragment entity.';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(text);
@@ -418,7 +419,7 @@ describe('EmbeddingService', () => {
       // Gemini text-embedding-005 has a limit of ~2048 tokens (~8000 characters)
       const veryLongText = 'word '.repeat(10000); // Way over limit
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(veryLongText);
@@ -435,7 +436,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const text = 'Document content to be indexed';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(
@@ -459,7 +460,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const text = 'User search query';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(
@@ -483,7 +484,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const text = 'General text';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       await service.generateEmbedding(text);
@@ -504,7 +505,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const docText = 'This is a document to be stored in pgvector';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateDocumentEmbedding(docText);
@@ -525,7 +526,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const queryText = 'How do I update my database?';
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateQueryEmbedding(queryText);
@@ -546,7 +547,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const docs = ['Document 1', 'Document 2', 'Document 3'];
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbedFn.mockResolvedValue(mockEmbedding);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embeddings = await service.generateDocumentEmbeddings(docs);

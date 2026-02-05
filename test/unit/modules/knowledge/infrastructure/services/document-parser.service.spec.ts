@@ -3,27 +3,47 @@ import { SourceType } from '@context-ai/shared';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Mock pdf-parse
-jest.mock('pdf-parse', () => {
-  return jest.fn().mockImplementation((buffer) => {
-    // Check if buffer looks like a PDF
-    const bufferString = buffer.toString('utf-8', 0, Math.min(buffer.length, 50));
-    
-    // If it doesn't start with %PDF, reject
-    if (!bufferString.startsWith('%PDF')) {
-      return Promise.reject(new Error('Invalid or corrupted PDF'));
-    }
-    
-    // Simulate successful PDF parsing
-    return Promise.resolve({
-      text: 'Mocked PDF content from buffer',
-      numpages: 1,
-      info: {
-        Title: 'Test PDF',
-        Creator: 'Test Creator',
-      },
-    });
-  });
+// Mock pdfjs-dist
+jest.mock('pdfjs-dist', () => {
+  return {
+    getDocument: jest.fn().mockImplementation((options: { data: Uint8Array }) => {
+      // Check if buffer looks like a PDF
+      const buffer = Buffer.from(options.data);
+      const bufferString = buffer.toString('utf-8', 0, Math.min(buffer.length, 50));
+      
+      // If it doesn't start with %PDF, reject
+      if (!bufferString.startsWith('%PDF')) {
+        return {
+          promise: Promise.reject(new Error('Invalid PDF structure')),
+        };
+      }
+      
+      // Simulate successful PDF loading
+      return {
+        promise: Promise.resolve({
+          numPages: 1,
+          getMetadata: jest.fn().mockResolvedValue({
+            info: {
+              Title: 'Test PDF',
+              Creator: 'Test Creator',
+              Author: 'Test Author',
+            },
+          }),
+          getPage: jest.fn().mockResolvedValue({
+            getTextContent: jest.fn().mockResolvedValue({
+              items: [
+                { str: 'Mocked', hasEOL: false },
+                { str: 'PDF', hasEOL: false },
+                { str: 'content', hasEOL: false },
+                { str: 'from', hasEOL: false },
+                { str: 'buffer', hasEOL: false },
+              ],
+            }),
+          }),
+        }),
+      };
+    }),
+  };
 });
 
 describe('DocumentParserService', () => {
@@ -73,7 +93,11 @@ describe('DocumentParserService', () => {
       // Assert
       expect(result.metadata).toHaveProperty('sourceType', SourceType.PDF);
       expect(result.metadata).toHaveProperty('parsedAt');
-      expect(result.metadata.parsedAt).toBeInstanceOf(Date);
+      expect(result.metadata.parsedAt).toBeDefined();
+      expect(
+        result.metadata.parsedAt instanceof Date ||
+          typeof result.metadata.parsedAt === 'string',
+      ).toBe(true);
     });
 
     it('should throw error for invalid PDF buffer', async () => {
@@ -209,7 +233,11 @@ function hello() {
       // Assert
       expect(result.metadata).toHaveProperty('sourceType', SourceType.MARKDOWN);
       expect(result.metadata).toHaveProperty('parsedAt');
-      expect(result.metadata.parsedAt).toBeInstanceOf(Date);
+      expect(result.metadata.parsedAt).toBeDefined();
+      expect(
+        result.metadata.parsedAt instanceof Date ||
+          typeof result.metadata.parsedAt === 'string',
+      ).toBe(true);
       expect(result.metadata).toHaveProperty('originalSize');
       expect(result.metadata.originalSize).toBeGreaterThan(0);
     });

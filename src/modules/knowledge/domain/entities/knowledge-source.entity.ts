@@ -1,6 +1,24 @@
 import { SourceType } from '@context-ai/shared';
 
 /**
+ * Type-safe metadata value
+ * Represents JSON-serializable values
+ */
+export type MetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MetadataValue[]
+  | { [key: string]: MetadataValue };
+
+/**
+ * Knowledge source metadata type
+ * Stores additional context about the source (e.g., file info, parsing details)
+ */
+export type SourceMetadata = Record<string, MetadataValue>;
+
+/**
  * KnowledgeSource Entity (Aggregate Root)
  *
  * Represents a source of knowledge in the system (PDF, Markdown, URL).
@@ -12,7 +30,7 @@ export class KnowledgeSource {
   public sectorId: string;
   public sourceType: SourceType;
   public content: string;
-  public metadata?: Record<string, any>;
+  public metadata?: SourceMetadata;
   public status: string;
   public errorMessage?: string;
   public createdAt: Date;
@@ -28,7 +46,7 @@ export class KnowledgeSource {
     sectorId: string;
     sourceType: SourceType;
     content: string;
-    metadata?: Record<string, any>;
+    metadata?: SourceMetadata;
   }) {
     this.validate(data);
 
@@ -173,7 +191,7 @@ export class KnowledgeSource {
    * @param newMetadata - The new metadata to merge
    * @throws Error if source is deleted
    */
-  public updateMetadata(newMetadata: Record<string, any>): void {
+  public updateMetadata(newMetadata: SourceMetadata): void {
     this.ensureNotDeleted();
     this.metadata = {
       ...this.metadata,

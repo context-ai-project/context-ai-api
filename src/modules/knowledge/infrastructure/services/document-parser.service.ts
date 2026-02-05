@@ -1,18 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { SourceType } from '@context-ai/shared';
-
-// Dynamic import for pdf-parse (CommonJS module)
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
-const pdfParse: any = require('pdf-parse');
+import * as pdfjsLib from 'pdfjs-dist';
+import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 
 // Constants for buffer validation and parsing
 const PDF_SIGNATURE_LENGTH = 4;
 const PDF_SIGNATURE = '%PDF';
 
-interface PdfParseResult {
-  text: string;
-  numpages: number;
-  info: Record<string, any>;
+/**
+ * PDF metadata information
+ * Contains standard PDF document properties
+ */
+interface PdfInfo {
+  Title?: string;
+  Author?: string;
+  Subject?: string;
+  Keywords?: string;
+  Creator?: string;
+  Producer?: string;
+  CreationDate?: string;
+  ModDate?: string;
+  [key: string]: string | undefined;
+}
+
+/**
+ * Type guard to check if an item is a TextItem
+ */
+function isTextItem(item: unknown): item is TextItem {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'str' in item &&
+    typeof (item as TextItem).str === 'string'
+  );
 }
 
 /**
@@ -53,19 +73,66 @@ export class DocumentParserService {
    */
   private async parsePdf(buffer: Buffer): Promise<ParsedDocument> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-      const data: PdfParseResult = await pdfParse(buffer);
+      // Load the PDF document using pdfjs-dist
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(buffer),
+        useSystemFonts: true,
+        verbosity: 0, // Suppress console logs
+      });
 
-      const content = this.normalizeContent(data.text);
+      const pdfDocument = await loadingTask.promise;
+      const numPages = pdfDocument.numPages;
+      const textParts: string[] = [];
+
+      // Extract metadata from PDF info
+      const metadata = await pdfDocument.getMetadata();
+      const pdfInfo: PdfInfo = {};
+
+      if (metadata.info) {
+        // Map common metadata fields
+        const infoKeys = [
+          'Title',
+          'Author',
+          'Subject',
+          'Keywords',
+          'Creator',
+          'Producer',
+          'CreationDate',
+          'ModDate',
+        ] as const;
+
+        for (const key of infoKeys) {
+          const value = metadata.info[key as keyof typeof metadata.info];
+          if (typeof value === 'string') {
+            pdfInfo[key] = value;
+          }
+        }
+      }
+
+      // Extract text from each page
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+        const textContent = await page.getTextContent();
+
+        // Concatenate text items from the page
+        const pageText = textContent.items
+          .filter(isTextItem)
+          .map((item) => item.str)
+          .join(' ');
+
+        textParts.push(pageText);
+      }
+
+      const content = this.normalizeContent(textParts.join('\n\n'));
 
       return {
         content,
         metadata: {
           sourceType: SourceType.PDF,
-          parsedAt: new Date(),
+          parsedAt: new Date().toISOString(),
           originalSize: buffer.length,
-          pages: data.numpages,
-          info: data.info,
+          pages: numPages,
+          info: pdfInfo,
         },
       };
     } catch (error) {
@@ -93,7 +160,7 @@ export class DocumentParserService {
         content,
         metadata: {
           sourceType: SourceType.MARKDOWN,
-          parsedAt: new Date(),
+          parsedAt: new Date().toISOString(),
           originalSize: buffer.length,
         },
       });
@@ -210,9 +277,9 @@ export interface ParsedDocument {
   content: string;
   metadata: {
     sourceType: SourceType;
-    parsedAt: Date;
+    parsedAt: string;
     originalSize: number;
     pages?: number;
-    info?: any;
+    info?: PdfInfo;
   };
 }

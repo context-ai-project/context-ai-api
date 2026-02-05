@@ -181,13 +181,19 @@ export class EmbeddingService {
         options.taskType = taskType;
       }
 
-      const embedding = await ai.embed({
+      const result = await ai.embed({
         embedder: this.config.model,
         content: truncatedText,
         options,
       });
 
-      return embedding;
+      // Extract the embedding array from the result
+      // Genkit returns an array of objects with { embedding: number[] }
+      if (Array.isArray(result) && result.length > 0 && result[0].embedding) {
+        return result[0].embedding;
+      }
+
+      throw new Error('Invalid embedding response format');
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
