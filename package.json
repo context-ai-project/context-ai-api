@@ -29,6 +29,9 @@
   },
   "dependencies": {
     "@context-ai/shared": "link:../context-ai-shared",
+    "@genkit-ai/ai": "^1.28.0",
+    "@genkit-ai/core": "^1.28.0",
+    "@genkit-ai/googleai": "^1.28.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
@@ -49,7 +52,8 @@
     "pgvector": "^0.1.8",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.19"
+    "typeorm": "^0.3.19",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
