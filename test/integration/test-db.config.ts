@@ -38,4 +38,3 @@ export const testDbConfig: TypeOrmModuleOptions = {
   // Auto-load entities
   autoLoadEntities: true,
 };
-

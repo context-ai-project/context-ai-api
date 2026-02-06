@@ -450,7 +450,8 @@ describe('KnowledgeRepository', () => {
           {
             id: 'frag-1',
             source_id: sourceId,
-            content: 'This is test content for fragment frag-1 with sufficient length',
+            content:
+              'This is test content for fragment frag-1 with sufficient length',
             embedding: null,
             position: 0,
             token_count: 100,
@@ -462,7 +463,8 @@ describe('KnowledgeRepository', () => {
           {
             id: 'frag-2',
             source_id: sourceId,
-            content: 'This is test content for fragment frag-2 with sufficient length',
+            content:
+              'This is test content for fragment frag-2 with sufficient length',
             embedding: null,
             position: 1,
             token_count: 100,
@@ -596,4 +598,3 @@ function createMockFragmentModel(
   model.updatedAt = new Date();
   return model;
 }
-

@@ -26,6 +26,7 @@ jest.setTimeout(30000);
 console.log('\n🚀 E2E Test Environment:');
 console.log(`   Port: ${process.env.PORT}`);
 console.log(`   Database: ${process.env.DATABASE_NAME}`);
-console.log(`   Host: ${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`);
+console.log(
+  `   Host: ${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}`,
+);
 console.log('');
-

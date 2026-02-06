@@ -7,7 +7,8 @@ describe('Fragment Entity', () => {
       const mockEmbedding = new Array(768).fill(0.1);
       const validData = {
         sourceId: 'source-123',
-        content: 'Este es el contenido del fragmento que contiene información importante...',
+        content:
+          'Este es el contenido del fragmento que contiene información importante...',
         position: 0,
         embedding: mockEmbedding,
         metadata: { tokens: 45, page: 1 },
@@ -18,7 +19,9 @@ describe('Fragment Entity', () => {
 
       // Assert
       expect(fragment.sourceId).toBe('source-123');
-      expect(fragment.content).toBe('Este es el contenido del fragmento que contiene información importante...');
+      expect(fragment.content).toBe(
+        'Este es el contenido del fragmento que contiene información importante...',
+      );
       expect(fragment.position).toBe(0);
       expect(fragment.embedding).toEqual(mockEmbedding);
       expect(fragment.metadata).toEqual({ tokens: 45, page: 1 });
@@ -82,7 +85,9 @@ describe('Fragment Entity', () => {
       };
 
       // Act & Assert
-      expect(() => new Fragment(invalidData)).toThrow('SourceId cannot be empty');
+      expect(() => new Fragment(invalidData)).toThrow(
+        'SourceId cannot be empty',
+      );
     });
 
     it('should throw error if content is empty', () => {
@@ -95,7 +100,9 @@ describe('Fragment Entity', () => {
       };
 
       // Act & Assert
-      expect(() => new Fragment(invalidData)).toThrow('Content cannot be empty');
+      expect(() => new Fragment(invalidData)).toThrow(
+        'Content cannot be empty',
+      );
     });
 
     it('should throw error if content is too short (less than 10 characters)', () => {
@@ -123,7 +130,9 @@ describe('Fragment Entity', () => {
       };
 
       // Act & Assert
-      expect(() => new Fragment(invalidData)).toThrow('Position cannot be negative');
+      expect(() => new Fragment(invalidData)).toThrow(
+        'Position cannot be negative',
+      );
     });
 
     it('should throw error if embedding is null or undefined', () => {
@@ -136,7 +145,9 @@ describe('Fragment Entity', () => {
       };
 
       // Act & Assert
-      expect(() => new Fragment(invalidData)).toThrow('Embedding cannot be null or undefined');
+      expect(() => new Fragment(invalidData)).toThrow(
+        'Embedding cannot be null or undefined',
+      );
     });
 
     it('should throw error if embedding is empty array', () => {
@@ -149,7 +160,9 @@ describe('Fragment Entity', () => {
       };
 
       // Act & Assert
-      expect(() => new Fragment(invalidData)).toThrow('Embedding array cannot be empty');
+      expect(() => new Fragment(invalidData)).toThrow(
+        'Embedding array cannot be empty',
+      );
     });
 
     it('should throw error if embedding has invalid dimension', () => {
@@ -418,4 +431,3 @@ describe('Fragment Entity', () => {
     });
   });
 });
-

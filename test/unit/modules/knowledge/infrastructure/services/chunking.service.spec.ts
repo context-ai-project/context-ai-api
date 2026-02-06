@@ -117,16 +117,16 @@ describe('ChunkingService', () => {
 
       // Assert
       expect(chunks.length).toBeGreaterThan(1);
-      
+
       // Check that consecutive chunks have overlap
       for (let i = 0; i < chunks.length - 1; i++) {
         const currentChunk = chunks[i].content;
         const nextChunk = chunks[i + 1].content;
-        
+
         // Extract end of current and start of next
         const currentEnd = currentChunk.split(' ').slice(-10).join(' ');
         const nextStart = nextChunk.split(' ').slice(0, 10).join(' ');
-        
+
         // There should be some overlap
         expect(nextStart).toContain(currentEnd.split(' ')[0]);
       }
@@ -360,5 +360,3 @@ describe('ChunkingService', () => {
     });
   });
 });
-
-

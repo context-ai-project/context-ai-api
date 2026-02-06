@@ -6,43 +6,49 @@ import * as path from 'path';
 // Mock pdfjs-dist
 jest.mock('pdfjs-dist', () => {
   return {
-    getDocument: jest.fn().mockImplementation((options: { data: Uint8Array }) => {
-      // Check if buffer looks like a PDF
-      const buffer = Buffer.from(options.data);
-      const bufferString = buffer.toString('utf-8', 0, Math.min(buffer.length, 50));
-      
-      // If it doesn't start with %PDF, reject
-      if (!bufferString.startsWith('%PDF')) {
+    getDocument: jest
+      .fn()
+      .mockImplementation((options: { data: Uint8Array }) => {
+        // Check if buffer looks like a PDF
+        const buffer = Buffer.from(options.data);
+        const bufferString = buffer.toString(
+          'utf-8',
+          0,
+          Math.min(buffer.length, 50),
+        );
+
+        // If it doesn't start with %PDF, reject
+        if (!bufferString.startsWith('%PDF')) {
+          return {
+            promise: Promise.reject(new Error('Invalid PDF structure')),
+          };
+        }
+
+        // Simulate successful PDF loading
         return {
-          promise: Promise.reject(new Error('Invalid PDF structure')),
-        };
-      }
-      
-      // Simulate successful PDF loading
-      return {
-        promise: Promise.resolve({
-          numPages: 1,
-          getMetadata: jest.fn().mockResolvedValue({
-            info: {
-              Title: 'Test PDF',
-              Creator: 'Test Creator',
-              Author: 'Test Author',
-            },
-          }),
-          getPage: jest.fn().mockResolvedValue({
-            getTextContent: jest.fn().mockResolvedValue({
-              items: [
-                { str: 'Mocked', hasEOL: false },
-                { str: 'PDF', hasEOL: false },
-                { str: 'content', hasEOL: false },
-                { str: 'from', hasEOL: false },
-                { str: 'buffer', hasEOL: false },
-              ],
+          promise: Promise.resolve({
+            numPages: 1,
+            getMetadata: jest.fn().mockResolvedValue({
+              info: {
+                Title: 'Test PDF',
+                Creator: 'Test Creator',
+                Author: 'Test Author',
+              },
+            }),
+            getPage: jest.fn().mockResolvedValue({
+              getTextContent: jest.fn().mockResolvedValue({
+                items: [
+                  { str: 'Mocked', hasEOL: false },
+                  { str: 'PDF', hasEOL: false },
+                  { str: 'content', hasEOL: false },
+                  { str: 'from', hasEOL: false },
+                  { str: 'buffer', hasEOL: false },
+                ],
+              }),
             }),
           }),
-        }),
-      };
-    }),
+        };
+      }),
   };
 });
 
@@ -57,7 +63,9 @@ describe('DocumentParserService', () => {
   describe('PDF Parsing', () => {
     it('should parse a simple PDF file', async () => {
       // Arrange
-      const pdfBuffer = await createMockPdfBuffer('Este es un PDF de prueba con contenido.');
+      const pdfBuffer = await createMockPdfBuffer(
+        'Este es un PDF de prueba con contenido.',
+      );
 
       // Act
       const result = await service.parse(pdfBuffer, SourceType.PDF);
@@ -105,7 +113,9 @@ describe('DocumentParserService', () => {
       const invalidBuffer = Buffer.from('Not a PDF file');
 
       // Act & Assert
-      await expect(service.parse(invalidBuffer, SourceType.PDF)).rejects.toThrow();
+      await expect(
+        service.parse(invalidBuffer, SourceType.PDF),
+      ).rejects.toThrow();
     });
 
     it('should throw error for empty PDF buffer', async () => {
@@ -120,7 +130,9 @@ describe('DocumentParserService', () => {
 
     it('should normalize whitespace in PDF content', async () => {
       // Arrange
-      const pdfBuffer = await createMockPdfBuffer('Text   with    multiple     spaces');
+      const pdfBuffer = await createMockPdfBuffer(
+        'Text   with    multiple     spaces',
+      );
 
       // Act
       const result = await service.parse(pdfBuffer, SourceType.PDF);
@@ -217,9 +229,9 @@ function hello() {
       const emptyBuffer = Buffer.alloc(0);
 
       // Act & Assert
-      await expect(service.parse(emptyBuffer, SourceType.MARKDOWN)).rejects.toThrow(
-        'Buffer cannot be empty',
-      );
+      await expect(
+        service.parse(emptyBuffer, SourceType.MARKDOWN),
+      ).rejects.toThrow('Buffer cannot be empty');
     });
 
     it('should include metadata for Markdown', async () => {
@@ -270,17 +282,21 @@ function hello() {
       const undefinedBuffer = undefined as any;
 
       // Act & Assert
-      await expect(service.parse(undefinedBuffer, SourceType.PDF)).rejects.toThrow(
-        'Buffer cannot be null or undefined',
-      );
+      await expect(
+        service.parse(undefinedBuffer, SourceType.PDF),
+      ).rejects.toThrow('Buffer cannot be null or undefined');
     });
 
     it('should provide meaningful error message on parse failure', async () => {
       // Arrange
-      const corruptedBuffer = Buffer.from('corrupted data that looks like PDF but is not');
+      const corruptedBuffer = Buffer.from(
+        'corrupted data that looks like PDF but is not',
+      );
 
       // Act & Assert
-      await expect(service.parse(corruptedBuffer, SourceType.PDF)).rejects.toThrow();
+      await expect(
+        service.parse(corruptedBuffer, SourceType.PDF),
+      ).rejects.toThrow();
     });
   });
 
@@ -398,4 +414,3 @@ trailer
 
   return Buffer.from(pdfContent, 'utf-8');
 }
-

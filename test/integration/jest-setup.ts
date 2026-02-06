@@ -26,4 +26,3 @@ console.log(`   Database: ${process.env.TEST_DB_DATABASE}`);
 console.log(`   Host: ${process.env.TEST_DB_HOST}:${process.env.TEST_DB_PORT}`);
 console.log(`   User: ${process.env.TEST_DB_USERNAME}`);
 console.log('');
-

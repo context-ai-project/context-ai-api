@@ -98,5 +98,3 @@ This is a comprehensive test of the document ingestion pipeline.`;
 
   return createTestPdfBuffer(content);
 }
-
-

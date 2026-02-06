@@ -164,7 +164,9 @@ describe('IngestDocumentUseCase', () => {
         dto.sourceType,
       );
       expect(mockChunkingService.chunk).toHaveBeenCalledWith(parsedContent);
-      expect(mockEmbeddingService.generateDocumentEmbeddings).toHaveBeenCalled();
+      expect(
+        mockEmbeddingService.generateDocumentEmbeddings,
+      ).toHaveBeenCalled();
       expect(mockRepository.saveSource).toHaveBeenCalled();
       expect(mockRepository.saveFragments).toHaveBeenCalled();
     });
@@ -311,9 +313,9 @@ describe('IngestDocumentUseCase', () => {
       // Assert
       expect(result.fragmentCount).toBe(3);
       expect(result.status).toBe('COMPLETED');
-      expect(mockEmbeddingService.generateDocumentEmbeddings).toHaveBeenCalledWith(
-        mockChunks.map((c) => c.content),
-      );
+      expect(
+        mockEmbeddingService.generateDocumentEmbeddings,
+      ).toHaveBeenCalledWith(mockChunks.map((c) => c.content));
       expect(mockRepository.saveFragments).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({ position: 0 }),
@@ -365,7 +367,9 @@ describe('IngestDocumentUseCase', () => {
       };
 
       // Act & Assert
-      await expect(useCase.execute(dto)).rejects.toThrow('Buffer cannot be empty');
+      await expect(useCase.execute(dto)).rejects.toThrow(
+        'Buffer cannot be empty',
+      );
     });
   });
 
@@ -572,4 +576,3 @@ describe('IngestDocumentUseCase', () => {
     });
   });
 });
-

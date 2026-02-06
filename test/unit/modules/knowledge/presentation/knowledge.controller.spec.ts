@@ -138,10 +138,16 @@ describe('KnowledgeController', () => {
 
       // Act & Assert
       await expect(
-        controller.uploadDocument(undefined as unknown as Express.Multer.File, dto),
+        controller.uploadDocument(
+          undefined as unknown as Express.Multer.File,
+          dto,
+        ),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        controller.uploadDocument(undefined as unknown as Express.Multer.File, dto),
+        controller.uploadDocument(
+          undefined as unknown as Express.Multer.File,
+          dto,
+        ),
       ).rejects.toThrow('File is required');
     });
 
@@ -379,4 +385,3 @@ describe('KnowledgeController', () => {
     });
   });
 });
-

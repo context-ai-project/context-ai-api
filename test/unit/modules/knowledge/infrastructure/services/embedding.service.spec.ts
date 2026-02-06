@@ -28,10 +28,10 @@ describe('EmbeddingService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockEmbedFn.mockClear();
-    
+
     // Set default API key for tests
     process.env.GOOGLE_GENAI_API_KEY = 'test-api-key';
-    
+
     service = new EmbeddingService();
   });
 
@@ -87,7 +87,9 @@ describe('EmbeddingService', () => {
       // Arrange, Act & Assert
       expect(() => {
         new EmbeddingService({ dimensions: 999 });
-      }).toThrow('Invalid dimensions. text-embedding-005 supports: 256, 512, 768, 1536');
+      }).toThrow(
+        'Invalid dimensions. text-embedding-005 supports: 256, 512, 768, 1536',
+      );
     });
 
     it('should accept valid dimensions: 256', () => {
@@ -200,7 +202,9 @@ describe('EmbeddingService', () => {
     it('should handle API errors gracefully', async () => {
       // Arrange
       const text = 'Test text';
-      mockEmbedFn.mockRejectedValue(new Error('API Error: Rate limit exceeded'));
+      mockEmbedFn.mockRejectedValue(
+        new Error('API Error: Rate limit exceeded'),
+      );
 
       // Act & Assert
       await expect(service.generateEmbedding(text)).rejects.toThrow(
@@ -277,7 +281,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const texts = ['Text 1', 'Text 2', 'Text 3'];
       const mockEmbedding = Array(768).fill(0.1);
-      
+
       // First call succeeds, second fails, third succeeds
       mockEmbedFn
         .mockResolvedValueOnce([{ embedding: mockEmbedding }])

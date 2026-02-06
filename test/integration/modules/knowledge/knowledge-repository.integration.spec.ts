@@ -83,7 +83,8 @@ describe('KnowledgeRepository Integration Tests', () => {
         title: 'Integration Test Document',
         sectorId: createTestUuid('sector-'),
         sourceType: SourceType.PDF,
-        content: 'This is test content for integration testing with a real database.',
+        content:
+          'This is test content for integration testing with a real database.',
         metadata: { test: true },
       });
 
@@ -288,14 +289,16 @@ describe('KnowledgeRepository Integration Tests', () => {
 
       const similarFragment = new Fragment({
         sourceId: savedSource.id!,
-        content: 'Similar fragment with sufficient character length for testing.',
+        content:
+          'Similar fragment with sufficient character length for testing.',
         embedding: queryEmbedding.map((v) => v + Math.random() * 0.1), // Very similar
         position: 0,
       });
 
       const differentFragment = new Fragment({
         sourceId: savedSource.id!,
-        content: 'Different fragment with sufficient character length for testing.',
+        content:
+          'Different fragment with sufficient character length for testing.',
         embedding: Array(768).fill(0.9), // Very different
         position: 1,
       });
@@ -329,15 +332,17 @@ describe('KnowledgeRepository Integration Tests', () => {
       });
       const savedSource = await repository.saveSource(source);
 
-      const fragments = Array.from({ length: 5 }, (_, i) =>
-        new Fragment({
-          sourceId: savedSource.id!,
-          content: `Fragment ${i} with sufficient character length for testing purposes.`,
-          embedding: Array(768)
-            .fill(0)
-            .map(() => Math.random()),
-          position: i,
-        }),
+      const fragments = Array.from(
+        { length: 5 },
+        (_, i) =>
+          new Fragment({
+            sourceId: savedSource.id!,
+            content: `Fragment ${i} with sufficient character length for testing purposes.`,
+            embedding: Array(768)
+              .fill(0)
+              .map(() => Math.random()),
+            position: i,
+          }),
       );
       await repository.saveFragments(fragments);
 
@@ -371,7 +376,8 @@ describe('KnowledgeRepository Integration Tests', () => {
 
       const fragment = new Fragment({
         sourceId: savedSource.id!,
-        content: 'Fragment for similarity threshold test with sufficient length.',
+        content:
+          'Fragment for similarity threshold test with sufficient length.',
         embedding: queryEmbedding, // Identical (similarity = 1.0)
         position: 0,
       });
@@ -436,5 +442,3 @@ describe('KnowledgeRepository Integration Tests', () => {
     });
   });
 });
-
-

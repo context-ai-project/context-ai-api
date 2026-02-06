@@ -58,7 +58,8 @@ export async function cleanupDatabase(dataSource: DataSource): Promise<void> {
     // Re-enable foreign key checks
     await dataSource.query('SET session_replication_role = DEFAULT;');
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to cleanup database: ${errorMessage}`);
   }
 }
@@ -98,7 +99,8 @@ export async function waitForDatabase(
     } catch (error: unknown) {
       retries++;
       if (retries >= maxRetries) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         throw new Error(
           `Database not ready after ${maxRetries} retries: ${errorMessage}`,
         );
@@ -124,7 +126,7 @@ export function createTestUuid(prefix = ''): string {
     const hex = Math.abs(hash).toString(16).padEnd(32, '0').substring(0, 32);
     return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(13, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}`;
   }
-  
+
   // Generate a proper UUID v4
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -144,5 +146,3 @@ export function createTestDate(daysAgo = 0): Date {
   date.setDate(date.getDate() - daysAgo);
   return date;
 }
-
-

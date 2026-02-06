@@ -291,7 +291,11 @@ describe('Document Ingestion E2E Tests', () => {
 
       // Act - Perform vector search
       const queryEmbedding = Array(768).fill(0.1);
-      const searchResults = await repository.vectorSearch(queryEmbedding, 5, 0.0);
+      const searchResults = await repository.vectorSearch(
+        queryEmbedding,
+        5,
+        0.0,
+      );
 
       // Assert
       expect(searchResults.length).toBeGreaterThan(0);
@@ -360,5 +364,3 @@ describe('Document Ingestion E2E Tests', () => {
     });
   });
 });
-
-
