@@ -249,9 +249,9 @@ export class DocumentParserService {
       .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
       .replace(/&lt;/g, '<') // Decode HTML entities
       .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&'); // Decode &amp; last to prevent double-unescaping
   }
 
   /**
