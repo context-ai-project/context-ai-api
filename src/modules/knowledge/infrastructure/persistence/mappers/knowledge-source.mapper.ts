@@ -3,7 +3,7 @@ import {
   SourceMetadata,
 } from '@modules/knowledge/domain/entities/knowledge-source.entity';
 import { KnowledgeSourceModel } from '@modules/knowledge/infrastructure/persistence/models/knowledge-source.model';
-import { SourceStatus } from '@context-ai/shared';
+import { SourceStatus, SourceType } from '@context-ai/shared';
 
 /**
  * Knowledge Source Mapper
@@ -24,21 +24,34 @@ export class KnowledgeSourceMapper {
    * @returns Domain entity
    */
   static toDomain(model: KnowledgeSourceModel): KnowledgeSource {
+    const sourceType: SourceType = model.sourceType;
+    const metadata: SourceMetadata | undefined = model.metadata
+      ? (model.metadata as SourceMetadata)
+      : undefined;
+
     const source = new KnowledgeSource({
       title: model.title,
       sectorId: model.sectorId,
-      sourceType: model.sourceType,
+      sourceType,
       content: model.content,
-      metadata: model.metadata as SourceMetadata | undefined,
+      metadata,
     });
 
     // Set persisted fields using direct assignment with type assertions
     // These fields are readonly in the entity but can be set during hydration
-    (source as { id?: string }).id = model.id;
-    (source as { status: string }).status = model.status;
-    (source as { createdAt: Date }).createdAt = model.createdAt;
-    (source as { updatedAt: Date }).updatedAt = model.updatedAt;
-    (source as { deletedAt?: Date }).deletedAt = model.deletedAt ?? undefined;
+    const mutableSource = source as {
+      id?: string;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+      deletedAt?: Date;
+    };
+
+    mutableSource.id = model.id;
+    mutableSource.status = model.status as string;
+    mutableSource.createdAt = model.createdAt;
+    mutableSource.updatedAt = model.updatedAt;
+    mutableSource.deletedAt = model.deletedAt ?? undefined;
 
     return source;
   }

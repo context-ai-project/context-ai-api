@@ -56,7 +56,7 @@ export class DocumentParserService {
   async parse(buffer: Buffer, sourceType: SourceType): Promise<ParsedDocument> {
     this.validateBuffer(buffer);
 
-    const sourceTypeStr = sourceType as string;
+    const sourceTypeStr = String(sourceType);
     const PDF = 'PDF';
     const MARKDOWN = 'MARKDOWN';
 
@@ -65,7 +65,7 @@ export class DocumentParserService {
     } else if (sourceTypeStr === MARKDOWN) {
       return this.parseMarkdown(buffer);
     } else {
-      throw new Error(`Unsupported source type: ${sourceType}`);
+      throw new Error(`Unsupported source type: ${sourceTypeStr}`);
     }
   }
 
@@ -129,16 +129,18 @@ export class DocumentParserService {
 
       const content = this.normalizeContent(textParts.join('\n\n'));
 
-      const PDF: string = SourceType.PDF;
+      const pdfType: SourceType = 'PDF' as SourceType;
+      const parsedMetadata: ParsedDocument['metadata'] = {
+        sourceType: pdfType,
+        parsedAt: new Date().toISOString(),
+        originalSize: buffer.length,
+        pages: numPages,
+        info: pdfInfo,
+      };
+
       return {
         content,
-        metadata: {
-          sourceType: PDF as SourceType,
-          parsedAt: new Date().toISOString(),
-          originalSize: buffer.length,
-          pages: numPages,
-          info: pdfInfo,
-        },
+        metadata: parsedMetadata,
       };
     } catch (error) {
       throw new Error(
@@ -161,14 +163,16 @@ export class DocumentParserService {
 
       const content = this.normalizeContent(plainText);
 
-      const MARKDOWN: string = SourceType.MARKDOWN;
+      const markdownType: SourceType = 'MARKDOWN' as SourceType;
+      const parsedMetadata: ParsedDocument['metadata'] = {
+        sourceType: markdownType,
+        parsedAt: new Date().toISOString(),
+        originalSize: buffer.length,
+      };
+
       return Promise.resolve({
         content,
-        metadata: {
-          sourceType: MARKDOWN as SourceType,
-          parsedAt: new Date().toISOString(),
-          originalSize: buffer.length,
-        },
+        metadata: parsedMetadata,
       });
     } catch (error) {
       return Promise.reject(

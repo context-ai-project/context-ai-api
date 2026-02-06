@@ -78,8 +78,8 @@ class UploadDocumentDto {
 
   @ApiProperty({
     description: 'Source type',
-    enum: SourceType,
-    example: 'PDF' as SourceType,
+    enum: ['PDF', 'MARKDOWN', 'URL'],
+    example: 'PDF',
   })
   sourceType!: SourceType;
 
@@ -218,7 +218,7 @@ export class KnowledgeController {
         },
         sourceType: {
           type: 'string',
-          enum: Object.values(SourceType) as string[],
+          enum: ['PDF', 'MARKDOWN', 'URL'],
           description: 'Type of document',
           example: 'PDF',
         },
@@ -272,10 +272,11 @@ export class KnowledgeController {
     }
 
     // Validate MIME type
-    const fileMimeType: string = uploadedFile.mimetype;
-    if (!ALLOWED_MIME_TYPES.includes(fileMimeType)) {
+    const fileMimeType = String(uploadedFile.mimetype);
+    const allowedTypes: string[] = ALLOWED_MIME_TYPES;
+    if (!allowedTypes.includes(fileMimeType)) {
       throw new BadRequestException(
-        `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
+        `Invalid file type. Allowed types: ${allowedTypes.join(', ')}`,
       );
     }
 
@@ -285,10 +286,11 @@ export class KnowledgeController {
     try {
       // Build IngestDocumentDto
       const fileBuffer: Buffer = uploadedFile.buffer;
+      const sourceType: SourceType = dto.sourceType;
       const ingestDto: IngestDocumentDto = {
         title: dto.title.trim(),
         sectorId: dto.sectorId.trim(),
-        sourceType: dto.sourceType,
+        sourceType,
         buffer: fileBuffer,
         metadata: dto.metadata,
       };
@@ -350,11 +352,9 @@ export class KnowledgeController {
     }
 
     // Validate sourceType
-    const validSourceTypes: string[] = Object.values(SourceType);
-    if (
-      !dto.sourceType ||
-      !validSourceTypes.includes(dto.sourceType as string)
-    ) {
+    const validSourceTypes = ['PDF', 'MARKDOWN', 'URL'];
+    const sourceTypeStr = String(dto.sourceType);
+    if (!dto.sourceType || !validSourceTypes.includes(sourceTypeStr)) {
       throw new BadRequestException(
         `SourceType must be one of: ${validSourceTypes.join(', ')}`,
       );

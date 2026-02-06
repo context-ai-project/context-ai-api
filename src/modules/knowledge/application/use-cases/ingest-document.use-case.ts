@@ -118,9 +118,9 @@ export class IngestDocumentUseCase {
         (chunk: TextChunk, index: number) => {
           const content: string = chunk.content;
           const position: number = chunk.position;
-          // Safe: index from map() is guaranteed to be valid array index
+          // Safe: index from map() is guaranteed to be valid array index within embeddings array
           // eslint-disable-next-line security/detect-object-injection
-          const embedding: number[] = embeddings[index];
+          const embeddingAtIndex: number[] = embeddings[index];
           const metadata: FragmentMetadata = {
             startIndex: chunk.startIndex,
             endIndex: chunk.endIndex,
@@ -131,7 +131,7 @@ export class IngestDocumentUseCase {
             sourceId: savedSource.id!,
             content,
             position,
-            embedding,
+            embedding: embeddingAtIndex,
             metadata,
           });
         },
