@@ -1,39 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { SourceType } from '@shared/types';
-import * as pdfjsLib from 'pdfjs-dist';
-import type { TextItem } from 'pdfjs-dist/types/src/display/api';
+import pdf from 'pdf-parse';
+
+// Type definition for pdf-parse result (based on @types/pdf-parse)
+interface PdfParseResult {
+  text: string;
+  numpages: number;
+  info: Record<string, unknown>;
+}
 
 // Constants for buffer validation and parsing
 const PDF_SIGNATURE_LENGTH = 4;
 const PDF_SIGNATURE = '%PDF';
-
-/**
- * PDF metadata information
- * Contains standard PDF document properties
- */
-interface PdfInfo {
-  Title?: string;
-  Author?: string;
-  Subject?: string;
-  Keywords?: string;
-  Creator?: string;
-  Producer?: string;
-  CreationDate?: string;
-  ModDate?: string;
-  [key: string]: string | undefined;
-}
-
-/**
- * Type guard to check if an item is a TextItem
- */
-function isTextItem(item: unknown): item is TextItem {
-  return (
-    typeof item === 'object' &&
-    item !== null &&
-    'str' in item &&
-    typeof (item as TextItem).str === 'string'
-  );
-}
 
 /**
  * Document Parser Service
@@ -76,65 +54,45 @@ export class DocumentParserService {
    */
   private async parsePdf(buffer: Buffer): Promise<ParsedDocument> {
     try {
-      // Load the PDF document using pdfjs-dist
-      const loadingTask = pdfjsLib.getDocument({
-        data: new Uint8Array(buffer),
-        useSystemFonts: true,
-        verbosity: 0, // Suppress console logs
-      });
+      // Parse PDF using pdf-parse (official Genkit pattern)
+      // Pattern: const data = await pdf(dataBuffer);
+      const data = (await pdf(buffer)) as PdfParseResult;
 
-      const pdfDocument = await loadingTask.promise;
-      const numPages = pdfDocument.numPages;
-      const textParts: string[] = [];
+      // Normalize the extracted text
+      const content = this.normalizeContent(data.text);
 
-      // Extract metadata from PDF info
-      const metadata = await pdfDocument.getMetadata();
-      const pdfInfo: PdfInfo = {};
+      // Extract metadata
+      const pdfInfo: Record<string, string> = {};
+      const info: Record<string, unknown> = data.info;
 
-      if (metadata.info) {
-        // Map common metadata fields
-        const infoKeys = [
-          'Title',
-          'Author',
-          'Subject',
-          'Keywords',
-          'Creator',
-          'Producer',
-          'CreationDate',
-          'ModDate',
-        ] as const;
+      const metadataKeys = [
+        'Title',
+        'Author',
+        'Subject',
+        'Keywords',
+        'Creator',
+        'Producer',
+        'CreationDate',
+        'ModDate',
+      ];
 
-        for (const key of infoKeys) {
-          const value = metadata.info[key as keyof typeof metadata.info];
-          if (typeof value === 'string') {
-            // eslint-disable-next-line security/detect-object-injection -- Safe: key is from const array of known PDF metadata keys, type-checked before assignment
-            pdfInfo[key] = value;
-          }
+      for (const key of metadataKeys) {
+        // eslint-disable-next-line security/detect-object-injection -- Safe: key is from predefined array of known PDF metadata keys
+        const value: unknown = info[key];
+        if (typeof value === 'string') {
+          // eslint-disable-next-line security/detect-object-injection -- Safe: key is from predefined array of known PDF metadata keys
+          pdfInfo[key] = value;
         }
       }
 
-      // Extract text from each page
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        const page = await pdfDocument.getPage(pageNum);
-        const textContent = await page.getTextContent();
-
-        // Concatenate text items from the page
-        const pageText = textContent.items
-          .filter(isTextItem)
-          .map((item) => item.str)
-          .join(' ');
-
-        textParts.push(pageText);
-      }
-
-      const content = this.normalizeContent(textParts.join('\n\n'));
-
       const pdfType: SourceType = 'PDF' as SourceType;
+      const pages: number = data.numpages;
+
       const parsedMetadata: ParsedDocument['metadata'] = {
         sourceType: pdfType,
         parsedAt: new Date().toISOString(),
         originalSize: buffer.length,
-        pages: numPages,
+        pages,
         info: pdfInfo,
       };
 
@@ -290,6 +248,6 @@ export interface ParsedDocument {
     parsedAt: string;
     originalSize: number;
     pages?: number;
-    info?: PdfInfo;
+    info?: Record<string, string>;
   };
 }

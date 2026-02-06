@@ -3,53 +3,35 @@ import { SourceType } from '@shared/types';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Mock pdfjs-dist
-jest.mock('pdfjs-dist', () => {
-  return {
-    getDocument: jest
-      .fn()
-      .mockImplementation((options: { data: Uint8Array }) => {
-        // Check if buffer looks like a PDF
-        const buffer = Buffer.from(options.data);
-        const bufferString = buffer.toString(
-          'utf-8',
-          0,
-          Math.min(buffer.length, 50),
-        );
+// Mock pdf-parse
+jest.mock('pdf-parse', () => {
+  return jest.fn().mockImplementation((buffer: Buffer) => {
+    // Check if buffer looks like a PDF
+    const bufferString = buffer.toString(
+      'utf-8',
+      0,
+      Math.min(buffer.length, 50),
+    );
 
-        // If it doesn't start with %PDF, reject
-        if (!bufferString.startsWith('%PDF')) {
-          return {
-            promise: Promise.reject(new Error('Invalid PDF structure')),
-          };
-        }
+    // If it doesn't start with %PDF, reject
+    if (!bufferString.startsWith('%PDF')) {
+      return Promise.reject(new Error('Invalid PDF structure'));
+    }
 
-        // Simulate successful PDF loading
-        return {
-          promise: Promise.resolve({
-            numPages: 1,
-            getMetadata: jest.fn().mockResolvedValue({
-              info: {
-                Title: 'Test PDF',
-                Creator: 'Test Creator',
-                Author: 'Test Author',
-              },
-            }),
-            getPage: jest.fn().mockResolvedValue({
-              getTextContent: jest.fn().mockResolvedValue({
-                items: [
-                  { str: 'Mocked', hasEOL: false },
-                  { str: 'PDF', hasEOL: false },
-                  { str: 'content', hasEOL: false },
-                  { str: 'from', hasEOL: false },
-                  { str: 'buffer', hasEOL: false },
-                ],
-              }),
-            }),
-          }),
-        };
-      }),
-  };
+    // Simulate successful PDF parsing
+    return Promise.resolve({
+      text: 'Mocked PDF content from buffer',
+      numpages: 1,
+      numrender: 1,
+      info: {
+        Title: 'Test PDF',
+        Creator: 'Test Creator',
+        Author: 'Test Author',
+      },
+      metadata: null,
+      version: '1.10.100',
+    });
+  });
 });
 
 describe('DocumentParserService', () => {

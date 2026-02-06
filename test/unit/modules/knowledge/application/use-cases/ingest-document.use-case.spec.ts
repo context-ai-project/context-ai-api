@@ -1,7 +1,5 @@
-// Mock pdfjs-dist before any imports that use it
-jest.mock('pdfjs-dist', () => ({
-  getDocument: jest.fn(),
-}));
+// Mock pdf-parse before any imports that use it
+jest.mock('pdf-parse', () => jest.fn());
 
 // Mock genkit before any imports
 jest.mock('genkit', () => ({
