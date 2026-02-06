@@ -3,7 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
-import { SourceType, SourceStatus } from '@context-ai/shared';
+import { SourceType, SourceStatus } from '@shared/types';
 import { KnowledgeRepository } from '../../src/modules/knowledge/infrastructure/persistence/repositories/knowledge.repository';
 import { EmbeddingService } from '../../src/modules/knowledge/infrastructure/services/embedding.service';
 import { readFileSync } from 'fs';

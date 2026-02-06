@@ -16,7 +16,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { KnowledgeController } from '../../../../../src/modules/knowledge/presentation/knowledge.controller';
 import { IngestDocumentUseCase } from '../../../../../src/modules/knowledge/application/use-cases/ingest-document.use-case';
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 import type { IngestDocumentResult } from '../../../../../src/modules/knowledge/application/dtos/ingest-document.dto';
 
 describe('KnowledgeController', () => {

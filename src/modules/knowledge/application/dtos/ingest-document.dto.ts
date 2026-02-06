@@ -1,4 +1,4 @@
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 
 /**
  * DTO for document ingestion request

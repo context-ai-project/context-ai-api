@@ -1,4 +1,4 @@
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 
 /**
  * Type-safe metadata value

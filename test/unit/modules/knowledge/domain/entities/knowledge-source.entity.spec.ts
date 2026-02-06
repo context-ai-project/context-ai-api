@@ -1,5 +1,5 @@
 import { KnowledgeSource } from '../../../../../../src/modules/knowledge/domain/entities/knowledge-source.entity';
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 
 describe('KnowledgeSource Entity', () => {
   describe('Creation', () => {

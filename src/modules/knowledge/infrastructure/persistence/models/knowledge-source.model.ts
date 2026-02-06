@@ -7,7 +7,7 @@ import {
   DeleteDateColumn,
   Index,
 } from 'typeorm';
-import { SourceType, SourceStatus } from '@context-ai/shared';
+import { SourceType, SourceStatus } from '@shared/types';
 
 /**
  * TypeORM Model for KnowledgeSource

@@ -4,7 +4,7 @@ import { FragmentModel } from '../../../../src/modules/knowledge/infrastructure/
 import { KnowledgeRepository } from '../../../../src/modules/knowledge/infrastructure/persistence/repositories/knowledge.repository';
 import { KnowledgeSource } from '../../../../src/modules/knowledge/domain/entities/knowledge-source.entity';
 import { Fragment } from '../../../../src/modules/knowledge/domain/entities/fragment.entity';
-import { SourceType, SourceStatus } from '@context-ai/shared';
+import { SourceType, SourceStatus } from '@shared/types';
 import {
   createTestingModule,
   cleanupDatabase,

@@ -1,5 +1,5 @@
 import { DocumentParserService } from '../../../../../../src/modules/knowledge/infrastructure/services/document-parser.service';
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 import * as fs from 'fs';
 import * as path from 'path';
 

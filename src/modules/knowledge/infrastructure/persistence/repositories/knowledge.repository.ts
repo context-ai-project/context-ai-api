@@ -11,7 +11,7 @@ import { KnowledgeSourceModel } from '../models/knowledge-source.model';
 import { FragmentModel } from '../models/fragment.model';
 import { KnowledgeSourceMapper } from '../mappers/knowledge-source.mapper';
 import { FragmentMapper } from '../mappers/fragment.mapper';
-import { SourceStatus } from '@context-ai/shared';
+import { SourceStatus } from '@shared/types';
 
 // Constants for vector search (OWASP: Magic Numbers)
 const DEFAULT_VECTOR_SEARCH_LIMIT = 5;

@@ -3,7 +3,7 @@ import {
   SourceMetadata,
 } from '@modules/knowledge/domain/entities/knowledge-source.entity';
 import { KnowledgeSourceModel } from '@modules/knowledge/infrastructure/persistence/models/knowledge-source.model';
-import { SourceStatus, SourceType } from '@context-ai/shared';
+import { SourceStatus, SourceType } from '@shared/types';
 
 /**
  * Knowledge Source Mapper

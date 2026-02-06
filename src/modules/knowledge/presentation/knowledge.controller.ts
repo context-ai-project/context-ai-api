@@ -23,7 +23,7 @@ import type {
   IngestDocumentDto,
   IngestDocumentResult,
 } from '../application/dtos/ingest-document.dto';
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 
 /**
  * Uploaded file interface

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SourceType } from '@context-ai/shared';
+import { SourceType } from '@shared/types';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 

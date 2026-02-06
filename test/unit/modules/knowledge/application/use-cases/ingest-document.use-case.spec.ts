@@ -19,7 +19,7 @@ import { ChunkingService } from '../../../../../../src/modules/knowledge/infrast
 import { EmbeddingService } from '../../../../../../src/modules/knowledge/infrastructure/services/embedding.service';
 import { KnowledgeSource } from '../../../../../../src/modules/knowledge/domain/entities/knowledge-source.entity';
 import { Fragment } from '../../../../../../src/modules/knowledge/domain/entities/fragment.entity';
-import { SourceType, SourceStatus } from '@context-ai/shared';
+import { SourceType, SourceStatus } from '@shared/types';
 import type {
   IngestDocumentDto,
   IngestDocumentResult,
