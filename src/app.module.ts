@@ -9,6 +9,19 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
 
+// Feature Modules
+import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+
+/**
+ * Application Root Module
+ *
+ * Orchestrates the application by importing and configuring:
+ * - ConfigModule: Global configuration management
+ * - TypeOrmModule: Database connection and entity management
+ * - Feature modules: Domain-specific modules (to be added)
+ *
+ * This module follows the modular monolith architecture pattern
+ */
 @Module({
   imports: [
     // Configuration Module
@@ -27,11 +40,11 @@ import authConfig from './config/auth.config';
       inject: [ConfigService],
     }),
 
-    // Feature Modules (to be added)
-    // AuthModule,
-    // AuthorizationModule,
-    // KnowledgeModule,
-    // InteractionModule,
+    // Feature Modules
+    KnowledgeModule,
+    // AuthModule (to be added in Phase 6),
+    // AuthorizationModule (to be added in Phase 6),
+    // InteractionModule (to be added in Phase 4),
   ],
   controllers: [AppController],
   providers: [AppService],

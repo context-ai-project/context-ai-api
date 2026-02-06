@@ -5,16 +5,35 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { setupSwagger } from './swagger';
 
+// Default configuration values
+const DEFAULT_PORT = 3001;
+const DEFAULT_API_PREFIX = 'api/v1';
+const DEFAULT_ALLOWED_ORIGINS = ['http://localhost:3000'];
+
+/**
+ * Bootstrap function
+ *
+ * Initializes and configures the NestJS application with:
+ * - Global API prefix
+ * - Security headers (Helmet)
+ * - CORS configuration
+ * - Global validation pipes
+ * - Swagger documentation
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Get configuration
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('app.port', 3001);
-  const apiPrefix = configService.get<string>('app.apiPrefix', 'api/v1');
-  const allowedOrigins = configService.get<string[]>('app.allowedOrigins', [
-    'http://localhost:3000',
-  ]);
+  const port = configService.get<number>('app.port', DEFAULT_PORT);
+  const apiPrefix = configService.get<string>(
+    'app.apiPrefix',
+    DEFAULT_API_PREFIX,
+  );
+  const allowedOrigins = configService.get<string[]>(
+    'app.allowedOrigins',
+    DEFAULT_ALLOWED_ORIGINS,
+  );
 
   // Global prefix
   app.setGlobalPrefix(apiPrefix);

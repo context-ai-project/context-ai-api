@@ -18,6 +18,18 @@ Este proyecto sigue **Clean Architecture** con 4 capas:
 - **Domain**: Entidades, Value Objects y lógica de negocio
 - **Infrastructure**: Implementación de repositorios, servicios externos
 
+## 🌿 Branching Strategy
+
+Este proyecto sigue una estrategia de branching por fases del MVP:
+
+- `main` - Branch principal (protegido, requiere PR)
+- `feature/phase-3-knowledge-context` - 🚧 **En desarrollo**
+- `feature/phase-4-rag-interaction` - Próximo
+- `feature/phase-6-auth-authorization` - Próximo
+- `feature/phase-7-testing-validation` - Próximo
+
+Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para más detalles.
+
 ## 🚀 Tecnologías
 
 - **Framework**: NestJS 11
