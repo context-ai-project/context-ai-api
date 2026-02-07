@@ -49,8 +49,9 @@ export function genkit(): Genkit {
 export const GENKIT_CONFIG = {
   /**
    * Default LLM model for chat and RAG responses
+   * Using Gemini 2.5 Flash - latest stable model (Feb 2026)
    */
-  LLM_MODEL: 'googleai/gemini-1.5-pro' as const,
+  LLM_MODEL: 'googleai/gemini-2.5-flash' as const,
 
   /**
    * Default embedding model for vector generation
