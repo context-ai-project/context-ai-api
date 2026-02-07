@@ -38,9 +38,11 @@ export class Fragment {
   public createdAt: Date;
 
   // Supported embedding dimensions
-  private static readonly GEMINI_DIMENSION = 768; // Gemini text-embedding-004
+  private static readonly GEMINI_EMBEDDING_001_DIMENSION = 3072; // Gemini gemini-embedding-001
+  private static readonly GEMINI_DIMENSION = 768; // Gemini text-embedding-004 (legacy)
   private static readonly OPENAI_DIMENSION = 1536; // OpenAI text-embedding-3-small
   private static readonly VALID_DIMENSIONS = [
+    Fragment.GEMINI_EMBEDDING_001_DIMENSION,
     Fragment.GEMINI_DIMENSION,
     Fragment.OPENAI_DIMENSION,
   ];

@@ -28,7 +28,8 @@ This document describes all environment variables used by the Context.ai API.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `GOOGLE_GENAI_API_KEY` | Google Generative AI API key | - | **Yes** |
+| `GOOGLE_API_KEY` | Google AI API key for Genkit (Gemini 1.5 Pro + text-embedding-005) | - | **Yes** |
+| `GENKIT_ENV` | Genkit environment (dev, prod) | `dev` | No |
 
 ## JWT Configuration (Future Phases)
 
@@ -78,8 +79,9 @@ DB_DATABASE=context_ai_db
 DB_SYNCHRONIZE=false
 DB_LOGGING=true
 
-# Google AI
-GOOGLE_GENAI_API_KEY=your_api_key_here
+# Google AI (Genkit)
+GOOGLE_API_KEY=your_google_api_key_here
+GENKIT_ENV=dev
 
 # CORS
 CORS_ORIGIN=http://localhost:5173
@@ -93,7 +95,7 @@ CORS_ORIGIN=http://localhost:5173
    ```
 
 2. Update the values, especially:
-   - `GOOGLE_GENAI_API_KEY` - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - `GOOGLE_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 3. For local development with Docker:
    ```bash

@@ -1,28 +1,26 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { genkit, Genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
 // Constants for embedding configuration (OWASP: Magic Numbers)
-const DEFAULT_EMBEDDING_MODEL = 'googleai/text-embedding-005';
-const DEFAULT_EMBEDDING_DIMENSIONS = 768;
+const DEFAULT_EMBEDDING_MODEL = 'googleai/gemini-embedding-001';
+const DEFAULT_EMBEDDING_DIMENSIONS = 3072;
 const DEFAULT_BATCH_SIZE = 100;
-const MAX_TOKEN_LIMIT = 2048; // Gemini text-embedding-005 limit
+const MAX_TOKEN_LIMIT = 2048; // Gemini embedding model token limit
 const CHARS_PER_TOKEN_ESTIMATE = 4; // ~4 characters per token
 
-// Supported dimensions for text-embedding-005 (OWASP: Magic Numbers)
-const SUPPORTED_DIMENSIONS_256 = 256;
-const SUPPORTED_DIMENSIONS_512 = 512;
-const SUPPORTED_DIMENSIONS_768 = 768;
-const SUPPORTED_DIMENSIONS_1536 = 1536;
+// Supported dimensions for gemini-embedding-001 and compatible models (OWASP: Magic Numbers)
+const SUPPORTED_DIMENSIONS_768 = 768; // Legacy/alternative models
+const SUPPORTED_DIMENSIONS_1536 = 1536; // OpenAI compatible
+const SUPPORTED_DIMENSIONS_3072 = 3072; // gemini-embedding-001 (default)
 const SUPPORTED_DIMENSIONS = [
-  SUPPORTED_DIMENSIONS_256,
-  SUPPORTED_DIMENSIONS_512,
   SUPPORTED_DIMENSIONS_768,
   SUPPORTED_DIMENSIONS_1536,
+  SUPPORTED_DIMENSIONS_3072,
 ];
 
 /**
- * Task types for text-embedding-005
+ * Task types for Gemini embedding models
  * Optimizes embedding quality for specific use cases
  */
 export enum EmbeddingTaskType {
@@ -61,8 +59,8 @@ export enum EmbeddingTaskType {
  * Supports both single and batch text embedding generation.
  *
  * Features:
- * - Gemini text-embedding-005 (768 dimensions by default)
- * - Flexible output dimensionality (256, 512, 768, or 1536)
+ * - Gemini gemini-embedding-001 (3072 dimensions by default)
+ * - Flexible output dimensionality (768, 1536, or 3072)
  * - Task-specific optimization (RETRIEVAL_DOCUMENT, RETRIEVAL_QUERY, etc.)
  * - Batch processing with configurable batch size
  * - Automatic text truncation for token limits
@@ -78,10 +76,10 @@ export enum EmbeddingTaskType {
  * ```
  *
  * pgvector Integration:
- * - Ensure your pgvector column dimensions match the configured dimensions (768 by default)
+ * - Ensure your pgvector column dimensions match the configured dimensions (3072 by default)
  * - Use RETRIEVAL_DOCUMENT taskType for indexing documents
  * - Use RETRIEVAL_QUERY taskType for search queries
- * - Example: `CREATE TABLE embeddings (id SERIAL PRIMARY KEY, vector vector(768));`
+ * - Example: `CREATE TABLE embeddings (id SERIAL PRIMARY KEY, vector vector(3072));`
  *
  * Security:
  * - Input validation (OWASP)
@@ -95,12 +93,12 @@ export class EmbeddingService {
   private readonly config: EmbeddingConfig;
   private ai: Genkit | null = null;
 
-  constructor(config?: Partial<EmbeddingConfig>) {
+  constructor(@Optional() config?: Partial<EmbeddingConfig>) {
     this.config = {
       model: config?.model ?? DEFAULT_EMBEDDING_MODEL,
       dimensions: config?.dimensions ?? DEFAULT_EMBEDDING_DIMENSIONS,
       batchSize: config?.batchSize ?? DEFAULT_BATCH_SIZE,
-      apiKey: config?.apiKey ?? process.env.GOOGLE_GENAI_API_KEY,
+      apiKey: config?.apiKey ?? process.env.GOOGLE_API_KEY,
     };
 
     this.validateConfig();
@@ -118,10 +116,10 @@ export class EmbeddingService {
       throw new Error('Batch size must be a positive number');
     }
 
-    // Validate supported dimensions for text-embedding-005
+    // Validate supported dimensions for Gemini embedding models
     if (!SUPPORTED_DIMENSIONS.includes(this.config.dimensions)) {
       throw new Error(
-        `Invalid dimensions. text-embedding-005 supports: ${SUPPORTED_DIMENSIONS.join(', ')}`,
+        `Invalid dimensions. Supported dimensions: ${SUPPORTED_DIMENSIONS.join(', ')}`,
       );
     }
   }
@@ -133,9 +131,7 @@ export class EmbeddingService {
   private getAI(): Genkit {
     if (!this.ai) {
       if (!this.config.apiKey) {
-        throw new Error(
-          'GOOGLE_GENAI_API_KEY environment variable is required',
-        );
+        throw new Error('GOOGLE_API_KEY environment variable is required');
       }
 
       this.ai = genkit({
@@ -306,7 +302,7 @@ export class EmbeddingService {
 
   /**
    * Truncates text to fit within token limits
-   * Gemini text-embedding-005 supports up to ~2048 tokens
+   * Gemini embedding models support up to ~2048 tokens
    * @param text - The text to truncate
    * @returns Truncated text
    */
@@ -332,12 +328,12 @@ export class EmbeddingService {
  */
 export interface EmbeddingConfig {
   /**
-   * The embedding model to use (e.g., 'googleai/text-embedding-005')
+   * The embedding model to use (e.g., 'googleai/gemini-embedding-001')
    */
   model: string;
 
   /**
-   * The embedding dimension (256, 512, 768, or 1536 for text-embedding-005)
+   * The embedding dimension (768, 1536, or 3072 for gemini-embedding-001)
    */
   dimensions: number;
 

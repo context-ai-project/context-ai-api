@@ -51,14 +51,17 @@ import { KnowledgeRepository } from './infrastructure/persistence/repositories/k
     ChunkingService,
     EmbeddingService,
 
-    // Infrastructure Layer - Repository Implementation
-    KnowledgeRepository,
+    // Infrastructure Layer - Repository Implementation with interface token
+    {
+      provide: 'IKnowledgeRepository',
+      useClass: KnowledgeRepository,
+    },
   ],
   exports: [
     // Export use cases for other modules if needed
     IngestDocumentUseCase,
-    // Export repository
-    KnowledgeRepository,
+    // Export repository with interface token
+    'IKnowledgeRepository',
   ],
 })
 export class KnowledgeModule {}

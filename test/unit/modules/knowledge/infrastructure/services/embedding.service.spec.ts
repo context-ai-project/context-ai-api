@@ -30,14 +30,14 @@ describe('EmbeddingService', () => {
     mockEmbedFn.mockClear();
 
     // Set default API key for tests
-    process.env.GOOGLE_GENAI_API_KEY = 'test-api-key';
+    process.env.GOOGLE_API_KEY = 'test-api-key';
 
     service = new EmbeddingService();
   });
 
   afterEach(() => {
     // Clean up
-    delete process.env.GOOGLE_GENAI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
   });
 
   describe('Configuration', () => {
@@ -46,8 +46,8 @@ describe('EmbeddingService', () => {
       const config = service.getConfig();
 
       // Assert
-      expect(config.model).toBe('googleai/text-embedding-005');
-      expect(config.dimensions).toBe(768);
+      expect(config.model).toBe('googleai/gemini-embedding-001');
+      expect(config.dimensions).toBe(3072);
       expect(config.batchSize).toBe(100);
       expect(config).not.toHaveProperty('apiKey'); // Security: apiKey should not be exposed
     });
@@ -55,7 +55,7 @@ describe('EmbeddingService', () => {
     it('should accept custom configuration', () => {
       // Arrange
       const customService = new EmbeddingService({
-        model: 'googleai/text-embedding-005',
+        model: 'googleai/gemini-embedding-001',
         dimensions: 1536,
         batchSize: 50,
       });
@@ -64,7 +64,7 @@ describe('EmbeddingService', () => {
       const config = customService.getConfig();
 
       // Assert
-      expect(config.model).toBe('googleai/text-embedding-005');
+      expect(config.model).toBe('googleai/gemini-embedding-001');
       expect(config.dimensions).toBe(1536);
       expect(config.batchSize).toBe(50);
     });
@@ -83,29 +83,21 @@ describe('EmbeddingService', () => {
       }).toThrow('Batch size must be a positive number');
     });
 
-    it('should validate supported dimensions for text-embedding-005', () => {
+    it('should validate supported dimensions', () => {
       // Arrange, Act & Assert
       expect(() => {
         new EmbeddingService({ dimensions: 999 });
       }).toThrow(
-        'Invalid dimensions. text-embedding-005 supports: 256, 512, 768, 1536',
+        'Invalid dimensions. Supported dimensions: 768, 1536, 3072',
       );
     });
 
-    it('should accept valid dimensions: 256', () => {
+    it('should accept valid dimensions: 768', () => {
       // Arrange, Act
-      const customService = new EmbeddingService({ dimensions: 256 });
+      const customService = new EmbeddingService({ dimensions: 768 });
 
       // Assert
-      expect(customService.getEmbeddingDimension()).toBe(256);
-    });
-
-    it('should accept valid dimensions: 512', () => {
-      // Arrange, Act
-      const customService = new EmbeddingService({ dimensions: 512 });
-
-      // Assert
-      expect(customService.getEmbeddingDimension()).toBe(512);
+      expect(customService.getEmbeddingDimension()).toBe(768);
     });
 
     it('should accept valid dimensions: 1536', () => {
@@ -115,13 +107,21 @@ describe('EmbeddingService', () => {
       // Assert
       expect(customService.getEmbeddingDimension()).toBe(1536);
     });
+
+    it('should accept valid dimensions: 3072', () => {
+      // Arrange, Act
+      const customService = new EmbeddingService({ dimensions: 3072 });
+
+      // Assert
+      expect(customService.getEmbeddingDimension()).toBe(3072);
+    });
   });
 
   describe('Single Text Embedding', () => {
     it('should generate embedding for single text', async () => {
       // Arrange
       const text = 'This is a test sentence for embedding generation.';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       // Genkit returns an array with objects containing the embedding
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
@@ -130,13 +130,13 @@ describe('EmbeddingService', () => {
 
       // Assert
       expect(embedding).toEqual(mockEmbedding);
-      expect(embedding).toHaveLength(768);
+      expect(embedding).toHaveLength(3072);
       expect(mockEmbedFn).toHaveBeenCalledTimes(1);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: text,
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
         },
       });
     });
@@ -144,7 +144,7 @@ describe('EmbeddingService', () => {
     it('should initialize Genkit on first call', async () => {
       // Arrange
       const text = 'Test text';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -159,13 +159,13 @@ describe('EmbeddingService', () => {
 
     it('should throw error if API key is missing', async () => {
       // Arrange
-      delete process.env.GOOGLE_GENAI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
       const serviceWithoutKey = new EmbeddingService();
       const text = 'Test text';
 
       // Act & Assert
       await expect(serviceWithoutKey.generateEmbedding(text)).rejects.toThrow(
-        'GOOGLE_GENAI_API_KEY environment variable is required',
+        'GOOGLE_API_KEY environment variable is required',
       );
     });
 
@@ -215,7 +215,7 @@ describe('EmbeddingService', () => {
     it('should handle very long text (within limits)', async () => {
       // Arrange
       const longText = 'word '.repeat(1000); // 1000 words
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -235,7 +235,7 @@ describe('EmbeddingService', () => {
         'Second test sentence',
         'Third test sentence',
       ];
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -245,7 +245,7 @@ describe('EmbeddingService', () => {
       expect(embeddings).toHaveLength(3);
       expect(mockEmbedFn).toHaveBeenCalledTimes(3);
       embeddings.forEach((embedding) => {
-        expect(embedding).toHaveLength(768);
+        expect(embedding).toHaveLength(3072);
       });
     });
 
@@ -265,7 +265,7 @@ describe('EmbeddingService', () => {
       // Arrange
       const customService = new EmbeddingService({ batchSize: 2 });
       const texts = ['Text 1', 'Text 2', 'Text 3', 'Text 4', 'Text 5'];
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -280,7 +280,7 @@ describe('EmbeddingService', () => {
     it('should handle batch with some failures', async () => {
       // Arrange
       const texts = ['Text 1', 'Text 2', 'Text 3'];
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
 
       // First call succeeds, second fails, third succeeds
       mockEmbedFn
@@ -311,7 +311,7 @@ describe('EmbeddingService', () => {
       const dimension = service.getEmbeddingDimension();
 
       // Assert
-      expect(dimension).toBe(768);
+      expect(dimension).toBe(3072);
     });
 
     it('should match configured dimension', () => {
@@ -327,9 +327,9 @@ describe('EmbeddingService', () => {
 
     it('should use outputDimensionality option in API call', async () => {
       // Arrange
-      const customService = new EmbeddingService({ dimensions: 512 });
+      const customService = new EmbeddingService({ dimensions: 1536 });
       const text = 'Test text';
-      const mockEmbedding = Array(512).fill(0.1);
+      const mockEmbedding = Array(1536).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -337,10 +337,10 @@ describe('EmbeddingService', () => {
 
       // Assert
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: text,
         options: {
-          outputDimensionality: 512,
+          outputDimensionality: 1536,
         },
       });
     });
@@ -352,7 +352,7 @@ describe('EmbeddingService', () => {
       const texts = Array(100)
         .fill(null)
         .map((_, i) => `Test sentence ${i}`);
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
       const startTime = Date.now();
 
@@ -371,15 +371,15 @@ describe('EmbeddingService', () => {
     it('should produce embeddings compatible with Fragment entity', async () => {
       // Arrange
       const text = 'This is content for a Fragment entity.';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
       const embedding = await service.generateEmbedding(text);
 
       // Assert
-      // Fragment entity expects embeddings to be 768 or 1536 dimensions
-      expect([768, 1536]).toContain(embedding.length);
+      // Fragment entity expects embeddings to be 768, 1536, or 3072 dimensions
+      expect([768, 1536, 3072]).toContain(embedding.length);
       // All values should be numbers
       embedding.forEach((value) => {
         expect(typeof value).toBe('number');
@@ -420,9 +420,9 @@ describe('EmbeddingService', () => {
   describe('Text Truncation', () => {
     it('should handle text exceeding token limits', async () => {
       // Arrange
-      // Gemini text-embedding-005 has a limit of ~2048 tokens (~8000 characters)
+      // Gemini embedding models have a limit of ~2048 tokens (~8000 characters)
       const veryLongText = 'word '.repeat(10000); // Way over limit
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -431,7 +431,7 @@ describe('EmbeddingService', () => {
       // Assert
       // Service should truncate or handle long text
       expect(embedding).toBeDefined();
-      expect(embedding).toHaveLength(768);
+      expect(embedding).toHaveLength(3072);
     });
   });
 
@@ -439,7 +439,7 @@ describe('EmbeddingService', () => {
     it('should support RETRIEVAL_DOCUMENT task type', async () => {
       // Arrange
       const text = 'Document content to be indexed';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -451,10 +451,10 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: text,
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
           taskType: EmbeddingTaskType.RETRIEVAL_DOCUMENT,
         },
       });
@@ -463,7 +463,7 @@ describe('EmbeddingService', () => {
     it('should support RETRIEVAL_QUERY task type', async () => {
       // Arrange
       const text = 'User search query';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -475,10 +475,10 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: text,
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
           taskType: EmbeddingTaskType.RETRIEVAL_QUERY,
         },
       });
@@ -487,7 +487,7 @@ describe('EmbeddingService', () => {
     it('should not include taskType when not provided', async () => {
       // Arrange
       const text = 'General text';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -495,10 +495,10 @@ describe('EmbeddingService', () => {
 
       // Assert
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: text,
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
         },
       });
     });
@@ -508,7 +508,7 @@ describe('EmbeddingService', () => {
     it('should generate document embedding with RETRIEVAL_DOCUMENT taskType', async () => {
       // Arrange
       const docText = 'This is a document to be stored in pgvector';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -517,10 +517,10 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: docText,
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
           taskType: EmbeddingTaskType.RETRIEVAL_DOCUMENT,
         },
       });
@@ -529,7 +529,7 @@ describe('EmbeddingService', () => {
     it('should generate query embedding with RETRIEVAL_QUERY taskType', async () => {
       // Arrange
       const queryText = 'How do I update my database?';
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -538,10 +538,10 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: queryText,
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
           taskType: EmbeddingTaskType.RETRIEVAL_QUERY,
         },
       });
@@ -550,7 +550,7 @@ describe('EmbeddingService', () => {
     it('should generate multiple document embeddings', async () => {
       // Arrange
       const docs = ['Document 1', 'Document 2', 'Document 3'];
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
@@ -561,10 +561,10 @@ describe('EmbeddingService', () => {
       expect(mockEmbedFn).toHaveBeenCalledTimes(3);
       // Check first call has correct taskType
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/text-embedding-005',
+        embedder: 'googleai/gemini-embedding-001',
         content: 'Document 1',
         options: {
-          outputDimensionality: 768,
+          outputDimensionality: 3072,
           taskType: EmbeddingTaskType.RETRIEVAL_DOCUMENT,
         },
       });

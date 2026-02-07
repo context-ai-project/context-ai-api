@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { IKnowledgeRepository } from '@modules/knowledge/domain/repositories/knowledge.repository.interface';
 import { DocumentParserService } from '@modules/knowledge/infrastructure/services/document-parser.service';
 import {
@@ -51,6 +51,7 @@ export class IngestDocumentUseCase {
   private readonly logger = new Logger(IngestDocumentUseCase.name);
 
   constructor(
+    @Inject('IKnowledgeRepository')
     private readonly repository: IKnowledgeRepository,
     private readonly parserService: DocumentParserService,
     private readonly chunkingService: ChunkingService,

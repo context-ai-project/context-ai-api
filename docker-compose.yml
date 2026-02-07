@@ -10,7 +10,6 @@ services:
       POSTGRES_DB: context_ai_db
       POSTGRES_USER: context_ai_user
       POSTGRES_PASSWORD: context_ai_pass
-      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - '5433:5432'
     volumes:

@@ -9,6 +9,15 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import {
+  IsString,
+  IsUUID,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -67,6 +76,9 @@ class UploadDocumentDto {
     minLength: 1,
     maxLength: MAX_TITLE_LENGTH,
   })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(MAX_TITLE_LENGTH)
   title!: string;
 
   @ApiProperty({
@@ -74,6 +86,7 @@ class UploadDocumentDto {
     example: EXAMPLE_UUID,
     format: 'uuid',
   })
+  @IsUUID()
   sectorId!: string;
 
   @ApiProperty({
@@ -81,6 +94,7 @@ class UploadDocumentDto {
     enum: ['PDF', 'MARKDOWN', 'URL'],
     example: 'PDF',
   })
+  @IsEnum(['PDF', 'MARKDOWN', 'URL'])
   sourceType!: SourceType;
 
   @ApiProperty({
@@ -88,6 +102,8 @@ class UploadDocumentDto {
     required: false,
     example: { author: 'HR Department', version: '1.0' },
   })
+  @IsOptional()
+  @IsObject()
   metadata?: Record<string, unknown>;
 }
 

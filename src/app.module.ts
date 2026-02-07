@@ -11,6 +11,7 @@ import authConfig from './config/auth.config';
 
 // Feature Modules
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+import { InteractionModule } from './modules/interaction/interaction.module';
 
 /**
  * Application Root Module
@@ -42,9 +43,9 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 
     // Feature Modules
     KnowledgeModule,
+    InteractionModule,
     // AuthModule (to be added in Phase 6),
     // AuthorizationModule (to be added in Phase 6),
-    // InteractionModule (to be added in Phase 4),
   ],
   controllers: [AppController],
   providers: [AppService],
