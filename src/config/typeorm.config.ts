@@ -6,6 +6,8 @@ import {
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { KnowledgeSourceModel } from '../modules/knowledge/infrastructure/persistence/models/knowledge-source.model';
 import { FragmentModel } from '../modules/knowledge/infrastructure/persistence/models/fragment.model';
+import { ConversationModel } from '../modules/interaction/infrastructure/persistence/models/conversation.model';
+import { MessageModel } from '../modules/interaction/infrastructure/persistence/models/message.model';
 
 /**
  * TypeORM Configuration
@@ -46,7 +48,12 @@ export const createTypeOrmConfig = (
     database: configService.get<string>('DB_DATABASE', 'context_ai_db'),
 
     // Entity models
-    entities: [KnowledgeSourceModel, FragmentModel],
+    entities: [
+      KnowledgeSourceModel,
+      FragmentModel,
+      ConversationModel,
+      MessageModel,
+    ],
 
     // Migrations
     migrations: ['dist/migrations/*.js'],
