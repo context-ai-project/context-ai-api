@@ -5,7 +5,6 @@ import { ConversationRepository } from '@modules/interaction/infrastructure/pers
 import { ConversationModel } from '@modules/interaction/infrastructure/persistence/models/conversation.model';
 import { MessageModel } from '@modules/interaction/infrastructure/persistence/models/message.model';
 import { Conversation } from '@modules/interaction/domain/entities/conversation.entity';
-import { Message } from '@modules/interaction/domain/entities/message.entity';
 
 describe('ConversationRepository', () => {
   let repository: ConversationRepository;

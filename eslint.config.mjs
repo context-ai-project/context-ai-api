@@ -38,6 +38,11 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-call': 'error', // ✅ Added
       '@typescript-eslint/no-unsafe-member-access': 'error', // ✅ Added
       '@typescript-eslint/no-unsafe-return': 'error', // ✅ Added
+      '@typescript-eslint/no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }], // ✅ Detect unused variables, imports, functions
       
       // Code Style
       "prettier/prettier": ["error", { endOfLine: "auto" }],
