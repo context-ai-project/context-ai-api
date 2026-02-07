@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 // Constants for chunking configuration (OWASP: Magic Numbers)
 const DEFAULT_CHUNK_SIZE = 500;
@@ -26,7 +26,7 @@ const TOKENS_PER_WORD_ESTIMATE = 1.3; // Average: 1.3 tokens per word (accounts 
 export class ChunkingService {
   private readonly config: ChunkingConfig;
 
-  constructor(config?: Partial<ChunkingConfig>) {
+  constructor(@Optional() config?: Partial<ChunkingConfig>) {
     this.config = {
       chunkSize: config?.chunkSize ?? DEFAULT_CHUNK_SIZE,
       overlap: config?.overlap ?? DEFAULT_OVERLAP,
