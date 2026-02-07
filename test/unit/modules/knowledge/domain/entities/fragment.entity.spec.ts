@@ -176,7 +176,7 @@ describe('Fragment Entity', () => {
 
       // Act & Assert
       expect(() => new Fragment(invalidData)).toThrow(
-        'Embedding must be 768 or 1536 dimensions',
+        'Embedding must be 3072 or 768 or 1536 dimensions',
       );
     });
 
@@ -426,7 +426,7 @@ describe('Fragment Entity', () => {
 
       // Act & Assert
       expect(() => fragment.updateEmbedding(invalidNewEmbedding)).toThrow(
-        'Embedding must be 768 or 1536 dimensions',
+        'Embedding must be 3072 or 768 or 1536 dimensions',
       );
     });
   });

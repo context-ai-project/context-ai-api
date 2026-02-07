@@ -3,7 +3,7 @@
  *
  * This module configures Google Genkit with:
  * - Gemini 1.5 Pro for LLM operations
- * - text-embedding-005 for embeddings (768 dimensions)
+ * - gemini-embedding-001 for embeddings (3072 dimensions)
  *
  * Environment variables required:
  * - GOOGLE_API_KEY: API key for Google AI services
@@ -54,14 +54,14 @@ export const GENKIT_CONFIG = {
 
   /**
    * Default embedding model for vector generation
-   * Produces 768-dimensional vectors
+   * Produces 3072-dimensional vectors
    */
   EMBEDDING_MODEL: 'googleai/gemini-embedding-001' as const,
 
   /**
    * Embedding dimensions
    */
-  EMBEDDING_DIMENSIONS: 768,
+  EMBEDDING_DIMENSIONS: 3072,
 
   /**
    * Default generation parameters
