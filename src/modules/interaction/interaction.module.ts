@@ -51,12 +51,27 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
         conversationRepository: IConversationRepository,
         knowledgeRepository: IKnowledgeRepository,
       ) => {
-        // Create type-safe wrapper for vectorSearch
-        const vectorSearchFn = (
+        // Create type-safe wrapper for vectorSearch with proper mapping
+        const vectorSearchFn = async (
           embedding: number[],
           sectorId: string,
           limit: number,
-        ) => knowledgeRepository.vectorSearch(embedding, sectorId, limit);
+        ) => {
+          const fragments = await knowledgeRepository.vectorSearch(
+            embedding,
+            sectorId,
+            limit,
+          );
+
+          // Map to required format with guaranteed non-undefined fields
+          return fragments.map((fragment) => ({
+            id: fragment.id ?? '',
+            content: fragment.content,
+            similarity: fragment.similarity,
+            sourceId: fragment.sourceId,
+            metadata: fragment.metadata,
+          }));
+        };
 
         // Create RAG query flow service with dependency injection
         const ragQueryService = createRagQueryService(vectorSearchFn);
