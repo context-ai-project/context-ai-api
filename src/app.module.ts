@@ -12,6 +12,7 @@ import authConfig from './config/auth.config';
 // Feature Modules
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { InteractionModule } from './modules/interaction/interaction.module';
+import { UsersModule } from './modules/users/users.module';
 
 /**
  * Application Root Module
@@ -44,8 +45,9 @@ import { InteractionModule } from './modules/interaction/interaction.module';
     // Feature Modules
     KnowledgeModule,
     InteractionModule,
-    // AuthModule (to be added in Phase 6),
-    // AuthorizationModule (to be added in Phase 6),
+    UsersModule, // User management and Auth0 sync
+    // AuthModule (JWT validation - to be added in Phase 6),
+    // AuthorizationModule (RBAC - to be added in Phase 6),
   ],
   controllers: [AppController],
   providers: [AppService],
