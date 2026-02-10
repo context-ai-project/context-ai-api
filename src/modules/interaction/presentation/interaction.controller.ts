@@ -11,6 +11,9 @@ import {
   Logger,
   NotFoundException,
   Inject,
+  ParseIntPipe,
+  DefaultValuePipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -229,15 +232,15 @@ export class InteractionController {
   })
   async getConversations(
     @Query('userId') userId: string,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-    @Query('includeInactive') includeInactive?: boolean,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe)
+    includeInactive: boolean,
   ): Promise<ConversationsListDto> {
-    const DEFAULT_LIMIT = 10;
-    const DEFAULT_OFFSET = 0;
-    const effectiveLimit = limit ?? DEFAULT_LIMIT;
-    const effectiveOffset = offset ?? DEFAULT_OFFSET;
-    const effectiveIncludeInactive = includeInactive ?? false;
+    // Note: userId validation should be done against authenticated user in production
+    const effectiveLimit = limit;
+    const effectiveOffset = offset;
+    const effectiveIncludeInactive = includeInactive;
 
     this.logger.log(
       `Getting conversations for user ${userId} (limit: ${effectiveLimit}, offset: ${effectiveOffset})`,
@@ -358,7 +361,7 @@ export class InteractionController {
           role: msg.role,
           content: msg.content,
           timestamp: msg.createdAt,
-          metadata: undefined,
+          metadata: msg.metadata, // Map message metadata
         };
         messageDtos.push(dto);
       }
@@ -372,7 +375,7 @@ export class InteractionController {
         messages: messageDtos,
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
-        metadata: undefined,
+        // Removed metadata - Conversation entity doesn't have metadata
       };
 
       this.logger.log(

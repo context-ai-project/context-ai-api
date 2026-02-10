@@ -428,10 +428,6 @@ export class ConversationDetailDto {
   })
   updatedAt!: Date;
 
-  @ApiProperty({
-    description: DESC_OPTIONAL_METADATA,
-    example: { tags: ['vacation', 'policy'] },
-    required: false,
-  })
-  metadata?: Record<string, unknown>;
+  // Removed metadata property - Conversation entity doesn't have metadata
+  // Message entities have metadata, which is included in MessageDto
 }
