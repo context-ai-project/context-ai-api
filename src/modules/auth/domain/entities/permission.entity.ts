@@ -77,4 +77,3 @@ export class Permission {
     return this.name;
   }
 }
-

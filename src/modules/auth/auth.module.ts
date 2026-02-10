@@ -8,6 +8,9 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
 import { RoleModel } from './infrastructure/persistence/models/role.model';
 import { PermissionModel } from './infrastructure/persistence/models/permission.model';
+import { RoleRepository } from './infrastructure/persistence/repositories/role.repository';
+import { PermissionRepository } from './infrastructure/persistence/repositories/permission.repository';
+import { PermissionService } from './application/services/permission.service';
 
 /**
  * Auth Module
@@ -32,6 +35,7 @@ import { PermissionModel } from './infrastructure/persistence/models/permission.
  * - Issue 6.5: Current User Decorator ✅
  * - Issue 6.6: Sync User on First Login ✅
  * - Issue 6.8: Role & Permission Models ✅
+ * - Issue 6.11: Permission Service ✅
  * - Issue 6.10: RBAC Guard (pending)
  */
 @Module({
@@ -39,13 +43,21 @@ import { PermissionModel } from './infrastructure/persistence/models/permission.
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule, // For accessing Auth0 configuration
     TypeOrmModule.forFeature([RoleModel, PermissionModel]), // RBAC entities
-    UsersModule, // For user synchronization
+    UsersModule, // For user synchronization and repository
   ],
   providers: [
     AuthService,
     JwtStrategy, // JWT authentication strategy
     JwtAuthGuard, // JWT authentication guard
+    RoleRepository, // Role data access
+    PermissionRepository, // Permission data access
+    PermissionService, // RBAC logic
   ],
-  exports: [AuthService, PassportModule, JwtAuthGuard],
+  exports: [
+    AuthService,
+    PassportModule,
+    JwtAuthGuard,
+    PermissionService, // Export for use in other modules
+  ],
 })
 export class AuthModule {}
