@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from '../../../../src/modules/auth/auth.module';
 import { AuthService } from '../../../../src/modules/auth/auth.service';
 
@@ -8,9 +8,24 @@ describe('AuthModule', () => {
   let module: TestingModule;
 
   beforeEach(async () => {
+    // Mock ConfigService with Auth0 configuration
+    const mockConfigService = {
+      get: jest.fn((key: string) => {
+        const config: Record<string, string> = {
+          'auth.auth0.domain': 'test.auth0.com',
+          'auth.auth0.audience': 'https://api.contextai.com',
+          'auth.auth0.issuer': 'https://test.auth0.com/',
+        };
+        return config[key];
+      }),
+    };
+
     module = await Test.createTestingModule({
       imports: [AuthModule, ConfigModule.forRoot({ isGlobal: true })],
-    }).compile();
+    })
+      .overrideProvider(ConfigService)
+      .useValue(mockConfigService)
+      .compile();
   });
 
   it('should be defined', () => {
@@ -29,24 +44,14 @@ describe('AuthModule', () => {
   });
 
   it('should export AuthService', async () => {
-    // Create a test module that imports AuthModule
-    const testModule = await Test.createTestingModule({
-      imports: [AuthModule, ConfigModule.forRoot({ isGlobal: true })],
-    }).compile();
-
     // AuthService should be accessible from imported module
-    const authService = testModule.get<AuthService>(AuthService);
+    const authService = module.get<AuthService>(AuthService);
     expect(authService).toBeDefined();
   });
 
   it('should export PassportModule', async () => {
-    // Create a test module that imports AuthModule
-    const testModule = await Test.createTestingModule({
-      imports: [AuthModule, ConfigModule.forRoot({ isGlobal: true })],
-    }).compile();
-
     // PassportModule should be accessible from imported module
-    expect(testModule.get(PassportModule)).toBeDefined();
+    expect(module.get(PassportModule)).toBeDefined();
   });
 });
 
