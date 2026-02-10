@@ -296,7 +296,8 @@ describe('InteractionController', () => {
       conversationRepository.findByUserId.mockResolvedValue(mockConversations);
       conversationRepository.countByUserId.mockResolvedValue(2);
 
-      const result = await controller.getConversations(userId);
+      // Pass default values explicitly since pipes handle defaults in runtime
+      const result = await controller.getConversations(userId, 10, 0, false);
 
       expect(result.conversations).toHaveLength(2);
       expect(result.total).toBe(2);
@@ -315,7 +316,8 @@ describe('InteractionController', () => {
       conversationRepository.findByUserId.mockResolvedValue([mockConversations[0]]);
       conversationRepository.countByUserId.mockResolvedValue(15);
 
-      const result = await controller.getConversations(userId, 5, 5);
+      // Pass includeInactive explicitly since pipes handle defaults in runtime
+      const result = await controller.getConversations(userId, 5, 5, false);
 
       expect(result.conversations).toHaveLength(1);
       expect(result.total).toBe(15);
@@ -431,7 +433,7 @@ describe('InteractionController', () => {
         ],
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
-        metadata: undefined,
+        // metadata property removed from ConversationDetailDto
       });
 
       expect(conversationRepository.findById).toHaveBeenCalledWith(conversationId);
