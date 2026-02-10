@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RBACGuard } from './guards/rbac.guard';
 import { UsersModule } from '../users/users.module';
 import { RoleModel } from './infrastructure/persistence/models/role.model';
 import { PermissionModel } from './infrastructure/persistence/models/permission.model';
@@ -35,8 +36,9 @@ import { PermissionService } from './application/services/permission.service';
  * - Issue 6.5: Current User Decorator ✅
  * - Issue 6.6: Sync User on First Login ✅
  * - Issue 6.8: Role & Permission Models ✅
+ * - Issue 6.9: Permission Decorators ✅
  * - Issue 6.11: Permission Service ✅
- * - Issue 6.10: RBAC Guard (pending)
+ * - Issue 6.10: RBAC Guard ✅
  */
 @Module({
   imports: [
@@ -49,6 +51,7 @@ import { PermissionService } from './application/services/permission.service';
     AuthService,
     JwtStrategy, // JWT authentication strategy
     JwtAuthGuard, // JWT authentication guard
+    RBACGuard, // RBAC authorization guard
     RoleRepository, // Role data access
     PermissionRepository, // Permission data access
     PermissionService, // RBAC logic
@@ -57,6 +60,7 @@ import { PermissionService } from './application/services/permission.service';
     AuthService,
     PassportModule,
     JwtAuthGuard,
+    RBACGuard, // Export for use in controllers
     PermissionService, // Export for use in other modules
   ],
 })
