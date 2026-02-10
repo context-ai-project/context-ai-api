@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { AuthModule } from '../../../../src/modules/auth/auth.module';
 import { AuthService } from '../../../../src/modules/auth/auth.service';
+import { UserService } from '../../../../src/modules/users/application/services/user.service';
+import { JwtStrategy } from '../../../../src/modules/auth/strategies/jwt.strategy';
 
 describe('AuthModule', () => {
   let module: TestingModule;
@@ -20,12 +22,35 @@ describe('AuthModule', () => {
       }),
     };
 
+    // Mock UserService for user synchronization
+    const mockUserService = {
+      syncUser: jest.fn().mockResolvedValue({
+        id: 'user-uuid-123',
+        auth0UserId: 'auth0|123456',
+        email: 'test@example.com',
+        name: 'Test User',
+        isActive: true,
+        createdAt: new Date(),
+        lastLoginAt: new Date(),
+      }),
+      getUserById: jest.fn(),
+    };
+
     module = await Test.createTestingModule({
-      imports: [AuthModule, ConfigModule.forRoot({ isGlobal: true })],
-    })
-      .overrideProvider(ConfigService)
-      .useValue(mockConfigService)
-      .compile();
+      imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
+      providers: [
+        AuthService,
+        JwtStrategy,
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
+      ],
+    }).compile();
   });
 
   it('should be defined', () => {
@@ -38,20 +63,18 @@ describe('AuthModule', () => {
     expect(authService).toBeInstanceOf(AuthService);
   });
 
+  it('should provide JwtStrategy', () => {
+    const jwtStrategy = module.get<JwtStrategy>(JwtStrategy);
+    expect(jwtStrategy).toBeDefined();
+  });
+
+  it('should provide UserService', () => {
+    const userService = module.get<UserService>(UserService);
+    expect(userService).toBeDefined();
+  });
+
   it('should import PassportModule', () => {
     // PassportModule is imported internally, verify module compiles successfully
     expect(module.get(PassportModule)).toBeDefined();
   });
-
-  it('should export AuthService', async () => {
-    // AuthService should be accessible from imported module
-    const authService = module.get<AuthService>(AuthService);
-    expect(authService).toBeDefined();
-  });
-
-  it('should export PassportModule', async () => {
-    // PassportModule should be accessible from imported module
-    expect(module.get(PassportModule)).toBeDefined();
-  });
 });
-

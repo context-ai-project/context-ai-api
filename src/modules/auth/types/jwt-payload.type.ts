@@ -117,7 +117,7 @@ export interface ValidatedUser {
 
   /**
    * Internal user ID (UUID from our database)
-   * Will be populated after user sync
+   * Populated after user sync with our database
    */
-  userId?: string;
+  userId: string;
 }

@@ -64,6 +64,7 @@ describe('JwtAuthGuard', () => {
 
     it('should return user when validation succeeds', () => {
       const mockUser = {
+        userId: 'user-uuid-123',
         auth0Id: 'auth0|123',
         email: 'test@example.com',
         permissions: ['read:data'],

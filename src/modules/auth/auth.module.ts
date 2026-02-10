@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UsersModule } from '../users/users.module';
 
 /**
  * Auth Module
@@ -25,13 +26,15 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
  * - Issue 6.2: Module structure ✅
  * - Issue 6.3: JWT Strategy ✅
  * - Issue 6.4: Auth Guard ✅
- * - Issue 6.5: Current User Decorator (pending)
+ * - Issue 6.5: Current User Decorator ✅
+ * - Issue 6.6: Sync User on First Login (in progress)
  * - Issue 6.10: RBAC Guard (pending)
  */
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule, // For accessing Auth0 configuration
+    UsersModule, // For user synchronization
   ],
   providers: [
     AuthService,

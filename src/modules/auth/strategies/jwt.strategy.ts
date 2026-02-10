@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import {
   Strategy,
@@ -8,6 +8,7 @@ import {
 import { passportJwtSecret } from 'jwks-rsa';
 import { AuthService } from '../auth.service';
 import { JwtPayload, ValidatedUser } from '../types/jwt-payload.type';
+import { UserService } from '../../users/application/services/user.service';
 
 /**
  * JWT Strategy
@@ -32,7 +33,12 @@ import { JwtPayload, ValidatedUser } from '../types/jwt-payload.type';
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly authService: AuthService) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {
     const auth0Audience = authService.getAuth0Audience();
     const auth0Issuer = authService.getAuth0Issuer();
 
@@ -61,13 +67,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Validate JWT Payload
    *
    * Called after JWT signature is validated.
-   * Extracts user information from token payload.
+   * Extracts user information from token payload and syncs with database.
    *
    * @param payload - Decoded JWT payload
-   * @returns Validated user information
+   * @returns Validated user information with internal user ID
    * @throws UnauthorizedException if payload is invalid
    */
-  validate(payload: JwtPayload): ValidatedUser {
+  async validate(payload: JwtPayload): Promise<ValidatedUser> {
     // Validate required fields
     if (!payload.sub) {
       throw new UnauthorizedException(
@@ -75,11 +81,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
     }
 
+    if (!payload.email) {
+      throw new UnauthorizedException('Invalid token: missing email claim');
+    }
+
+    this.logger.log(`Validating JWT for user: ${payload.sub}`);
+
+    // Sync user with our database (create or update + update last login)
+    const user = await this.userService.syncUser({
+      auth0UserId: payload.sub,
+      email: payload.email,
+      name: payload.name || payload.email.split('@')[0], // Fallback to email username
+    });
+
+    this.logger.log(`User synced successfully: ${user.id}`);
+
     // Extract permissions (if RBAC is enabled in Auth0)
     const permissions = this.extractPermissions(payload);
 
-    // Build validated user object
+    // Build validated user object with internal user ID
     const validatedUser: ValidatedUser = {
+      userId: user.id, // Internal database user ID
       auth0Id: payload.sub,
       email: payload.email,
       name: payload.name,
