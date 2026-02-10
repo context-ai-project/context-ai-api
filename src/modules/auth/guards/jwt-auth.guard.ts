@@ -12,7 +12,7 @@ import { Observable } from 'rxjs';
  */
 interface PassportError extends Error {
   message: string;
-  name?: string;
+  name: string;
 }
 
 /**
