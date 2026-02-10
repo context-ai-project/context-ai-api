@@ -2,6 +2,7 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
@@ -45,6 +46,8 @@ interface PassportInfo {
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   /**
    * Determines if the request can activate the route.
    * Overrides the default canActivate to add custom error handling.
@@ -82,16 +85,23 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       const request = context.switchToHttp().getRequest<{
         method: string;
         url: string;
+        ip?: string;
       }>();
       const { method, url } = request;
 
-      // Log unauthorized access attempt (can be expanded to audit service)
-      const infoMessage = info?.message || undefined;
-      const errorMessage = err?.message || undefined;
-      console.warn(
-        `[JwtAuthGuard] Unauthorized access attempt: ${method} ${url}`,
-        { info: infoMessage, error: errorMessage },
-      );
+      // Extract path without query parameters (may contain sensitive data)
+      const path = url.split('?')[0];
+
+      // Log unauthorized access attempt with structured logging
+      // Do NOT log: tokens, passwords, full URLs with query params
+      this.logger.warn('Authentication failed', {
+        method,
+        path, // Only path, no query params
+        ip: request.ip, // For rate limiting/security monitoring
+        reason: info?.name || 'unknown',
+        errorType: err?.name || info?.message || 'unauthorized',
+        timestamp: new Date().toISOString(),
+      });
 
       // Provide detailed error messages based on the failure reason
       if (info?.name === 'TokenExpiredError') {
@@ -110,7 +120,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
       // Generic unauthorized error
       throw new UnauthorizedException(
-        errorMessage || infoMessage || 'Unauthorized access',
+        err?.message || info?.message || 'Unauthorized access',
       );
     }
 

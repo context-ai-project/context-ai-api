@@ -85,7 +85,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token: missing email claim');
     }
 
-    this.logger.log(`Validating JWT for user: ${payload.sub}`);
+    // Log authentication attempt (structured logging, no sensitive data)
+    const provider = payload.sub.split('|')[0]; // Extract provider (auth0, google, github)
+    this.logger.log('JWT validation initiated', {
+      provider,
+      hasEmail: !!payload.email,
+      hasName: !!payload.name,
+      timestamp: new Date().toISOString(),
+    });
 
     // Sync user with our database (create or update + update last login)
     const user = await this.userService.syncUser({
@@ -94,7 +101,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       name: payload.name || payload.email.split('@')[0], // Fallback to email username
     });
 
-    this.logger.log(`User synced successfully: ${user.id}`);
+    // Log successful sync (mask sensitive data)
+    this.logger.log('User authenticated and synced', {
+      userId: `${user.id.substring(0, 8)}...`, // Partial UUID for privacy
+      provider,
+      action: 'login',
+      timestamp: new Date().toISOString(),
+    });
 
     // Extract permissions (if RBAC is enabled in Auth0)
     const permissions = this.extractPermissions(payload);

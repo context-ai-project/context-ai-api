@@ -55,6 +55,7 @@ describe('JwtAuthGuard', () => {
           getRequest: jest.fn().mockReturnValue({
             method: 'GET',
             url: '/api/protected',
+            ip: '127.0.0.1',
           }),
         }),
         getHandler: jest.fn(),
@@ -139,8 +140,8 @@ describe('JwtAuthGuard', () => {
     });
 
     it('should log unauthorized access attempts', () => {
-      const consoleWarnSpy = jest
-        .spyOn(console, 'warn')
+      const loggerWarnSpy = jest
+        .spyOn((guard as any).logger, 'warn')
         .mockImplementation(() => {});
       const mockInfo = { message: 'Invalid token' };
 
@@ -150,14 +151,16 @@ describe('JwtAuthGuard', () => {
         // Expected to throw
       }
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        '[JwtAuthGuard] Unauthorized access attempt: GET /api/protected',
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        'Authentication failed',
         expect.objectContaining({
-          info: 'Invalid token',
+          method: 'GET',
+          path: '/api/protected',
+          errorType: 'Invalid token',
         }),
       );
 
-      consoleWarnSpy.mockRestore();
+      loggerWarnSpy.mockRestore();
     });
 
     it('should handle error with user being undefined', () => {
