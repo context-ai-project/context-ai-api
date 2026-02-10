@@ -13,18 +13,22 @@ export function setupSwagger(app: INestApplication, port: number): void {
       'API REST para sistema RAG (Retrieval Augmented Generation) con gestión de conocimiento y chat inteligente',
     )
     .setVersion('1.0')
+    .addTag('health', 'Health checks y estado del servicio')
     .addTag('auth', 'Autenticación y gestión de usuarios')
-    .addTag('knowledge', 'Gestión de fuentes de conocimiento y documentos')
-    .addTag('interaction', 'Chat y consultas RAG')
+    .addTag('Knowledge', 'Gestión de fuentes de conocimiento y documentos')
+    .addTag('Interaction', 'Chat y consultas RAG')
     .addTag('authorization', 'Gestión de roles y permisos')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Token JWT de Auth0',
+        name: 'Authorization',
+        description:
+          'JWT Authorization header using the Bearer scheme. Example: "Bearer {token}"',
+        in: 'header',
       },
-      'JWT-auth',
+      'bearer', // Default name used by @ApiBearerAuth()
     )
     .addServer(`http://localhost:${port}`, 'Desarrollo Local')
     .addServer('https://api.context-ai.com', 'Producción')

@@ -11,6 +11,7 @@ import {
   Logger,
   NotFoundException,
   Inject,
+  UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
   ParseBoolPipe,
@@ -24,6 +25,9 @@ import {
   ApiNotFoundResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { QueryAssistantUseCase } from '../application/use-cases/query-assistant.use-case';
 import type { IConversationRepository } from '../domain/repositories/conversation.repository.interface';
@@ -36,6 +40,9 @@ import {
   ConversationDetailDto,
   MessageDto,
 } from './dtos/query-assistant.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RBACGuard } from '../../auth/guards/rbac.guard';
+import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
 /**
  * Interaction Controller
@@ -48,6 +55,13 @@ import {
  * - GET /interaction/conversations/:id: Get conversation details
  * - DELETE /interaction/conversations/:id: Delete conversation
  *
+ * Authorization:
+ * - All endpoints require JWT authentication
+ * - Query endpoint requires 'chat:read' permission
+ * - List conversations requires 'chat:read' permission
+ * - Get conversation requires 'chat:read' permission
+ * - Delete conversation requires 'chat:read' permission (user can delete own conversations)
+ *
  * Features:
  * - Input validation (DTOs)
  * - Swagger documentation
@@ -55,6 +69,8 @@ import {
  * - Logging
  *
  * Security:
+ * - JWT authentication
+ * - Permission-based authorization
  * - Input validation prevents injection
  * - DTOs enforce type safety
  * - Business logic in use case layer
@@ -64,7 +80,16 @@ import {
 const ERROR_NOT_FOUND = 'Conversation not found';
 const ERROR_UNKNOWN = 'Unknown error';
 
+// Constants for API documentation
+const API_UNAUTHORIZED_DESC =
+  'Authentication required - Missing or invalid JWT token';
+const API_FORBIDDEN_DESC = 'Access denied - Requires chat:read permission';
+const API_REQUIRED_PERMISSION_CHAT_READ =
+  '\n\n**Required Permission:** chat:read';
+
 @ApiTags('Interaction')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RBACGuard)
 @Controller('interaction')
 export class InteractionController {
   private readonly logger = new Logger(InteractionController.name);
@@ -88,12 +113,14 @@ export class InteractionController {
    */
   @Post('query')
   @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['chat:read'])
   @ApiOperation({
     summary: 'Query the assistant',
     description:
       'Send a question to the RAG assistant and receive an answer based on the knowledge base. ' +
       'The assistant will search for relevant documentation and provide a contextualized response. ' +
-      'Optionally, continue an existing conversation by providing a conversationId.',
+      'Optionally, continue an existing conversation by providing a conversationId. ' +
+      API_REQUIRED_PERMISSION_CHAT_READ,
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -114,6 +141,12 @@ export class InteractionController {
         error: { type: 'string', example: 'Bad Request' },
       },
     },
+  })
+  @ApiUnauthorizedResponse({
+    description: API_UNAUTHORIZED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: API_FORBIDDEN_DESC,
   })
   @ApiInternalServerErrorResponse({
     description: 'Internal server error',
@@ -188,12 +221,14 @@ export class InteractionController {
    */
   @Get('conversations')
   @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['chat:read'])
   @ApiOperation({
     summary: 'Get conversations for a user',
     description:
       'Retrieve a paginated list of conversations for the specified user. ' +
       'Returns conversation metadata without full message history. ' +
-      'Use the conversation ID to fetch full conversation details.',
+      'Use the conversation ID to fetch full conversation details. ' +
+      API_REQUIRED_PERMISSION_CHAT_READ,
   })
   @ApiQuery({
     name: 'userId',
@@ -229,6 +264,12 @@ export class InteractionController {
   })
   @ApiBadRequestResponse({
     description: 'Invalid query parameters',
+  })
+  @ApiUnauthorizedResponse({
+    description: API_UNAUTHORIZED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: API_FORBIDDEN_DESC,
   })
   async getConversations(
     @Query('userId') userId: string,
@@ -315,11 +356,13 @@ export class InteractionController {
    */
   @Get('conversations/:id')
   @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['chat:read'])
   @ApiOperation({
     summary: 'Get conversation by ID',
     description:
       'Retrieve a specific conversation with all messages. ' +
-      'The conversation must belong to the requesting user.',
+      'The conversation must belong to the requesting user. ' +
+      API_REQUIRED_PERMISSION_CHAT_READ,
   })
   @ApiParam({
     name: 'id',
@@ -339,6 +382,12 @@ export class InteractionController {
   })
   @ApiNotFoundResponse({
     description: 'Conversation not found or unauthorized',
+  })
+  @ApiUnauthorizedResponse({
+    description: API_UNAUTHORIZED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: API_FORBIDDEN_DESC,
   })
   async getConversationById(
     @Param('id') id: string,
@@ -409,11 +458,13 @@ export class InteractionController {
    */
   @Delete('conversations/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(['chat:read'])
   @ApiOperation({
     summary: 'Delete conversation',
     description:
       'Soft delete a conversation. The conversation must belong to the requesting user. ' +
-      'This operation is irreversible.',
+      'This operation is irreversible. ' +
+      API_REQUIRED_PERMISSION_CHAT_READ,
   })
   @ApiParam({
     name: 'id',
@@ -432,6 +483,12 @@ export class InteractionController {
   })
   @ApiNotFoundResponse({
     description: 'Conversation not found or unauthorized',
+  })
+  @ApiUnauthorizedResponse({
+    description: API_UNAUTHORIZED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: API_FORBIDDEN_DESC,
   })
   async deleteConversation(
     @Param('id') id: string,

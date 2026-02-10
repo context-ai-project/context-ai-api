@@ -1,11 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { InteractionController } from '@modules/interaction/presentation/interaction.controller';
 import { QueryAssistantUseCase } from '@modules/interaction/application/use-cases/query-assistant.use-case';
 import { QueryAssistantDto } from '@modules/interaction/presentation/dtos/query-assistant.dto';
 import type { IConversationRepository } from '@modules/interaction/domain/repositories/conversation.repository.interface';
 import { Conversation } from '@modules/interaction/domain/entities/conversation.entity';
 import { Message } from '@modules/interaction/domain/entities/message.entity';
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { RBACGuard } from '@modules/auth/guards/rbac.guard';
+import { PermissionService } from '@modules/auth/application/services/permission.service';
 
 describe('InteractionController', () => {
   let controller: InteractionController;
@@ -41,6 +45,38 @@ describe('InteractionController', () => {
         {
           provide: 'IConversationRepository',
           useValue: mockConversationRepository,
+        },
+        {
+          provide: Reflector,
+          useValue: {
+            getAllAndOverride: jest.fn(),
+          },
+        },
+        {
+          provide: PermissionService,
+          useValue: {
+            getUserRoles: jest.fn().mockResolvedValue(['user']),
+            getUserPermissions: jest.fn().mockResolvedValue(['chat:read']),
+            hasPermission: jest.fn().mockResolvedValue(true),
+            hasAnyPermission: jest.fn().mockResolvedValue(true),
+            hasAllPermissions: jest.fn().mockResolvedValue(true),
+            hasRole: jest.fn().mockResolvedValue(true),
+            isAdmin: jest.fn().mockResolvedValue(false),
+            isManager: jest.fn().mockResolvedValue(false),
+            isUser: jest.fn().mockResolvedValue(true),
+          },
+        },
+        {
+          provide: JwtAuthGuard,
+          useValue: {
+            canActivate: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: RBACGuard,
+          useValue: {
+            canActivate: jest.fn().mockReturnValue(true),
+          },
         },
       ],
     }).compile();

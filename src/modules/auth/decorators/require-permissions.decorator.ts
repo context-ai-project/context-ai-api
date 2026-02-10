@@ -58,20 +58,20 @@ export interface RequirePermissionsOptions {
 export const RequirePermissions = (
   permissions: string[],
   options?: RequirePermissionsOptions,
-) => {
+): MethodDecorator => {
   const mode = options?.mode ?? PermissionMatchMode.ALL;
 
-  // Use a function to apply both metadata decorators
+  // Compose both metadata decorators
+  const permissionsDecorator = SetMetadata(PERMISSIONS_KEY, permissions);
+  const modeDecorator = SetMetadata(PERMISSION_MATCH_MODE_KEY, mode);
+
+  // Return a method decorator that applies both metadata
   return (
     target: object,
-    propertyKey?: string | symbol,
-    descriptor?: TypedPropertyDescriptor<unknown>,
+    propertyKey: string | symbol,
+    descriptor: PropertyDescriptor,
   ) => {
-    SetMetadata(PERMISSIONS_KEY, permissions)(target, propertyKey, descriptor);
-    SetMetadata(PERMISSION_MATCH_MODE_KEY, mode)(
-      target,
-      propertyKey,
-      descriptor,
-    );
+    permissionsDecorator(target, propertyKey, descriptor);
+    modeDecorator(target, propertyKey, descriptor);
   };
 };
