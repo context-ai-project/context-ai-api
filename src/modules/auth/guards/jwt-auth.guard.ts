@@ -4,8 +4,10 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
  * PassportError
@@ -31,6 +33,12 @@ interface PassportInfo {
  * Guards routes by validating JWT tokens using the JwtStrategy.
  * Extends Passport's AuthGuard to leverage the 'jwt' strategy.
  *
+ * Features:
+ * - Validates JWT tokens from Authorization header
+ * - Respects @Public() decorator (skips authentication)
+ * - Provides detailed error messages for different failure scenarios
+ * - Logs authentication failures for security audit
+ *
  * Usage:
  * @UseGuards(JwtAuthGuard)
  * @Controller('protected')
@@ -41,16 +49,25 @@ interface PassportInfo {
  * @Get('profile')
  * getProfile(@Req() req) { return req.user; }
  *
+ * Public routes (skip authentication):
+ * @Public()
+ * @Get('health')
+ * getHealth() { return { status: 'ok' }; }
+ *
  * After successful validation, req.user contains the ValidatedUser object
- * with auth0Id, email, and permissions.
+ * with auth0Id, email, permissions, and userId.
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
+  constructor(private readonly reflector: Reflector) {
+    super();
+  }
+
   /**
    * Determines if the request can activate the route.
-   * Overrides the default canActivate to add custom error handling.
+   * Overrides the default canActivate to check for @Public() decorator.
    *
    * @param context - Execution context
    * @returns Promise or Observable indicating if activation is allowed
@@ -58,6 +75,17 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
+    // Check if route is marked as public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      // Skip authentication for public routes
+      return true;
+    }
+
     // Call parent class's canActivate (which uses JwtStrategy)
     return super.canActivate(context);
   }

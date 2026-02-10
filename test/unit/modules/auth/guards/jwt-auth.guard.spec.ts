@@ -1,16 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from '../../../../../src/modules/auth/guards/jwt-auth.guard';
+import { IS_PUBLIC_KEY } from '../../../../../src/modules/auth/decorators/public.decorator';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
+  let reflector: Reflector;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtAuthGuard],
+      providers: [JwtAuthGuard, Reflector],
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
+    reflector = module.get<Reflector>(Reflector);
   });
 
   it('should be defined', () => {
@@ -18,7 +22,31 @@ describe('JwtAuthGuard', () => {
   });
 
   describe('canActivate', () => {
-    it('should call super.canActivate', async () => {
+    it('should return true for public routes without calling parent', async () => {
+      // Mock ExecutionContext
+      const mockContext = {
+        switchToHttp: jest.fn().mockReturnValue({
+          getRequest: jest.fn().mockReturnValue({
+            headers: {},
+          }),
+        }),
+        getHandler: jest.fn(),
+        getClass: jest.fn(),
+      } as unknown as ExecutionContext;
+
+      // Mock reflector to return true for IS_PUBLIC_KEY
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
+
+      const result = guard.canActivate(mockContext);
+
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [
+        mockContext.getHandler(),
+        mockContext.getClass(),
+      ]);
+      expect(result).toBe(true);
+    });
+
+    it('should call super.canActivate for protected routes', async () => {
       // Mock ExecutionContext
       const mockContext = {
         switchToHttp: jest.fn().mockReturnValue({
@@ -31,6 +59,43 @@ describe('JwtAuthGuard', () => {
         getHandler: jest.fn(),
         getClass: jest.fn(),
       } as unknown as ExecutionContext;
+
+      // Mock reflector to return false (not public)
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+
+      // Mock parent's canActivate to return true
+      const superSpy = jest
+        .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
+        .mockReturnValue(true);
+
+      const result = guard.canActivate(mockContext);
+
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [
+        mockContext.getHandler(),
+        mockContext.getClass(),
+      ]);
+      expect(superSpy).toHaveBeenCalledWith(mockContext);
+      expect(result).toBe(true);
+
+      superSpy.mockRestore();
+    });
+
+    it('should call super.canActivate when IS_PUBLIC_KEY is undefined', async () => {
+      // Mock ExecutionContext
+      const mockContext = {
+        switchToHttp: jest.fn().mockReturnValue({
+          getRequest: jest.fn().mockReturnValue({
+            headers: {
+              authorization: 'Bearer valid-token',
+            },
+          }),
+        }),
+        getHandler: jest.fn(),
+        getClass: jest.fn(),
+      } as unknown as ExecutionContext;
+
+      // Mock reflector to return undefined (no metadata)
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
       // Mock parent's canActivate to return true
       const superSpy = jest
