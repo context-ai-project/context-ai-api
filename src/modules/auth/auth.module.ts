@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
+import { RoleModel } from './infrastructure/persistence/models/role.model';
+import { PermissionModel } from './infrastructure/persistence/models/permission.model';
 
 /**
  * Auth Module
@@ -27,13 +30,15 @@ import { UsersModule } from '../users/users.module';
  * - Issue 6.3: JWT Strategy ✅
  * - Issue 6.4: Auth Guard ✅
  * - Issue 6.5: Current User Decorator ✅
- * - Issue 6.6: Sync User on First Login (in progress)
+ * - Issue 6.6: Sync User on First Login ✅
+ * - Issue 6.8: Role & Permission Models ✅
  * - Issue 6.10: RBAC Guard (pending)
  */
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule, // For accessing Auth0 configuration
+    TypeOrmModule.forFeature([RoleModel, PermissionModel]), // RBAC entities
     UsersModule, // For user synchronization
   ],
   providers: [
