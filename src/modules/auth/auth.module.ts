@@ -3,6 +3,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 /**
  * Auth Module
@@ -22,8 +23,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
  *
  * Phase 6 Implementation:
  * - Issue 6.2: Module structure ✅
- * - Issue 6.3: JWT Strategy (pending)
- * - Issue 6.4: Auth Guard (pending)
+ * - Issue 6.3: JWT Strategy ✅
+ * - Issue 6.4: Auth Guard ✅
  * - Issue 6.5: Current User Decorator (pending)
  * - Issue 6.10: RBAC Guard (pending)
  */
@@ -35,7 +36,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   providers: [
     AuthService,
     JwtStrategy, // JWT authentication strategy
+    JwtAuthGuard, // JWT authentication guard
   ],
-  exports: [AuthService, PassportModule],
+  exports: [AuthService, PassportModule, JwtAuthGuard],
 })
 export class AuthModule {}
