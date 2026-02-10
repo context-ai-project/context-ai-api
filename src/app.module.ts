@@ -13,6 +13,7 @@ import authConfig from './config/auth.config';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { InteractionModule } from './modules/interaction/interaction.module';
 import { UsersModule } from './modules/users/users.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 /**
  * Application Root Module
@@ -46,7 +47,7 @@ import { UsersModule } from './modules/users/users.module';
     KnowledgeModule,
     InteractionModule,
     UsersModule, // User management and Auth0 sync
-    // AuthModule (JWT validation - to be added in Phase 6),
+    AuthModule, // JWT validation (Phase 6)
     // AuthorizationModule (RBAC - to be added in Phase 6),
   ],
   controllers: [AppController],
