@@ -11,7 +11,6 @@ import {
   Logger,
   NotFoundException,
   Inject,
-  UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
   ParseBoolPipe,
@@ -42,8 +41,6 @@ import {
   ConversationDetailDto,
   MessageDto,
 } from './dtos/query-assistant.dto';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RBACGuard } from '../../auth/guards/rbac.guard';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
 /**
@@ -91,7 +88,6 @@ const API_REQUIRED_PERMISSION_CHAT_READ =
 
 @ApiTags('Interaction')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RBACGuard)
 @Controller('interaction')
 export class InteractionController {
   private readonly logger = new Logger(InteractionController.name);

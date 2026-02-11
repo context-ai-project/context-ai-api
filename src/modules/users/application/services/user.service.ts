@@ -69,6 +69,17 @@ export class UserService {
   }
 
   /**
+   * Find user by Auth0 user ID (sub)
+   * Used by JWT Strategy when access token doesn't include email claim
+   */
+  async findByAuth0UserId(
+    auth0UserId: string,
+  ): Promise<UserResponseDto | null> {
+    const user = await this.userRepository.findByAuth0UserId(auth0UserId);
+    return user ? this.mapToDto(user) : null;
+  }
+
+  /**
    * Get user by ID
    */
   async getUserById(id: string): Promise<UserResponseDto | null> {

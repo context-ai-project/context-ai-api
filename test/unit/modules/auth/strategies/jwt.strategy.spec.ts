@@ -26,6 +26,7 @@ describe('JwtStrategy', () => {
       createdAt: new Date(),
       lastLoginAt: new Date(),
     }),
+    findByAuth0UserId: jest.fn().mockResolvedValue(null),
   };
 
   beforeEach(async () => {
@@ -176,9 +177,45 @@ describe('JwtStrategy', () => {
       );
     });
 
-    it('should throw UnauthorizedException when email is missing', async () => {
+    it('should resolve user from database when email is missing from token', async () => {
+      mockUserService.findByAuth0UserId.mockResolvedValueOnce({
+        id: 'db-user-uuid',
+        auth0UserId: 'auth0|no-email',
+        email: 'db-user@example.com',
+        name: 'DB User',
+        isActive: true,
+        createdAt: new Date(),
+        lastLoginAt: new Date(),
+      });
+
       const payload = {
         sub: 'auth0|no-email',
+        iss: 'https://test.auth0.com/',
+        aud: 'https://api.contextai.com',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      } as JwtPayload;
+
+      const result = await strategy.validate(payload);
+
+      expect(mockUserService.findByAuth0UserId).toHaveBeenCalledWith(
+        'auth0|no-email',
+      );
+      expect(result).toEqual({
+        userId: 'db-user-uuid',
+        auth0Id: 'auth0|no-email',
+        email: 'db-user@example.com',
+        name: 'DB User',
+        picture: undefined,
+        permissions: [],
+      });
+    });
+
+    it('should throw UnauthorizedException when email is missing and user not in database', async () => {
+      mockUserService.findByAuth0UserId.mockResolvedValueOnce(null);
+
+      const payload = {
+        sub: 'auth0|no-email-no-db',
         iss: 'https://test.auth0.com/',
         aud: 'https://api.contextai.com',
         exp: Math.floor(Date.now() / 1000) + 3600,
@@ -189,7 +226,7 @@ describe('JwtStrategy', () => {
         UnauthorizedException,
       );
       await expect(strategy.validate(payload)).rejects.toThrow(
-        'Invalid token: missing email claim',
+        'User not found. Please login again to sync your profile.',
       );
     });
 

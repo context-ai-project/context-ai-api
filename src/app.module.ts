@@ -33,6 +33,10 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 
+// Auth Guards (registered globally via APP_GUARD)
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { RBACGuard } from './modules/auth/guards/rbac.guard';
+
 /**
  * Application Root Module
  *
@@ -94,6 +98,18 @@ import { AuditModule } from './modules/audit/audit.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Global JWT Authentication Guard (Phase 6)
+    // Uses the existing instance from AuthModule (which has TokenRevocationService)
+    {
+      provide: APP_GUARD,
+      useExisting: JwtAuthGuard,
+    },
+    // Global RBAC Authorization Guard (Phase 6)
+    // Uses the existing instance from AuthModule (which has PermissionService)
+    {
+      provide: APP_GUARD,
+      useExisting: RBACGuard,
     },
   ],
 })

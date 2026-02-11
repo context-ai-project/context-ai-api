@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   UseInterceptors,
-  UseGuards,
   UploadedFile,
   Body,
   BadRequestException,
@@ -37,8 +36,6 @@ import type {
   IngestDocumentResult,
 } from '../application/dtos/ingest-document.dto';
 import { SourceType } from '@shared/types';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RBACGuard } from '../../auth/guards/rbac.guard';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
 /**
@@ -194,7 +191,6 @@ class ErrorResponseDto {
  */
 @ApiTags('Knowledge')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RBACGuard)
 @Controller('knowledge')
 export class KnowledgeController {
   private readonly logger = new Logger(KnowledgeController.name);

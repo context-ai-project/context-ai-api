@@ -41,6 +41,12 @@ This document describes all environment variables used by the Context.ai API.
 
 **Setup Instructions**: See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md) for complete configuration guide.
 
+## Server-to-Server Authentication
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `INTERNAL_API_KEY` | Shared secret for server-to-server calls (e.g., NextAuth → API user sync). Must be the same value in both frontend and backend. Generate with `openssl rand -hex 32`. | - | **Yes** |
+
 ## CORS Configuration
 
 | Variable | Description | Default | Required |
@@ -87,6 +93,9 @@ AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.contextai.com
 AUTH0_ISSUER=https://your-tenant.auth0.com/
 
+# Server-to-Server (must match frontend INTERNAL_API_KEY)
+INTERNAL_API_KEY=generate-with-openssl-rand-hex-32
+
 # Google AI (Genkit)
 GOOGLE_API_KEY=your_google_api_key_here
 GENKIT_ENV=dev
@@ -114,6 +123,7 @@ LOG_LEVEL=debug
 2. Update the required values:
    - **`GOOGLE_API_KEY`** - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
    - **`AUTH0_DOMAIN`**, **`AUTH0_AUDIENCE`**, **`AUTH0_ISSUER`** - See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md)
+   - **`INTERNAL_API_KEY`** - Generate with `openssl rand -hex 32` (must match frontend)
    - **`DATABASE_*`** - Update if not using default Docker values
 
 3. For local development with Docker:

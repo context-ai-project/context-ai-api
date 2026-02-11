@@ -16,4 +16,10 @@ export default registerAs('auth', () => ({
     audience: process.env.AUTH0_AUDIENCE,
     issuer: process.env.AUTH0_ISSUER,
   },
+  /**
+   * Internal API key for server-to-server communication.
+   * Used by the frontend server (NextAuth) to call bootstrap endpoints
+   * like /users/sync during the authentication flow, before a JWT is available.
+   */
+  internalApiKey: process.env.INTERNAL_API_KEY,
 }));

@@ -69,9 +69,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Called after JWT signature is validated.
    * Extracts user information from token payload and syncs with database.
    *
+   * Auth0 access tokens may or may not include profile claims (email, name)
+   * depending on the API configuration and Auth0 Actions. This method handles both:
+   * 1. Token WITH email → sync user (create/update + update last login)
+   * 2. Token WITHOUT email → look up existing user by auth0 ID from database
+   *    (user should have been synced via /users/sync during login)
+   *
    * @param payload - Decoded JWT payload
    * @returns Validated user information with internal user ID
-   * @throws UnauthorizedException if payload is invalid
+   * @throws UnauthorizedException if payload is invalid or user not found
    */
   async validate(payload: JwtPayload): Promise<ValidatedUser> {
     // Validate required fields
@@ -79,10 +85,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException(
         'Invalid token: missing subject (sub) claim',
       );
-    }
-
-    if (!payload.email) {
-      throw new UnauthorizedException('Invalid token: missing email claim');
     }
 
     // Log authentication attempt (structured logging, no sensitive data)
@@ -94,16 +96,46 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       timestamp: new Date().toISOString(),
     });
 
-    // Sync user with our database (create or update + update last login)
-    const user = await this.userService.syncUser({
-      auth0UserId: payload.sub,
-      email: payload.email,
-      name: payload.name || payload.email.split('@')[0], // Fallback to email username
-    });
+    // Resolve user - from token claims or from database
+    let userId: string;
+    let userEmail: string;
+    let userName: string | undefined;
 
-    // Log successful sync (mask sensitive data)
-    this.logger.log('User authenticated and synced', {
-      userId: `${user.id.substring(0, 8)}...`, // Partial UUID for privacy
+    if (payload.email) {
+      // Token has profile claims - sync user (create or update + update last login)
+      const user = await this.userService.syncUser({
+        auth0UserId: payload.sub,
+        email: payload.email,
+        name: payload.name || payload.email.split('@')[0],
+      });
+      userId = user.id;
+      userEmail = payload.email;
+      userName = payload.name;
+    } else {
+      // Access token without profile claims (standard Auth0 behavior)
+      // User should have been synced during login via /users/sync endpoint
+      const existingUser = await this.userService.findByAuth0UserId(
+        payload.sub,
+      );
+
+      if (!existingUser) {
+        this.logger.warn('User not found in database for auth0 ID', {
+          auth0Id: `${payload.sub.substring(0, 15)}...`,
+          timestamp: new Date().toISOString(),
+        });
+        throw new UnauthorizedException(
+          'User not found. Please login again to sync your profile.',
+        );
+      }
+
+      userId = existingUser.id;
+      userEmail = existingUser.email;
+      userName = existingUser.name;
+    }
+
+    // Log successful validation (mask sensitive data)
+    this.logger.log('User authenticated', {
+      userId: `${userId.substring(0, 8)}...`, // Partial UUID for privacy
       provider,
       action: 'login',
       timestamp: new Date().toISOString(),
@@ -114,10 +146,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // Build validated user object with internal user ID
     const validatedUser: ValidatedUser = {
-      userId: user.id, // Internal database user ID
+      userId, // Internal database user ID
       auth0Id: payload.sub,
-      email: payload.email,
-      name: payload.name,
+      email: userEmail,
+      name: userName,
       picture: payload.picture,
       permissions,
       jti: payload.jti, // JWT ID for token revocation
