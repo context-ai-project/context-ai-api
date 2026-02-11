@@ -315,6 +315,32 @@ if (allowedHosts.includes(url.hostname)) {
 
 ---
 
+## 🔐 Phase 6: Authentication & Authorization
+
+Phase 6 added comprehensive security infrastructure:
+
+### Implemented Components
+
+| Component | Description | Documentation |
+|-----------|-------------|---------------|
+| **JWT Auth** | Auth0 JWKS validation (RS256) | [SECURITY_GUIDELINES.md](SECURITY_GUIDELINES.md) |
+| **RBAC** | Role-based access control (3 roles, 9 permissions) | [RBAC_SEEDING_STRATEGY.md](RBAC_SEEDING_STRATEGY.md) |
+| **Token Revocation** | Immediate logout capability | [TOKEN_REVOCATION.md](TOKEN_REVOCATION.md) |
+| **Rate Limiting** | 3-tier DDoS protection | [RATE_LIMITING.md](RATE_LIMITING.md) |
+| **Audit Logging** | 14 security event types | [SECURITY_GUIDELINES.md](SECURITY_GUIDELINES.md) |
+| **E2E Tests** | 42 auth pipeline tests | `test/e2e/auth-e2e.e2e-spec.ts` |
+
+### Security Guard Pipeline
+
+```
+Request → ThrottlerGuard → JwtAuthGuard → RBACGuard → Controller
+              429              401           403          200
+```
+
+For comprehensive details, see [SECURITY_GUIDELINES.md](SECURITY_GUIDELINES.md).
+
+---
+
 ## 🔄 Continuous Improvement
 
 Security is an ongoing process:
@@ -326,7 +352,7 @@ Security is an ongoing process:
 
 ---
 
-**Last Updated**: 2026-02-05  
-**Version**: 1.0.0  
+**Last Updated**: 2026-02-11
+**Version**: 2.0.0 (Phase 6 — Auth & Authorization)
 **Status**: ✅ Active
 
