@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -8,6 +10,7 @@ import { AppService } from './app.service';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
+import throttleConfig from './config/throttle.config';
 
 // Feature Modules
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
@@ -21,16 +24,22 @@ import { AuthModule } from './modules/auth/auth.module';
  * Orchestrates the application by importing and configuring:
  * - ConfigModule: Global configuration management
  * - TypeOrmModule: Database connection and entity management
- * - Feature modules: Domain-specific modules (to be added)
+ * - ThrottlerModule: Rate limiting for API endpoints
+ * - Feature modules: Domain-specific modules
  *
  * This module follows the modular monolith architecture pattern
+ *
+ * Phase 6 Implementation:
+ * - Authentication & Authorization (Auth0 + JWT + RBAC) ✅
+ * - Token Revocation (immediate logout) ✅
+ * - Rate Limiting (DDoS protection) ✅
  */
 @Module({
   imports: [
     // Configuration Module
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, authConfig],
+      load: [appConfig, databaseConfig, authConfig, throttleConfig],
       envFilePath: ['.env.local', '.env'],
     }),
 
@@ -43,14 +52,29 @@ import { AuthModule } from './modules/auth/auth.module';
       inject: [ConfigService],
     }),
 
+    // Rate Limiting Module (Phase 6)
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        return configService.get('throttle')!;
+      },
+      inject: [ConfigService],
+    }),
+
     // Feature Modules
     KnowledgeModule,
     InteractionModule,
     UsersModule, // User management and Auth0 sync
     AuthModule, // JWT validation (Phase 6)
-    // AuthorizationModule (RBAC - to be added in Phase 6),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Global Rate Limiting Guard (Phase 6)
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
