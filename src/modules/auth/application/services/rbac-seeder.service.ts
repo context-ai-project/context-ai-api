@@ -308,15 +308,13 @@ export class RbacSeederService {
   async clear(): Promise<void> {
     this.logger.warn('Clearing all RBAC data...');
 
-    // Delete role-permission associations (cascade will handle user-role)
-    const roles = await this.roleRepository.find();
-    if (roles.length > 0) {
-      await this.roleRepository
-        .createQueryBuilder()
-        .relation(RoleModel, 'permissions')
-        .of(roles)
-        .delete()
-        .execute();
+    // Remove many-to-many role-permission associations by clearing each role's permissions
+    const roles = await this.roleRepository.find({
+      relations: ['permissions'],
+    });
+    for (const role of roles) {
+      role.permissions = [];
+      await this.roleRepository.save(role);
     }
 
     await this.permissionRepository.delete({});

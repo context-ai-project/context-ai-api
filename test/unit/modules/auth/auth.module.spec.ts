@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
-import { AuthModule } from '../../../../src/modules/auth/auth.module';
 import { AuthService } from '../../../../src/modules/auth/auth.service';
 import { UserService } from '../../../../src/modules/users/application/services/user.service';
 import { JwtStrategy } from '../../../../src/modules/auth/strategies/jwt.strategy';

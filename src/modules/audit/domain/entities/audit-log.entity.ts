@@ -248,7 +248,10 @@ export class AuditLog {
    * Mask sensitive data in the audit log for display
    * (keeps full data in DB for compliance, but masks for UI)
    */
-  maskSensitiveData(): Omit<AuditLog, 'ipAddress' | 'userAgent'> & {
+  maskSensitiveData(): Pick<
+    AuditLog,
+    'id' | 'eventType' | 'userId' | 'metadata' | 'createdAt'
+  > & {
     ipAddress: string;
     userAgent: string;
   } {

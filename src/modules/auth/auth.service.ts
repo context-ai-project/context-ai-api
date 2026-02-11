@@ -5,12 +5,12 @@ import { ConfigService } from '@nestjs/config';
  * Auth Service
  *
  * Handles authentication-related business logic.
- * Currently provides configuration access for JWT strategies.
+ * Provides configuration access for JWT strategies.
  *
- * Future features (Phase 6):
- * - Token validation
- * - User permissions lookup
- * - Auth event logging
+ * Related services:
+ * - TokenRevocationService: Token validation and revocation
+ * - PermissionService: User permissions lookup
+ * - AuditService: Auth event logging
  */
 @Injectable()
 export class AuthService {

@@ -1,22 +1,53 @@
+import { ExecutionContext } from '@nestjs/common';
+import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { CurrentUser } from '../../../../../src/modules/auth/decorators/current-user.decorator';
+import type { ValidatedUser } from '../../../../../src/modules/auth/types/jwt-payload.type';
 
 /**
- * CurrentUser Decorator Tests
- *
- * Note: NestJS parameter decorators created with `createParamDecorator` are
- * difficult to test in complete isolation because they rely on NestJS's
- * internal metadata and reflection system.
- *
- * These tests verify:
- * 1. The decorator can be instantiated
- * 2. The decorator returns a valid function
- * 3. The decorator has the expected NestJS structure
- *
- * Full functionality testing (extracting user from request, accessing properties)
- * is better suited for integration/E2E tests where the decorator is used
- * within a real NestJS controller context.
+ * Helper to extract the factory function from a NestJS parameter decorator.
+ * NestJS stores param decorators in ROUTE_ARGS_METADATA on the target class.
  */
+function getParamDecoratorFactory() {
+  class TestController {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    testMethod(@CurrentUser() _user: ValidatedUser): void {
+      // no-op
+    }
+  }
+
+  const metadata = Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    TestController,
+    'testMethod',
+  );
+
+  // The metadata is keyed by a string like "CUSTOM:paramtype:index"
+  const keys = Object.keys(metadata);
+  const key = keys[0];
+  return metadata[key].factory;
+}
+
 describe('CurrentUser Decorator', () => {
+  const mockUser: ValidatedUser = {
+    auth0Id: 'auth0|123',
+    email: 'test@example.com',
+    name: 'Test User',
+    picture: 'https://example.com/photo.jpg',
+    permissions: ['chat:read', 'knowledge:read'],
+    userId: 'user-uuid-123',
+    jti: 'jwt-id-456',
+  };
+
+  const createMockContext = (user: ValidatedUser): ExecutionContext => {
+    return {
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn().mockReturnValue({ user }),
+      }),
+      getHandler: jest.fn(),
+      getClass: jest.fn(),
+    } as unknown as ExecutionContext;
+  };
+
   describe('Decorator Creation', () => {
     it('should be defined', () => {
       expect(CurrentUser).toBeDefined();
@@ -28,38 +59,87 @@ describe('CurrentUser Decorator', () => {
       expect(typeof decorator).toBe('function');
     });
 
-    it('should create a parameter decorator with "auth0Id" property', () => {
-      const decorator = CurrentUser('auth0Id');
-      expect(decorator).toBeDefined();
-      expect(typeof decorator).toBe('function');
-    });
-
-    it('should create a parameter decorator with "email" property', () => {
+    it('should create a parameter decorator with property key', () => {
       const decorator = CurrentUser('email');
       expect(decorator).toBeDefined();
       expect(typeof decorator).toBe('function');
     });
+  });
 
-    it('should create a parameter decorator with "name" property', () => {
-      const decorator = CurrentUser('name');
-      expect(decorator).toBeDefined();
-      expect(typeof decorator).toBe('function');
+  describe('Factory Function - Full User', () => {
+    let factory: (data: string | undefined, ctx: ExecutionContext) => unknown;
+
+    beforeEach(() => {
+      factory = getParamDecoratorFactory();
     });
 
-    it('should create a parameter decorator with "picture" property', () => {
-      const decorator = CurrentUser('picture');
-      expect(decorator).toBeDefined();
-      expect(typeof decorator).toBe('function');
+    it('should return the entire user when no data key is provided', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory(undefined, ctx);
+
+      expect(result).toEqual(mockUser);
+    });
+  });
+
+  describe('Factory Function - Property Extraction', () => {
+    let factory: (data: string | undefined, ctx: ExecutionContext) => unknown;
+
+    beforeEach(() => {
+      factory = getParamDecoratorFactory();
     });
 
-    it('should create a parameter decorator with "permissions" property', () => {
-      const decorator = CurrentUser('permissions');
-      expect(decorator).toBeDefined();
-      expect(typeof decorator).toBe('function');
+    it('should extract auth0Id property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('auth0Id', ctx);
+
+      expect(result).toBe('auth0|123');
     });
 
-    it('should accept valid ValidatedUser property keys', () => {
-      // Test that TypeScript compilation succeeds for valid keys
+    it('should extract email property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('email', ctx);
+
+      expect(result).toBe('test@example.com');
+    });
+
+    it('should extract name property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('name', ctx);
+
+      expect(result).toBe('Test User');
+    });
+
+    it('should extract picture property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('picture', ctx);
+
+      expect(result).toBe('https://example.com/photo.jpg');
+    });
+
+    it('should extract permissions property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('permissions', ctx);
+
+      expect(result).toEqual(['chat:read', 'knowledge:read']);
+    });
+
+    it('should extract userId property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('userId', ctx);
+
+      expect(result).toBe('user-uuid-123');
+    });
+
+    it('should extract jti property', () => {
+      const ctx = createMockContext(mockUser);
+      const result = factory('jti', ctx);
+
+      expect(result).toBe('jwt-id-456');
+    });
+  });
+
+  describe('Type Safety', () => {
+    it('should accept all valid ValidatedUser property keys', () => {
       const validKeys: Array<Parameters<typeof CurrentUser>[0]> = [
         undefined,
         'auth0Id',
@@ -67,6 +147,8 @@ describe('CurrentUser Decorator', () => {
         'name',
         'picture',
         'permissions',
+        'userId',
+        'jti',
       ];
 
       validKeys.forEach((key) => {
@@ -77,26 +159,8 @@ describe('CurrentUser Decorator', () => {
     });
   });
 
-  describe('Decorator Type Safety', () => {
-    it('should compile with undefined parameter', () => {
-      // This tests TypeScript compilation
-      const decorator = CurrentUser();
-      expect(decorator).toBeDefined();
-    });
-
-    it('should compile with valid property keys', () => {
-      // This tests TypeScript compilation for all valid keys
-      expect(CurrentUser('auth0Id')).toBeDefined();
-      expect(CurrentUser('email')).toBeDefined();
-      expect(CurrentUser('name')).toBeDefined();
-      expect(CurrentUser('picture')).toBeDefined();
-      expect(CurrentUser('permissions')).toBeDefined();
-    });
-  });
-
-  describe('Documentation', () => {
+  describe('Export', () => {
     it('should be exported for use in controllers', () => {
-      // Verify the decorator is properly exported and can be imported
       expect(typeof CurrentUser).toBe('function');
     });
   });

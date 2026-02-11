@@ -16,7 +16,6 @@ describe('UserController', () => {
     auth0UserId: 'auth0|123',
     email: 'test@example.com',
     name: 'Test User',
-    roles: ['user'],
     isActive: true,
     createdAt: new Date('2024-01-01'),
     lastLoginAt: new Date('2024-01-02'),
@@ -72,6 +71,8 @@ describe('UserController', () => {
     it('should handle sync user with minimal data', async () => {
       const dto: SyncUserDto = {
         auth0UserId: 'auth0|456',
+        email: 'user@example.com',
+        name: 'user',
       };
 
       const minimalUserResponse: UserResponseDto = {
@@ -94,6 +95,7 @@ describe('UserController', () => {
       const dto: SyncUserDto = {
         auth0UserId: 'auth0|123',
         email: 'test@example.com',
+        name: 'Test User',
       };
 
       const error = new Error('Database connection failed');

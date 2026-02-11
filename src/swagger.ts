@@ -14,7 +14,7 @@ export function setupSwagger(app: INestApplication, port: number): void {
     )
     .setVersion('1.0')
     .addTag('health', 'Health checks y estado del servicio')
-    .addTag('auth', 'Autenticación y gestión de usuarios')
+    .addTag('Users', 'Autenticación y gestión de usuarios')
     .addTag('Knowledge', 'Gestión de fuentes de conocimiento y documentos')
     .addTag('Interaction', 'Chat y consultas RAG')
     .addTag('authorization', 'Gestión de roles y permisos')

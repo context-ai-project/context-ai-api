@@ -310,8 +310,15 @@ export class AuditService {
    * Should be called periodically by a cron job
    */
   async cleanupOldLogs(retentionDays: number): Promise<number> {
+    if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
+      this.logger.warn('Invalid retentionDays; skipping cleanup', {
+        retentionDays,
+      });
+      return 0;
+    }
+
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    cutoffDate.setDate(cutoffDate.getDate() - Math.floor(retentionDays));
 
     const deletedCount =
       await this.auditLogRepository.deleteOlderThan(cutoffDate);

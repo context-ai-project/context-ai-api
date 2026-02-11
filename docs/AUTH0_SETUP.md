@@ -131,15 +131,17 @@ The backend uses JWKS caching to avoid excessive requests to Auth0:
 
 ### Rate Limiting
 
-Auth0 has rate limits for token validation:
+Auth0 has rate limits for the Authentication API:
 
-| Plan | Limit |
-|------|-------|
-| **Free** | 7,000 tokens/month |
-| **Developer** | 1,000 tokens/month |
-| **Professional** | Custom |
+| Plan | Burst | Sustained |
+|------|-------|-----------|
+| **Free** | 300 requests | 300/minute |
+| **Self Service** (Developer) | 25 requests | 25/second |
+| **Enterprise** | Custom | Custom |
 
-**Recommendation**: Enable JWKS caching (default in our setup) to minimize API calls.
+> **Source**: [Auth0 Rate Limit Configurations](https://auth0.com/docs/troubleshoot/customer-support/operational-policies/rate-limit-policy/rate-limit-configurations)
+
+**Recommendation**: Enable JWKS caching (default in our setup) to minimize API calls to Auth0.
 
 ---
 

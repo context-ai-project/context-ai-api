@@ -7,6 +7,11 @@ import {
   AuditEventType,
 } from '../../../domain/entities/audit-log.entity';
 
+/** Default query limits to prevent unbounded scans */
+const DEFAULT_USER_LIMIT = 100;
+const DEFAULT_EVENT_LIMIT = 100;
+const DEFAULT_THREAT_LIMIT = 50;
+
 /**
  * Audit Log Repository
  *
@@ -42,7 +47,7 @@ export class AuditLogRepository {
     const models = await this.repository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
-      take: options?.limit ?? 100,
+      take: options?.limit ?? DEFAULT_USER_LIMIT,
       skip: options?.offset ?? 0,
     });
 
@@ -74,9 +79,8 @@ export class AuditLogRepository {
 
     query.orderBy('audit_log.createdAt', 'DESC');
 
-    if (options?.limit) {
-      query.take(options.limit);
-    }
+    const limit = options?.limit ?? DEFAULT_EVENT_LIMIT;
+    query.take(limit);
 
     const models = await query.getMany();
     return models.map((model) => this.toDomain(model));
@@ -104,7 +108,7 @@ export class AuditLogRepository {
     }
 
     query.orderBy('audit_log.createdAt', 'DESC');
-    query.take(options?.limit ?? 50);
+    query.take(options?.limit ?? DEFAULT_THREAT_LIMIT);
 
     const models = await query.getMany();
     return models.map((model) => this.toDomain(model));

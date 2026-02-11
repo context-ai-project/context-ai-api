@@ -28,7 +28,7 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
-    "seed:rbac": "tsx src/scripts/seed-rbac.ts",
+    "seed:rbac": "ts-node src/scripts/seed-rbac.ts",
     "seed:rbac:clear": "tsx src/scripts/seed-rbac.ts --clear",
     "db:create": "docker-compose up -d postgres",
     "db:stop": "docker-compose stop postgres",
@@ -135,7 +135,10 @@
       "!src/**/*.interface.ts",
       "!src/**/main.ts",
       "!src/**/swagger.ts",
-      "!src/**/config/**"
+      "!src/**/config/**",
+      "!src/scripts/**",
+      "!src/shared/genkit/**",
+      "!src/migrations/**"
     ],
     "coverageDirectory": "coverage",
     "coverageThreshold": {

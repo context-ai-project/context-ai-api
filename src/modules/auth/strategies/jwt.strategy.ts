@@ -165,21 +165,63 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * 1. `permissions` array (when RBAC is enabled)
    * 2. `scope` string (OAuth2 scopes)
    *
+   * Permissions are normalized to resource:action format (e.g., "knowledge:read")
+   * to match our RBAC system. Auth0 may emit action:resource (e.g., "read:knowledge"),
+   * so we detect and flip them when needed.
+   *
    * @param payload - JWT payload
-   * @returns Array of permission strings
+   * @returns Array of permission strings in resource:action format
    */
   private extractPermissions(payload: JwtPayload): string[] {
+    let permissions: string[] = [];
+
     // Option 1: RBAC permissions array
     if (payload.permissions && Array.isArray(payload.permissions)) {
-      return payload.permissions;
+      permissions = payload.permissions;
     }
-
     // Option 2: OAuth2 scopes
-    if (payload.scope && typeof payload.scope === 'string') {
-      return payload.scope.split(' ');
+    else if (payload.scope && typeof payload.scope === 'string') {
+      permissions = payload.scope.split(' ');
     }
 
-    // No permissions found
-    return [];
+    // Normalize to resource:action format
+    return permissions.map((perm) => this.normalizePermission(perm));
+  }
+
+  /**
+   * Normalize a permission string to resource:action format.
+   *
+   * Known actions: read, write, create, update, delete, manage, list, upload
+   * If the first segment is a known action (e.g., "read:knowledge"),
+   * flip to resource:action ("knowledge:read").
+   *
+   * @param permission - Permission string (either format)
+   * @returns Permission in resource:action format
+   */
+  private normalizePermission(permission: string): string {
+    const parts = permission.split(':');
+    if (parts.length !== 2) {
+      return permission; // Not a colon-separated pair, return as-is
+    }
+
+    const knownActions = new Set([
+      'read',
+      'write',
+      'create',
+      'update',
+      'delete',
+      'manage',
+      'list',
+      'upload',
+    ]);
+
+    const [first, second] = parts;
+    // If the first part is a known action, it's action:resource → flip
+    if (knownActions.has(first) && !knownActions.has(second)) {
+      return `${second}:${first}`;
+    }
+
+    // Already resource:action or ambiguous → return as-is
+    return permission;
   }
 }

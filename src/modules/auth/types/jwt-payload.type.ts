@@ -68,7 +68,8 @@ export interface JwtPayload {
 
   /**
    * Permissions granted to this token (optional)
-   * Example: ["read:knowledge", "write:knowledge"]
+   * Format: resource:action (e.g., "knowledge:read", "knowledge:write")
+   * Example: ["knowledge:read", "knowledge:write", "chat:read"]
    */
   permissions?: string[];
 

@@ -11,7 +11,6 @@ describe('PermissionService', () => {
   let service: PermissionService;
   let userRepository: jest.Mocked<UserRepository>;
   let roleRepository: jest.Mocked<RoleRepository>;
-  let permissionRepository: jest.Mocked<PermissionRepository>;
 
   // Test data
   const mockUserId = 'user-uuid-123';
@@ -120,7 +119,6 @@ describe('PermissionService', () => {
     service = module.get<PermissionService>(PermissionService);
     userRepository = module.get(UserRepository);
     roleRepository = module.get(RoleRepository);
-    permissionRepository = module.get(PermissionRepository);
   });
 
   afterEach(() => {

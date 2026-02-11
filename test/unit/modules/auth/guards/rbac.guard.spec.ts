@@ -8,12 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { RBACGuard } from '../../../../../src/modules/auth/guards/rbac.guard';
 import { PermissionService } from '../../../../../src/modules/auth/application/services/permission.service';
 import { ValidatedUser } from '../../../../../src/modules/auth/types/jwt-payload.type';
-import {
-  PERMISSIONS_KEY,
-  PERMISSION_MATCH_MODE_KEY,
-  PermissionMatchMode,
-} from '../../../../../src/modules/auth/decorators/require-permissions.decorator';
-import { ROLES_KEY } from '../../../../../src/modules/auth/decorators/require-roles.decorator';
+import { PermissionMatchMode } from '../../../../../src/modules/auth/decorators/require-permissions.decorator';
 
 describe('RBACGuard', () => {
   let guard: RBACGuard;

@@ -77,13 +77,14 @@ describe('JwtStrategy', () => {
       });
 
       // Verify result includes userId from sync
+      // Permissions are normalized from action:resource → resource:action
       expect(result).toEqual({
         userId: 'user-uuid-123',
         auth0Id: 'auth0|123456',
         email: 'test@example.com',
         name: 'Test User',
         picture: 'https://example.com/avatar.jpg',
-        permissions: ['read:knowledge', 'write:knowledge'],
+        permissions: ['knowledge:read', 'knowledge:write'],
       });
     });
 
@@ -112,7 +113,7 @@ describe('JwtStrategy', () => {
         email: 'scope@example.com',
         name: undefined,
         picture: undefined,
-        permissions: ['openid', 'profile', 'email', 'read:data'],
+        permissions: ['openid', 'profile', 'email', 'data:read'],
       });
     });
 
@@ -299,7 +300,8 @@ describe('JwtStrategy', () => {
 
       const result = await strategy.validate(payload);
 
-      expect(result.permissions).toEqual(['read:all', 'write:all']);
+      // Permissions are normalized from action:resource → resource:action
+      expect(result.permissions).toEqual(['all:read', 'all:write']);
     });
 
     it('should handle multiple audiences in aud claim', async () => {
