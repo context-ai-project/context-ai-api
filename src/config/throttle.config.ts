@@ -35,24 +35,26 @@ import { ThrottlerModuleOptions } from '@nestjs/throttler';
  * Phase 6 Implementation:
  * - Issue 6.14: Rate Limiting ✅
  */
-export default registerAs('throttle', (): ThrottlerModuleOptions => ({
-  throttlers: [
-    {
-      name: 'short',
-      ttl: parseInt(process.env.THROTTLE_TTL_SHORT || '1000', 10), // 1 second
-      limit: parseInt(process.env.THROTTLE_LIMIT_SHORT || '10', 10), // 10 requests
-    },
-    {
-      name: 'medium',
-      ttl: parseInt(process.env.THROTTLE_TTL_MEDIUM || '60000', 10), // 1 minute
-      limit: parseInt(process.env.THROTTLE_LIMIT_MEDIUM || '100', 10), // 100 requests
-    },
-    {
-      name: 'long',
-      ttl: parseInt(process.env.THROTTLE_TTL_LONG || '3600000', 10), // 1 hour
-      limit: parseInt(process.env.THROTTLE_LIMIT_LONG || '1000', 10), // 1000 requests
-    },
-  ],
-  errorMessage: 'Too many requests. Please try again later.',
-}));
-
+export default registerAs(
+  'throttle',
+  (): ThrottlerModuleOptions => ({
+    throttlers: [
+      {
+        name: 'short',
+        ttl: parseInt(process.env.THROTTLE_TTL_SHORT || '1000', 10), // 1 second
+        limit: parseInt(process.env.THROTTLE_LIMIT_SHORT || '10', 10), // 10 requests
+      },
+      {
+        name: 'medium',
+        ttl: parseInt(process.env.THROTTLE_TTL_MEDIUM || '60000', 10), // 1 minute
+        limit: parseInt(process.env.THROTTLE_LIMIT_MEDIUM || '100', 10), // 100 requests
+      },
+      {
+        name: 'long',
+        ttl: parseInt(process.env.THROTTLE_TTL_LONG || '3600000', 10), // 1 hour
+        limit: parseInt(process.env.THROTTLE_LIMIT_LONG || '1000', 10), // 1000 requests
+      },
+    ],
+    errorMessage: 'Too many requests. Please try again later.',
+  }),
+);

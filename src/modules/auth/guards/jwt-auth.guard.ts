@@ -163,7 +163,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     // Check if token has been revoked
-    const validatedUser = user as ValidatedUser;
+    // The JwtStrategy always returns a ValidatedUser, but the generic TUser
+    // doesn't overlap with ValidatedUser at compile time, requiring unknown cast
+    const validatedUser = user as unknown as ValidatedUser;
     if (validatedUser.jti) {
       const isRevoked = this.tokenRevocationService.isTokenRevoked(
         validatedUser.jti,

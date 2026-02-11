@@ -2,7 +2,21 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import type {
+  ThrottlerModuleOptions,
+  ThrottlerOptions,
+} from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+
+/**
+ * Narrowed throttler configuration type.
+ * Uses the object form of ThrottlerModuleOptions (with throttlers array),
+ * not the flat array form, to satisfy sonarjs/function-return-type.
+ */
+type ThrottlerObjectConfig = Extract<
+  ThrottlerModuleOptions,
+  { throttlers: ThrottlerOptions[] }
+>;
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -17,6 +31,7 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { InteractionModule } from './modules/interaction/interaction.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 /**
  * Application Root Module
@@ -55,8 +70,12 @@ import { AuthModule } from './modules/auth/auth.module';
     // Rate Limiting Module (Phase 6)
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        return configService.get('throttle')!;
+      useFactory: (configService: ConfigService): ThrottlerObjectConfig => {
+        const config = configService.get<ThrottlerObjectConfig>('throttle');
+        if (!config) {
+          throw new Error('Throttle configuration not found');
+        }
+        return config;
       },
       inject: [ConfigService],
     }),
@@ -66,6 +85,7 @@ import { AuthModule } from './modules/auth/auth.module';
     InteractionModule,
     UsersModule, // User management and Auth0 sync
     AuthModule, // JWT validation (Phase 6)
+    AuditModule, // Security audit logging (Phase 6)
   ],
   controllers: [AppController],
   providers: [

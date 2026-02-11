@@ -161,7 +161,10 @@ export class InteractionController {
       type: 'object',
       properties: {
         statusCode: { type: 'number', example: 429 },
-        message: { type: 'string', example: 'Too many requests. Please try again later.' },
+        message: {
+          type: 'string',
+          example: 'Too many requests. Please try again later.',
+        },
         error: { type: 'string', example: 'Too Many Requests' },
       },
     },
