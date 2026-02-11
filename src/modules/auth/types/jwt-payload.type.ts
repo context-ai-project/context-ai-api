@@ -45,6 +45,13 @@ export interface JwtPayload {
   iat: number;
 
   /**
+   * JWT ID - Unique identifier for this token (optional)
+   * Used for token revocation and tracking
+   * Example: "abc123def456"
+   */
+  jti?: string;
+
+  /**
    * User's email address (optional)
    */
   email?: string;
@@ -120,4 +127,10 @@ export interface ValidatedUser {
    * Populated after user sync with our database
    */
   userId: string;
+
+  /**
+   * JWT ID - Unique identifier for this token (optional)
+   * Used for token revocation
+   */
+  jti?: string;
 }

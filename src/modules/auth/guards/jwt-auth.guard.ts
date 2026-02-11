@@ -8,6 +8,8 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { TokenRevocationService } from '../application/services/token-revocation.service';
+import { ValidatedUser } from '../types/jwt-payload.type';
 
 /**
  * PassportError
@@ -35,6 +37,7 @@ interface PassportInfo {
  *
  * Features:
  * - Validates JWT tokens from Authorization header
+ * - Checks if token has been revoked (for immediate logout)
  * - Respects @Public() decorator (skips authentication)
  * - Provides detailed error messages for different failure scenarios
  * - Logs authentication failures for security audit
@@ -55,13 +58,20 @@ interface PassportInfo {
  * getHealth() { return { status: 'ok' }; }
  *
  * After successful validation, req.user contains the ValidatedUser object
- * with auth0Id, email, permissions, and userId.
+ * with auth0Id, email, permissions, userId, and jti.
+ *
+ * Phase 6 Implementation:
+ * - Issue 6.4: JWT Authentication Guard ✅
+ * - Issue 6.13: Token Revocation ✅
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
-  constructor(private readonly reflector: Reflector) {
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly tokenRevocationService: TokenRevocationService,
+  ) {
     super();
   }
 
@@ -152,7 +162,27 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       );
     }
 
-    // User is valid, attach to request
+    // Check if token has been revoked
+    const validatedUser = user as ValidatedUser;
+    if (validatedUser.jti) {
+      const isRevoked = this.tokenRevocationService.isTokenRevoked(
+        validatedUser.jti,
+      );
+
+      if (isRevoked) {
+        this.logger.warn('Revoked token attempted to access resource', {
+          jti: validatedUser.jti.substring(0, 8) + '...',
+          userId: validatedUser.userId?.substring(0, 8) + '...',
+          timestamp: new Date().toISOString(),
+        });
+
+        throw new UnauthorizedException(
+          'Token has been revoked. Please login again',
+        );
+      }
+    }
+
+    // User is valid and token is not revoked, attach to request
     return user;
   }
 }

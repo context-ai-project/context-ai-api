@@ -120,6 +120,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       name: payload.name,
       picture: payload.picture,
       permissions,
+      jti: payload.jti, // JWT ID for token revocation
     };
 
     return validatedUser;

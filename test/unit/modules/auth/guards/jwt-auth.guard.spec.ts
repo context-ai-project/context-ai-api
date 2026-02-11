@@ -2,19 +2,34 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from '../../../../../src/modules/auth/guards/jwt-auth.guard';
+import { TokenRevocationService } from '../../../../../src/modules/auth/application/services/token-revocation.service';
+import { ValidatedUser } from '../../../../../src/modules/auth/types/jwt-payload.type';
 import { IS_PUBLIC_KEY } from '../../../../../src/modules/auth/decorators/public.decorator';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let reflector: Reflector;
+  let tokenRevocationService: TokenRevocationService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtAuthGuard, Reflector],
+      providers: [
+        JwtAuthGuard,
+        Reflector,
+        {
+          provide: TokenRevocationService,
+          useValue: {
+            isTokenRevoked: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
     reflector = module.get<Reflector>(Reflector);
+    tokenRevocationService = module.get<TokenRevocationService>(
+      TokenRevocationService,
+    );
   });
 
   it('should be defined', () => {
@@ -245,6 +260,111 @@ describe('JwtAuthGuard', () => {
       expect(() => {
         guard.handleRequest(mockError, null, mockInfo, mockContext);
       }).toThrow('Custom error');
+    });
+
+    describe('token revocation', () => {
+      it('should return user when token is not revoked', () => {
+        const mockUser: ValidatedUser = {
+          userId: 'user-uuid-123',
+          auth0Id: 'auth0|123',
+          email: 'test@example.com',
+          permissions: ['read:data'],
+          jti: 'test-jti-123',
+        };
+
+        // Mock revocation service to return false (not revoked)
+        jest
+          .spyOn(tokenRevocationService, 'isTokenRevoked')
+          .mockReturnValue(false);
+
+        const result = guard.handleRequest(null, mockUser, null, mockContext);
+
+        expect(result).toEqual(mockUser);
+        expect(tokenRevocationService.isTokenRevoked).toHaveBeenCalledWith(
+          'test-jti-123',
+        );
+      });
+
+      it('should throw UnauthorizedException when token is revoked', () => {
+        const mockUser: ValidatedUser = {
+          userId: 'user-uuid-123',
+          auth0Id: 'auth0|123',
+          email: 'test@example.com',
+          permissions: ['read:data'],
+          jti: 'revoked-jti-123',
+        };
+
+        // Mock revocation service to return true (revoked)
+        jest
+          .spyOn(tokenRevocationService, 'isTokenRevoked')
+          .mockReturnValue(true);
+
+        expect(() => {
+          guard.handleRequest(null, mockUser, null, mockContext);
+        }).toThrow(UnauthorizedException);
+
+        expect(() => {
+          guard.handleRequest(null, mockUser, null, mockContext);
+        }).toThrow('Token has been revoked. Please login again');
+
+        expect(tokenRevocationService.isTokenRevoked).toHaveBeenCalledWith(
+          'revoked-jti-123',
+        );
+      });
+
+      it('should not check revocation if token has no JTI', () => {
+        const mockUser: ValidatedUser = {
+          userId: 'user-uuid-123',
+          auth0Id: 'auth0|123',
+          email: 'test@example.com',
+          permissions: ['read:data'],
+          // No jti field
+        };
+
+        const isRevokedSpy = jest.spyOn(
+          tokenRevocationService,
+          'isTokenRevoked',
+        );
+
+        const result = guard.handleRequest(null, mockUser, null, mockContext);
+
+        expect(result).toEqual(mockUser);
+        expect(isRevokedSpy).not.toHaveBeenCalled();
+      });
+
+      it('should log revoked token attempts', () => {
+        const mockUser: ValidatedUser = {
+          userId: 'user-uuid-123',
+          auth0Id: 'auth0|123',
+          email: 'test@example.com',
+          permissions: ['read:data'],
+          jti: 'revoked-jti-123',
+        };
+
+        // Mock revocation service to return true (revoked)
+        jest
+          .spyOn(tokenRevocationService, 'isTokenRevoked')
+          .mockReturnValue(true);
+
+        // Spy on logger
+        const loggerWarnSpy = jest.spyOn((guard as unknown as { logger: { warn: jest.Mock } }).logger, 'warn');
+
+        try {
+          guard.handleRequest(null, mockUser, null, mockContext);
+        } catch (error) {
+          // Expected to throw
+        }
+
+        expect(loggerWarnSpy).toHaveBeenCalledWith(
+          'Revoked token attempted to access resource',
+          expect.objectContaining({
+            jti: 'revoked-j...',
+            userId: 'user-uui...',
+          }),
+        );
+
+        loggerWarnSpy.mockRestore();
+      });
     });
   });
 });

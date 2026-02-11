@@ -13,6 +13,7 @@ import { RoleRepository } from './infrastructure/persistence/repositories/role.r
 import { PermissionRepository } from './infrastructure/persistence/repositories/permission.repository';
 import { PermissionService } from './application/services/permission.service';
 import { RbacSeederService } from './application/services/rbac-seeder.service';
+import { TokenRevocationService } from './application/services/token-revocation.service';
 
 /**
  * Auth Module
@@ -42,6 +43,7 @@ import { RbacSeederService } from './application/services/rbac-seeder.service';
  * - Issue 6.10: RBAC Guard ✅
  * - Issue 6.11: Permission Service ✅
  * - Issue 6.12: Permissions Seeder ✅
+ * - Issue 6.13: Token Revocation ✅
  */
 @Module({
   imports: [
@@ -59,6 +61,7 @@ import { RbacSeederService } from './application/services/rbac-seeder.service';
     PermissionRepository, // Permission data access
     PermissionService, // RBAC logic
     RbacSeederService, // RBAC seeder for initializing data
+    TokenRevocationService, // Token revocation for immediate logout
   ],
   exports: [
     AuthService,
@@ -67,6 +70,7 @@ import { RbacSeederService } from './application/services/rbac-seeder.service';
     RBACGuard, // Export for use in controllers
     PermissionService, // Export for use in other modules
     RbacSeederService, // Export for use in CLI commands
+    TokenRevocationService, // Export for use in other modules (e.g., admin endpoints)
   ],
 })
 export class AuthModule {}
