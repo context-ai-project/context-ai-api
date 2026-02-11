@@ -42,6 +42,7 @@ export class AuditLogModel {
    * Stored as enum string in PostgreSQL
    */
   @Column({
+    name: 'event_type',
     type: 'varchar',
     length: 50,
   })
@@ -52,6 +53,7 @@ export class AuditLogModel {
    * Null for unauthenticated events
    */
   @Column({
+    name: 'user_id',
     type: 'uuid',
     nullable: true,
   })
@@ -63,6 +65,7 @@ export class AuditLogModel {
    * Stored as string (supports IPv4 and IPv6)
    */
   @Column({
+    name: 'ip_address',
     type: 'varchar',
     length: 45, // IPv6 max length: 45 chars
   })
@@ -72,6 +75,7 @@ export class AuditLogModel {
    * User agent string from HTTP headers
    */
   @Column({
+    name: 'user_agent',
     type: 'varchar',
     length: 500,
   })
@@ -92,6 +96,7 @@ export class AuditLogModel {
    * Automatically set by TypeORM
    */
   @CreateDateColumn({
+    name: 'created_at',
     type: 'timestamp with time zone',
   })
   @Index() // For time-range queries

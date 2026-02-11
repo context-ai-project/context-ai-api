@@ -20,6 +20,7 @@ import type { IngestDocumentResult } from '../../../../../src/modules/knowledge/
 import { JwtAuthGuard } from '../../../../../src/modules/auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../../../../../src/modules/auth/guards/rbac.guard';
 import { PermissionService } from '../../../../../src/modules/auth/application/services/permission.service';
+import { TokenRevocationService } from '../../../../../src/modules/auth/application/services/token-revocation.service';
 
 describe('KnowledgeController', () => {
   let controller: KnowledgeController;
@@ -56,6 +57,13 @@ describe('KnowledgeController', () => {
             isAdmin: jest.fn().mockResolvedValue(false),
             isManager: jest.fn().mockResolvedValue(false),
             isUser: jest.fn().mockResolvedValue(true),
+          },
+        },
+        {
+          provide: TokenRevocationService,
+          useValue: {
+            isTokenRevoked: jest.fn().mockReturnValue(false),
+            revokeToken: jest.fn(),
           },
         },
         {

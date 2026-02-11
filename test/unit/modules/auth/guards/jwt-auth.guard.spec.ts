@@ -358,7 +358,7 @@ describe('JwtAuthGuard', () => {
         expect(loggerWarnSpy).toHaveBeenCalledWith(
           'Revoked token attempted to access resource',
           expect.objectContaining({
-            jti: 'revoked-j...',
+            jti: 'revoked-...',
             userId: 'user-uui...',
           }),
         );
