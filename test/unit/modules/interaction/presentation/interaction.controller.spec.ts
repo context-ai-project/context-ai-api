@@ -10,6 +10,7 @@ import { Message } from '@modules/interaction/domain/entities/message.entity';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RBACGuard } from '@modules/auth/guards/rbac.guard';
 import { PermissionService } from '@modules/auth/application/services/permission.service';
+import { TokenRevocationService } from '@modules/auth/application/services/token-revocation.service';
 
 describe('InteractionController', () => {
   let controller: InteractionController;
@@ -76,6 +77,20 @@ describe('InteractionController', () => {
           provide: RBACGuard,
           useValue: {
             canActivate: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: TokenRevocationService,
+          useValue: {
+            revokeToken: jest.fn(),
+            isTokenRevoked: jest.fn().mockReturnValue(false),
+            clearAllRevokedTokens: jest.fn(),
+            getRevokedTokenCount: jest.fn().mockReturnValue(0),
+            getStatistics: jest.fn().mockReturnValue({
+              totalRevoked: 0,
+              oldestExpiration: null,
+              newestExpiration: null,
+            }),
           },
         },
       ],
