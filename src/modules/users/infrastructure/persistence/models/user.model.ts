@@ -5,7 +5,10 @@ import {
   Index,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
+import { RoleModel } from '../../../../auth/infrastructure/persistence/models/role.model';
 
 // Column type constants
 const VARCHAR_255 = 'varchar';
@@ -16,6 +19,9 @@ const STRING_LENGTH_255 = 255;
  * User Persistence Model (TypeORM)
  *
  * Maps to the `users` table in PostgreSQL
+ *
+ * Relations:
+ * - Many-to-Many with RoleModel (through user_roles)
  *
  * Indexes:
  * - auth0_user_id: Unique index for fast lookups by Auth0 sub
@@ -55,4 +61,16 @@ export class UserModel {
 
   @Column({ name: 'last_login_at', type: TIMESTAMP_TZ, nullable: true })
   lastLoginAt: Date | null = null;
+
+  /**
+   * Roles assigned to this user
+   * Many-to-Many relationship through user_roles table
+   */
+  @ManyToMany(() => RoleModel, (role) => role.users)
+  @JoinTable({
+    name: 'user_roles',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'role_id', referencedColumnName: 'id' },
+  })
+  roles!: RoleModel[];
 }

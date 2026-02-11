@@ -31,12 +31,21 @@ This document describes all environment variables used by the Context.ai API.
 | `GOOGLE_API_KEY` | Google AI API key for Genkit (Gemini 1.5 Pro + text-embedding-005) | - | **Yes** |
 | `GENKIT_ENV` | Genkit environment (dev, prod) | `dev` | No |
 
-## JWT Configuration (Future Phases)
+## Auth0 Configuration (Phase 6)
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `JWT_SECRET` | JWT secret key | - | **Yes** (in production) |
-| `JWT_EXPIRES_IN` | JWT expiration time | `7d` | No |
+| `AUTH0_DOMAIN` | Auth0 tenant domain (e.g., `your-tenant.auth0.com`) | - | **Yes** |
+| `AUTH0_AUDIENCE` | Auth0 API identifier (e.g., `https://api.contextai.com`) | - | **Yes** |
+| `AUTH0_ISSUER` | Auth0 issuer URL with trailing slash (e.g., `https://your-tenant.auth0.com/`) | - | **Yes** |
+
+**Setup Instructions**: See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md) for complete configuration guide.
+
+## Server-to-Server Authentication
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `INTERNAL_API_KEY` | Shared secret for server-to-server calls (e.g., NextAuth → API user sync). Must be the same value in both frontend and backend. Generate with `openssl rand -hex 32`. | - | **Yes** |
 
 ## CORS Configuration
 
@@ -68,41 +77,61 @@ This document describes all environment variables used by the Context.ai API.
 ```env
 # Application
 NODE_ENV=development
-PORT=3000
+PORT=3001
+API_PREFIX=api/v1
 
 # Database (local development with Docker)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=context_ai_user
-DB_PASSWORD=context_ai_pass
-DB_DATABASE=context_ai_db
-DB_SYNCHRONIZE=false
-DB_LOGGING=true
+DATABASE_URL=postgresql://contextai_user:dev_password@localhost:5432/contextai
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USER=contextai_user
+DATABASE_PASSWORD=dev_password
+DATABASE_NAME=contextai
+
+# Auth0 Authentication
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.contextai.com
+AUTH0_ISSUER=https://your-tenant.auth0.com/
+
+# Server-to-Server (must match frontend INTERNAL_API_KEY)
+INTERNAL_API_KEY=generate-with-openssl-rand-hex-32
 
 # Google AI (Genkit)
 GOOGLE_API_KEY=your_google_api_key_here
 GENKIT_ENV=dev
 
-# CORS
-CORS_ORIGIN=http://localhost:5173
+# CORS & Security
+FRONTEND_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Observability
+SENTRY_DSN=
+LOG_LEVEL=debug
 ```
 
 ## Setup Instructions
 
-1. Copy this template to a new `.env` file in the project root:
+1. Copy the `env-template.txt` to `.env` in the project root:
    ```bash
-   cp docs/ENVIRONMENT_VARIABLES.md .env
+   cp env-template.txt .env
    ```
 
-2. Update the values, especially:
-   - `GOOGLE_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Update the required values:
+   - **`GOOGLE_API_KEY`** - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - **`AUTH0_DOMAIN`**, **`AUTH0_AUDIENCE`**, **`AUTH0_ISSUER`** - See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md)
+   - **`INTERNAL_API_KEY`** - Generate with `openssl rand -hex 32` (must match frontend)
+   - **`DATABASE_*`** - Update if not using default Docker values
 
 3. For local development with Docker:
    ```bash
    docker-compose up -d
    ```
 
-4. For production, ensure all required variables are set securely.
+4. For production, ensure all required variables are set securely using secrets management.
 
 ## Security Notes
 

@@ -12,10 +12,15 @@ jest.mock('@genkit-ai/google-genai', () => ({
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { KnowledgeController } from '../../../../../src/modules/knowledge/presentation/knowledge.controller';
 import { IngestDocumentUseCase } from '../../../../../src/modules/knowledge/application/use-cases/ingest-document.use-case';
 import { SourceType } from '@shared/types';
 import type { IngestDocumentResult } from '../../../../../src/modules/knowledge/application/dtos/ingest-document.dto';
+import { JwtAuthGuard } from '../../../../../src/modules/auth/guards/jwt-auth.guard';
+import { RBACGuard } from '../../../../../src/modules/auth/guards/rbac.guard';
+import { PermissionService } from '../../../../../src/modules/auth/application/services/permission.service';
+import { TokenRevocationService } from '../../../../../src/modules/auth/application/services/token-revocation.service';
 
 describe('KnowledgeController', () => {
   let controller: KnowledgeController;
@@ -33,6 +38,45 @@ describe('KnowledgeController', () => {
         {
           provide: IngestDocumentUseCase,
           useValue: mockIngestUseCase,
+        },
+        {
+          provide: Reflector,
+          useValue: {
+            getAllAndOverride: jest.fn(),
+          },
+        },
+        {
+          provide: PermissionService,
+          useValue: {
+            getUserRoles: jest.fn().mockResolvedValue(['user']),
+            getUserPermissions: jest.fn().mockResolvedValue(['knowledge:create']),
+            hasPermission: jest.fn().mockResolvedValue(true),
+            hasAnyPermission: jest.fn().mockResolvedValue(true),
+            hasAllPermissions: jest.fn().mockResolvedValue(true),
+            hasRole: jest.fn().mockResolvedValue(true),
+            isAdmin: jest.fn().mockResolvedValue(false),
+            isManager: jest.fn().mockResolvedValue(false),
+            isUser: jest.fn().mockResolvedValue(true),
+          },
+        },
+        {
+          provide: TokenRevocationService,
+          useValue: {
+            isTokenRevoked: jest.fn().mockReturnValue(false),
+            revokeToken: jest.fn(),
+          },
+        },
+        {
+          provide: JwtAuthGuard,
+          useValue: {
+            canActivate: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: RBACGuard,
+          useValue: {
+            canActivate: jest.fn().mockReturnValue(true),
+          },
         },
       ],
     }).compile();

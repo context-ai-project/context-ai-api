@@ -51,6 +51,16 @@ export class UserRepository {
   }
 
   /**
+   * Find user with roles (for RBAC)
+   */
+  async findByIdWithRoles(id: string): Promise<UserModel | null> {
+    return this.repository.findOne({
+      where: { id },
+      relations: ['roles'],
+    });
+  }
+
+  /**
    * Create or update user
    */
   async save(user: Partial<UserModel>): Promise<User> {

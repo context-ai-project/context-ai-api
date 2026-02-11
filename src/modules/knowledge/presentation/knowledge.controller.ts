@@ -26,6 +26,9 @@ import {
   ApiBody,
   ApiResponse,
   ApiProperty,
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { IngestDocumentUseCase } from '../application/use-cases/ingest-document.use-case';
 import type {
@@ -33,6 +36,7 @@ import type {
   IngestDocumentResult,
 } from '../application/dtos/ingest-document.dto';
 import { SourceType } from '@shared/types';
+import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
 /**
  * Uploaded file interface
@@ -179,9 +183,14 @@ class ErrorResponseDto {
  * Handles HTTP requests for knowledge management operations.
  * Provides endpoints for document ingestion and retrieval.
  *
+ * Authorization:
+ * - All endpoints require JWT authentication
+ * - Document upload requires 'knowledge:create' permission
+ *
  * @version 1.0.0
  */
 @ApiTags('Knowledge')
+@ApiBearerAuth()
 @Controller('knowledge')
 export class KnowledgeController {
   private readonly logger = new Logger(KnowledgeController.name);
@@ -201,12 +210,14 @@ export class KnowledgeController {
   @Post('documents/upload')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('file'))
+  @RequirePermissions(['knowledge:create'])
   @ApiOperation({
     summary: 'Upload and ingest a document',
     description:
       'Uploads a document (PDF, Markdown, or text), parses it, generates embeddings, ' +
       'and stores it in the knowledge base for RAG retrieval. ' +
-      'The document is chunked into fragments with overlapping context for better retrieval accuracy.',
+      'The document is chunked into fragments with overlapping context for better retrieval accuracy. ' +
+      '\n\n**Required Permission:** knowledge:create',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -255,6 +266,12 @@ export class KnowledgeController {
     status: 400,
     description: 'Invalid request (missing file, invalid format, etc.)',
     type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required - Missing or invalid JWT token',
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied - Requires knowledge:create permission',
   })
   @ApiResponse({
     status: 413,
