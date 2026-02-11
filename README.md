@@ -95,7 +95,28 @@ pnpm link --global @context-ai/shared
 pnpm migration:run
 ```
 
-### 7. Iniciar servidor en modo desarrollo
+### 7. Sembrar datos de RBAC (Roles y Permisos)
+
+⚠️ **IMPORTANTE**: Después de ejecutar las migraciones, debes sembrar los datos iniciales de RBAC:
+
+```bash
+# Primera vez o para actualizar roles/permisos
+pnpm seed:rbac
+
+# Para limpiar y re-sembrar (útil en desarrollo)
+pnpm seed:rbac --clear
+```
+
+Este comando crea:
+- 3 roles: `admin`, `manager`, `user`
+- 10 permisos: chat, knowledge, profile, users, system
+- Asignación de permisos a roles según nivel de acceso
+
+**📋 Nota**: Este paso es **requerido** para que el sistema de autorización funcione correctamente.
+
+📚 Ver [docs/RBAC_SEEDING_STRATEGY.md](./docs/RBAC_SEEDING_STRATEGY.md) para detalles sobre la estrategia por environment.
+
+### 8. Iniciar servidor en modo desarrollo
 
 ```bash
 pnpm start:dev
