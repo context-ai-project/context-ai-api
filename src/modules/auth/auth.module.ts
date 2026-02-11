@@ -12,6 +12,7 @@ import { PermissionModel } from './infrastructure/persistence/models/permission.
 import { RoleRepository } from './infrastructure/persistence/repositories/role.repository';
 import { PermissionRepository } from './infrastructure/persistence/repositories/permission.repository';
 import { PermissionService } from './application/services/permission.service';
+import { RbacSeederService } from './application/services/rbac-seeder.service';
 
 /**
  * Auth Module
@@ -35,10 +36,12 @@ import { PermissionService } from './application/services/permission.service';
  * - Issue 6.4: Auth Guard ✅
  * - Issue 6.5: Current User Decorator ✅
  * - Issue 6.6: Sync User on First Login ✅
+ * - Issue 6.7: Add Auth to Controllers ✅
  * - Issue 6.8: Role & Permission Models ✅
  * - Issue 6.9: Permission Decorators ✅
- * - Issue 6.11: Permission Service ✅
  * - Issue 6.10: RBAC Guard ✅
+ * - Issue 6.11: Permission Service ✅
+ * - Issue 6.12: Permissions Seeder ✅
  */
 @Module({
   imports: [
@@ -55,6 +58,7 @@ import { PermissionService } from './application/services/permission.service';
     RoleRepository, // Role data access
     PermissionRepository, // Permission data access
     PermissionService, // RBAC logic
+    RbacSeederService, // RBAC seeder for initializing data
   ],
   exports: [
     AuthService,
@@ -62,6 +66,7 @@ import { PermissionService } from './application/services/permission.service';
     JwtAuthGuard,
     RBACGuard, // Export for use in controllers
     PermissionService, // Export for use in other modules
+    RbacSeederService, // Export for use in CLI commands
   ],
 })
 export class AuthModule {}
