@@ -22,6 +22,10 @@ AUTH0_ISSUER=https://your-tenant.auth0.com/
 GOOGLE_API_KEY=your-gemini-api-key-here
 GENKIT_ENV=dev
 
+# Pinecone Vector Database
+PINECONE_API_KEY=pcsk_xxxxx
+PINECONE_INDEX=context-ai
+
 # CORS & Security
 FRONTEND_URL=http://localhost:3000
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
