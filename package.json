@@ -21,6 +21,11 @@
     "test:integration": "jest --config ./test/jest-integration.json --runInBand",
     "test:integration:watch": "jest --config ./test/jest-integration.json --watch --runInBand",
     "test:integration:cov": "jest --config ./test/jest-integration.json --coverage --runInBand",
+    "test:contract": "jest test/contract/ --verbose",
+    "test:security": "jest test/security/ --verbose",
+    "test:performance": "jest test/performance/ --verbose",
+    "test:smoke": "jest --config ./test/jest-e2e.json --testPathPatterns='api-smoke' --verbose",
+    "test:sector": "jest --config ./test/jest-e2e.json --testPathPatterns='sector-isolation' --verbose",
     "test:all": "npm run test && npm run test:integration && npm run test:e2e",
     "typeorm": "typeorm-ts-node-commonjs -d src/config/typeorm.config.ts",
     "migration:generate": "npm run typeorm -- migration:generate src/migrations",
@@ -121,7 +126,8 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/test/integration/",
-      "/test/e2e/"
+      "/test/e2e/",
+      "/test/factories/"
     ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
