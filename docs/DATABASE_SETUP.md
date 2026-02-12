@@ -1,13 +1,15 @@
 # Database Setup Guide
 
-This guide explains how to set up and work with the PostgreSQL database with pgvector extension for Context.ai.
+This guide explains how to set up and work with the PostgreSQL database for Context.ai.
+
+> **Note:** Vector embeddings are managed by Pinecone (external service). PostgreSQL stores only relational data.
 
 ## Quick Start
 
 ### 1. Start the Database (Docker)
 
 ```bash
-# Start PostgreSQL with pgvector
+# Start PostgreSQL
 npm run db:create
 
 # Check if it's running
@@ -34,9 +36,6 @@ npm run migration:show
 ```bash
 # Connect to the database
 docker exec -it context-ai-postgres psql -U context_ai_user -d context_ai_db
-
-# Check pgvector extension
-\dx
 
 # Check tables
 \dt
@@ -144,14 +143,13 @@ Stores document metadata and raw content.
 - `idx_knowledge_sources_deleted_at` on `deleted_at`
 
 #### fragments
-Stores document chunks with vector embeddings for RAG.
+Stores document chunks (text only). Vector embeddings are stored in Pinecone.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
 | source_id | UUID | Foreign key to knowledge_sources |
 | content | TEXT | Fragment text content |
-| embedding | VECTOR(768) | Vector embedding (Gemini) |
 | position | INTEGER | Position within source document |
 | token_count | INTEGER | Estimated token count |
 | metadata | JSONB | Additional metadata |
@@ -161,40 +159,31 @@ Stores document chunks with vector embeddings for RAG.
 **Indexes:**
 - `idx_fragments_source_id` on `source_id`
 - `idx_fragments_position` on `(source_id, position)`
-- `idx_fragments_embedding_hnsw` on `embedding` using HNSW (for vector similarity search)
 
 **Foreign Keys:**
 - `fk_fragments_source_id` references `knowledge_sources(id)` ON DELETE CASCADE
 
 ## Vector Search
 
-The `fragments` table uses pgvector extension for similarity search.
+Vector embeddings are managed by **Pinecone** (external managed service), not PostgreSQL.
 
-### Vector Index (HNSW)
+### Architecture
 
-The HNSW index is optimized for high-dimensional vectors:
-- **m=16**: Number of bi-directional links per node (higher = better recall, more memory)
-- **ef_construction=64**: Size of dynamic candidate list (higher = better index quality, slower build)
+- **PostgreSQL**: Stores relational data (sources, fragments text, users, conversations)
+- **Pinecone**: Stores vector embeddings for similarity search (via `IVectorStore` interface)
 
-### Query Vector Similarity
+### How It Works
 
-```sql
--- Find top 5 most similar fragments
-SELECT 
-  id, 
-  content,
-  1 - (embedding <=> '[0.1,0.2,...]'::vector) as similarity
-FROM fragments
-WHERE embedding IS NOT NULL
-ORDER BY embedding <=> '[0.1,0.2,...]'::vector
-LIMIT 5;
-```
+1. During ingestion, embeddings are generated via Genkit (Gemini) and upserted to Pinecone
+2. During queries, the query embedding is compared against Pinecone vectors
+3. Pinecone returns the most similar fragment IDs and scores
+4. Fragment content is retrieved from PostgreSQL
 
-### Distance Operators
+### Pinecone Configuration
 
-- `<->`: L2 distance (Euclidean)
-- `<#>`: Inner product
-- `<=>`: Cosine distance (1 - cosine similarity)
+- **Index**: Configured via `PINECONE_INDEX` env variable
+- **Namespaces**: Each sector (`sectorId`) maps to a Pinecone namespace for multi-tenant isolation
+- **Dimensions**: 3072 (gemini-embedding-001)
 
 ## Troubleshooting
 
@@ -209,19 +198,6 @@ docker logs context-ai-postgres
 
 # Restart
 docker-compose restart postgres
-```
-
-### pgvector extension not found
-
-```bash
-# Connect to database
-docker exec -it context-ai-postgres psql -U context_ai_user -d context_ai_db
-
-# Enable extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
-# Verify
-\dx
 ```
 
 ### Migration fails
@@ -255,7 +231,6 @@ For production deployments:
    - AWS RDS for PostgreSQL
    - Google Cloud SQL
    - Azure Database for PostgreSQL
-   - Ensure pgvector extension is installed
 
 2. **Set proper environment variables**:
    ```env
@@ -289,6 +264,6 @@ For production deployments:
 ## See Also
 
 - [TypeORM Migrations Documentation](https://typeorm.io/migrations)
-- [pgvector Documentation](https://github.com/pgvector/pgvector)
-- [PostgreSQL HNSW Index](https://github.com/pgvector/pgvector#hnsw)
+- [Pinecone Documentation](https://docs.pinecone.io/)
+- [Pinecone Node.js SDK](https://github.com/pinecone-io/pinecone-ts-client)
 

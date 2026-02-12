@@ -507,7 +507,7 @@ describe('EmbeddingService', () => {
   describe('Specialized Embedding Methods', () => {
     it('should generate document embedding with RETRIEVAL_DOCUMENT taskType', async () => {
       // Arrange
-      const docText = 'This is a document to be stored in pgvector';
+      const docText = 'This is a document to be stored in Pinecone';
       const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 

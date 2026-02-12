@@ -2,13 +2,10 @@
 -- Context.ai - Database Initialization Script
 -- ============================================
 -- This script runs automatically when the PostgreSQL container starts for the first time.
--- It enables the pgvector extension and sets up the initial schema.
-
--- Enable pgvector extension for vector similarity search
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Verify pgvector installation
-SELECT * FROM pg_extension WHERE extname = 'vector';
+-- It sets up the initial schema and permissions.
+--
+-- NOTE: Vector embeddings are managed by Pinecone (external service).
+-- PostgreSQL is used only for relational data (sources, fragments, users, etc.).
 
 -- Create schemas if they don't exist
 CREATE SCHEMA IF NOT EXISTS public;
@@ -34,8 +31,7 @@ $$ language 'plpgsql';
 DO $$
 BEGIN
     RAISE NOTICE 'Context.ai database initialized successfully';
-    RAISE NOTICE 'pgvector extension enabled';
     RAISE NOTICE 'Database: context_ai_db';
     RAISE NOTICE 'User: context_ai_user';
+    RAISE NOTICE 'Vector embeddings: Managed by Pinecone (external)';
 END $$;
-

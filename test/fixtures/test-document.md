@@ -12,7 +12,7 @@ This document contains structured content that will be parsed, chunked, and embe
 
 Context.ai uses modern technologies including:
 - **NestJS** for the backend framework
-- **PostgreSQL** with **pgvector** extension for vector storage
+- **PostgreSQL** for relational data with **Pinecone** for vector search
 - **TypeORM** for database operations
 - **Google Gemini** for AI embeddings and generation
 - **Docker** for containerization
@@ -32,7 +32,7 @@ The Knowledge Context module provides:
 - Document parsing (PDF, Markdown, plain text)
 - Intelligent chunking with sliding window algorithm
 - Vector embeddings for semantic search
-- Efficient storage with PostgreSQL + pgvector
+- Efficient storage with PostgreSQL + Pinecone
 - RESTful API with Swagger documentation
 
 ## Conclusion

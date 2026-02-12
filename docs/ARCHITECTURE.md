@@ -172,7 +172,7 @@ Repository (Infrastructure)
     ↓
 Database Models (TypeORM)
     ↓
-PostgreSQL + pgvector
+PostgreSQL + Pinecone
 ```
 
 ---
