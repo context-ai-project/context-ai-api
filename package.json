@@ -26,6 +26,7 @@
     "test:performance": "jest test/performance/ --verbose",
     "test:smoke": "jest --config ./test/jest-e2e.json --testPathPatterns='api-smoke' --verbose",
     "test:sector": "jest --config ./test/jest-e2e.json --testPathPatterns='sector-isolation' --verbose",
+    "test:mvp": "jest --config ./test/jest-e2e.json --testPathPatterns='mvp-criteria' --verbose",
     "test:all": "npm run test && npm run test:integration && npm run test:e2e",
     "typeorm": "typeorm-ts-node-commonjs -d src/config/typeorm.config.ts",
     "migration:generate": "npm run typeorm -- migration:generate src/migrations",
