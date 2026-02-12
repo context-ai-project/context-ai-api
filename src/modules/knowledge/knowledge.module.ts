@@ -6,6 +6,7 @@ import { KnowledgeController } from './presentation/knowledge.controller';
 
 // Application
 import { IngestDocumentUseCase } from './application/use-cases/ingest-document.use-case';
+import { DeleteSourceUseCase } from './application/use-cases/delete-source.use-case';
 
 // Infrastructure - Services
 import { DocumentParserService } from './infrastructure/services/document-parser.service';
@@ -56,6 +57,7 @@ import { PineconeModule } from './infrastructure/pinecone/pinecone.module';
   providers: [
     // Application Layer - Use Cases
     IngestDocumentUseCase,
+    DeleteSourceUseCase,
 
     // Infrastructure Layer - Services
     DocumentParserService,
@@ -77,6 +79,7 @@ import { PineconeModule } from './infrastructure/pinecone/pinecone.module';
   exports: [
     // Export use cases for other modules if needed
     IngestDocumentUseCase,
+    DeleteSourceUseCase,
     // Export repository with interface token
     'IKnowledgeRepository',
     // Export vector store with interface token for InteractionModule
