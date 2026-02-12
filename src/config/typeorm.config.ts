@@ -16,7 +16,7 @@ import { MessageModel } from '../modules/interaction/infrastructure/persistence/
  * Supports both development and production environments.
  *
  * Features:
- * - PostgreSQL with pgvector extension
+ * - PostgreSQL (vector embeddings managed externally by Pinecone)
  * - Automatic migrations
  * - Entity synchronization (development only)
  * - Connection pooling
