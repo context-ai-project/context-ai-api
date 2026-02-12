@@ -117,7 +117,7 @@ export interface FragmentFixture {
 
 export const TECH_FRAGMENTS: FragmentFixture[] = [
   {
-    id: 'frag-tech-0001-0001-0001-000000000001',
+    id: 'f00a0001-0001-4001-a001-000000000001',
     sourceId: TEST_SOURCE_IDS.techManual,
     content:
       'This document describes the system architecture. The system uses NestJS for the backend.',
@@ -126,7 +126,7 @@ export const TECH_FRAGMENTS: FragmentFixture[] = [
     metadata: { heading: 'Overview' },
   },
   {
-    id: 'frag-tech-0002-0002-0002-000000000002',
+    id: 'f00a0002-0002-4002-a002-000000000002',
     sourceId: TEST_SOURCE_IDS.techManual,
     content: 'Next.js is used for the frontend with TypeScript and Tailwind.',
     position: 1,
@@ -137,7 +137,7 @@ export const TECH_FRAGMENTS: FragmentFixture[] = [
 
 export const RRHH_FRAGMENTS: FragmentFixture[] = [
   {
-    id: 'frag-rrhh-0001-0001-0001-000000000001',
+    id: 'f00b0001-0001-4001-a001-000000000001',
     sourceId: TEST_SOURCE_IDS.rrhhPolicy,
     content:
       'Employees are entitled to 15 vacation days per year. Requests must be submitted at least 2 weeks in advance.',

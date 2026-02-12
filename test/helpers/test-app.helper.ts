@@ -79,13 +79,21 @@ export class TestAppHelper {
   /**
    * Get a provider from the NestJS DI container.
    */
-  get<T>(token: string | symbol | { new (...args: unknown[]): T }): T {
+  /**
+   * Get a provider from the NestJS DI container by class, string token, or symbol.
+   */
+  get<T>(token: { new (...args: unknown[]): T } | string | symbol): T {
     if (!this.moduleRef) {
       throw new Error(
         'TestAppHelper: Module not initialized. Call createTestApp() first.',
       );
     }
-    return this.moduleRef.get<T>(token as string);
+
+    if (typeof token === 'string' || typeof token === 'symbol') {
+      return this.moduleRef.get<T>(token);
+    }
+
+    return this.moduleRef.get<T>(token);
   }
 
   /**

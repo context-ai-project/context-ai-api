@@ -33,7 +33,6 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
-  ForbiddenException,
   BadRequestException,
   ValidationPipe,
 } from '@nestjs/common';
@@ -169,10 +168,9 @@ class MvpHealthController {
 class MvpUserController {
   @Get('me')
   @HttpCode(HttpStatus.OK)
-  getMe(
-    @Query('_user') _u: string,
-  ): MvpUser {
-    // Guard already attached user
+  getMe(): MvpUser {
+    // Simplified mock: always returns admin for contract testing.
+    // In production, the guard injects the authenticated user via req.user.
     return USERS.admin;
   }
 

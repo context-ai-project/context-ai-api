@@ -73,9 +73,16 @@ export class DatabaseCleaner {
   static async cleanKnowledge(dataSource: DataSource): Promise<void> {
     if (!dataSource.isInitialized) return;
 
-    await dataSource.query('SET session_replication_role = replica;');
-    await dataSource.query('TRUNCATE fragments, knowledge_sources CASCADE;');
-    await dataSource.query('SET session_replication_role = DEFAULT;');
+    try {
+      await dataSource.query('SET session_replication_role = replica;');
+      await dataSource.query('TRUNCATE fragments, knowledge_sources CASCADE;');
+    } finally {
+      await dataSource
+        .query('SET session_replication_role = DEFAULT;')
+        .catch(() => {
+          /* ignore nested error */
+        });
+    }
   }
 
   /**
@@ -84,9 +91,16 @@ export class DatabaseCleaner {
   static async cleanInteractions(dataSource: DataSource): Promise<void> {
     if (!dataSource.isInitialized) return;
 
-    await dataSource.query('SET session_replication_role = replica;');
-    await dataSource.query('TRUNCATE messages, conversations CASCADE;');
-    await dataSource.query('SET session_replication_role = DEFAULT;');
+    try {
+      await dataSource.query('SET session_replication_role = replica;');
+      await dataSource.query('TRUNCATE messages, conversations CASCADE;');
+    } finally {
+      await dataSource
+        .query('SET session_replication_role = DEFAULT;')
+        .catch(() => {
+          /* ignore nested error */
+        });
+    }
   }
 }
 

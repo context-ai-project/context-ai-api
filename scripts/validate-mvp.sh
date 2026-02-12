@@ -15,7 +15,9 @@
 #   - Dependencies installed (pnpm install)
 # ==============================================================================
 
-set -euo pipefail
+set -uo pipefail
+# Note: -e is intentionally omitted so that individual check failures
+# are captured by the if-else branches and the summary can always run.
 
 # ── Colours & helpers ─────────────────────────────────────────────────────────
 

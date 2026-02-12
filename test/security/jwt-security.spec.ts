@@ -78,19 +78,17 @@ describe('Security: JWT Token Format Validation (Phase 7.14)', () => {
       });
     });
 
-    it('should reject token with fewer than 3 parts', () => {
+    it('should reject token that does not have exactly 3 parts', () => {
       const malformedTokens = [
-        'single-part-only',
-        'two.parts',
-        '',
-        'a.b.c.d', // too many parts
+        'single-part-only', // 1 part
+        'two.parts', // 2 parts
+        '', // 0 meaningful parts
+        'a.b.c.d', // 4 parts (too many)
       ];
 
       malformedTokens.forEach((token) => {
         const parts = token.split('.');
-        expect(parts.length === 3).toBe(
-          token === 'a.b.c.d' ? false : false,
-        );
+        expect(parts.length).not.toBe(3);
       });
     });
 

@@ -14,9 +14,9 @@ import { TEST_SOURCE_IDS } from '../knowledge/sources.fixture';
 // ============================================================================
 
 export const TEST_CONVERSATION_IDS = {
-  techChat: 'conv-1111-1111-4111-a111-111111111111',
-  rrhhChat: 'conv-2222-2222-4222-a222-222222222222',
-  emptyChat: 'conv-3333-3333-4333-a333-333333333333',
+  techChat: 'c0001111-1111-4111-a111-111111111111',
+  rrhhChat: 'c0002222-2222-4222-a222-222222222222',
+  emptyChat: 'c0003333-3333-4333-a333-333333333333',
 } as const;
 
 // ============================================================================
@@ -67,14 +67,14 @@ export interface MessageFixture {
 
 export const TECH_MESSAGES: MessageFixture[] = [
   {
-    id: 'msg-0001-0001-4001-a001-000000000001',
+    id: 'm0000001-0001-4001-a001-000000000001',
     conversationId: TEST_CONVERSATION_IDS.techChat,
     role: 'user',
     content: 'What technology stack does the system use?',
     metadata: null,
   },
   {
-    id: 'msg-0002-0002-4002-a002-000000000002',
+    id: 'm0000002-0002-4002-a002-000000000002',
     conversationId: TEST_CONVERSATION_IDS.techChat,
     role: 'assistant',
     content:
@@ -82,7 +82,7 @@ export const TECH_MESSAGES: MessageFixture[] = [
     metadata: {
       sources: [
         {
-          fragmentId: 'frag-tech-0001-0001-0001-000000000001',
+          fragmentId: 'f00a0001-0001-4001-a001-000000000001',
           sourceId: TEST_SOURCE_IDS.techManual,
           similarity: 0.95,
           content: 'The system uses NestJS for the backend.',
@@ -94,21 +94,21 @@ export const TECH_MESSAGES: MessageFixture[] = [
 
 export const RRHH_MESSAGES: MessageFixture[] = [
   {
-    id: 'msg-0003-0003-4003-a003-000000000003',
+    id: 'm0000003-0003-4003-a003-000000000003',
     conversationId: TEST_CONVERSATION_IDS.rrhhChat,
     role: 'user',
     content: 'How many vacation days do employees get?',
     metadata: null,
   },
   {
-    id: 'msg-0004-0004-4004-a004-000000000004',
+    id: 'm0000004-0004-4004-a004-000000000004',
     conversationId: TEST_CONVERSATION_IDS.rrhhChat,
     role: 'assistant',
     content: 'Employees are entitled to 15 vacation days per year.',
     metadata: {
       sources: [
         {
-          fragmentId: 'frag-rrhh-0001-0001-0001-000000000001',
+          fragmentId: 'f00b0001-0001-4001-a001-000000000001',
           sourceId: TEST_SOURCE_IDS.rrhhPolicy,
           similarity: 0.92,
           content: 'Employees are entitled to 15 vacation days per year.',
