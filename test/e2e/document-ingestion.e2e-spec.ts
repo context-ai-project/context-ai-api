@@ -5,7 +5,6 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { SourceType, SourceStatus } from '@shared/types';
 import { KnowledgeRepository } from '../../src/modules/knowledge/infrastructure/persistence/repositories/knowledge.repository';
-import { EmbeddingService } from '../../src/modules/knowledge/infrastructure/services/embedding.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createDefaultTestPdf } from '../fixtures/create-test-pdf';
@@ -89,8 +88,8 @@ describe('Document Ingestion E2E Tests', () => {
     dataSource = moduleFixture.get<DataSource>(DataSource);
     repository = moduleFixture.get<KnowledgeRepository>(KnowledgeRepository);
 
-    // Setup embedding mock
-    const mockEmbedding = Array(768).fill(0.1);
+    // Setup embedding mock (3072 dimensions for text-embedding-004)
+    const mockEmbedding = Array(3072).fill(0.1);
     mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
   });
 
@@ -133,18 +132,19 @@ describe('Document Ingestion E2E Tests', () => {
       expect(response.body).toHaveProperty('fragmentCount');
       expect(response.body.fragmentCount).toBeGreaterThan(0);
 
-      // Verify database persistence
+      // Verify database persistence (relational data)
       const source = await repository.findSourceById(response.body.sourceId);
       expect(source).toBeDefined();
       expect(source!.title).toBe('Test Markdown Document');
       expect(source!.status).toBe(SourceStatus.COMPLETED);
 
+      // Verify fragments were saved (without embeddings - those are in Pinecone)
       const fragments = await repository.findFragmentsBySource(
         response.body.sourceId,
       );
       expect(fragments.length).toBe(response.body.fragmentCount);
-      expect(fragments[0].embedding).toBeDefined();
-      expect(fragments[0].embedding!.length).toBe(768);
+      expect(fragments[0].content).toBeDefined();
+      expect(fragments[0].position).toBe(0);
     });
 
     it('should successfully ingest a PDF document', async () => {
@@ -272,36 +272,8 @@ describe('Document Ingestion E2E Tests', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should perform vector search on ingested fragments', async () => {
-      // Arrange - Ingest a document first
-      const markdownPath = join(__dirname, '../fixtures/test-document.md');
-      const markdownContent = readFileSync(markdownPath);
-
-      const ingestResponse = await request(app.getHttpServer())
-        .post('/api/v1/knowledge/documents/upload')
-        .field('title', 'Vector Search Test Document')
-        .field('sectorId', validSectorId)
-        .field('sourceType', SourceType.MARKDOWN)
-        .attach('file', markdownContent, {
-          filename: 'test-document.md',
-          contentType: 'text/markdown',
-        });
-
-      expect(ingestResponse.status).toBe(201);
-
-      // Act - Perform vector search
-      const queryEmbedding = Array(768).fill(0.1);
-      const searchResults = await repository.vectorSearch(
-        queryEmbedding,
-        5,
-        0.0,
-      );
-
-      // Assert
-      expect(searchResults.length).toBeGreaterThan(0);
-      expect(searchResults[0]).toHaveProperty('similarity');
-      expect(searchResults[0].content).toBeDefined();
-    });
+    // Note: Vector search E2E tests have been moved to Phase 6B.6
+    // as they now require Pinecone integration (IVectorStore)
 
     it('should create multiple fragments from long document', async () => {
       // Arrange

@@ -15,14 +15,17 @@ import {
 /**
  * Integration Tests for KnowledgeRepository
  *
- * These tests use a real PostgreSQL database with pgvector extension.
- * They verify the repository's ability to perform CRUD operations and vector searches.
+ * These tests use a real PostgreSQL database (without pgvector extension).
+ * They verify the repository's ability to perform CRUD operations for
+ * relational data. Vector operations are now handled by IVectorStore (Pinecone).
  *
  * Prerequisites:
- * - PostgreSQL with pgvector must be running (docker-compose up -d postgres)
+ * - PostgreSQL must be running (docker-compose up -d postgres)
  * - Test database should be created and migrations run
  *
  * Run with: npm run test:integration
+ *
+ * Updated for Phase 6B: Removed pgvector/embedding/vectorSearch references.
  */
 describe('KnowledgeRepository Integration Tests', () => {
   let repository: KnowledgeRepository;
@@ -54,13 +57,6 @@ describe('KnowledgeRepository Integration Tests', () => {
       expect(dataSource.isInitialized).toBe(true);
     });
 
-    it('should have pgvector extension installed', async () => {
-      const result = await dataSource.query(
-        "SELECT * FROM pg_extension WHERE extname = 'vector'",
-      );
-      expect(result.length).toBeGreaterThan(0);
-    });
-
     it('should have knowledge_sources table', async () => {
       const result = await dataSource.query(
         "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'knowledge_sources')",
@@ -68,11 +64,11 @@ describe('KnowledgeRepository Integration Tests', () => {
       expect(result[0].exists).toBe(true);
     });
 
-    it('should have fragments table with vector column', async () => {
+    it('should have fragments table', async () => {
       const result = await dataSource.query(
-        "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'fragments' AND column_name = 'embedding'",
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'fragments')",
       );
-      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].exists).toBe(true);
     });
   });
 
@@ -182,7 +178,7 @@ describe('KnowledgeRepository Integration Tests', () => {
   });
 
   describe('Fragment CRUD Operations', () => {
-    it('should save fragments', async () => {
+    it('should save fragments without embeddings', async () => {
       // Arrange
       const source = new KnowledgeSource({
         title: 'Fragment Test',
@@ -195,7 +191,6 @@ describe('KnowledgeRepository Integration Tests', () => {
       const fragment = new Fragment({
         sourceId: savedSource.id!,
         content: 'This is a test fragment with at least 10 characters.',
-        embedding: Array(768).fill(0.1),
         position: 0,
         metadata: { test: true },
       });
@@ -223,13 +218,11 @@ describe('KnowledgeRepository Integration Tests', () => {
         new Fragment({
           sourceId: savedSource.id!,
           content: 'Fragment 1 content with sufficient length.',
-          embedding: Array(768).fill(0.1),
           position: 0,
         }),
         new Fragment({
           sourceId: savedSource.id!,
           content: 'Fragment 2 content with sufficient length.',
-          embedding: Array(768).fill(0.2),
           position: 1,
         }),
       ];
@@ -257,7 +250,6 @@ describe('KnowledgeRepository Integration Tests', () => {
       const fragment = new Fragment({
         sourceId: savedSource.id!,
         content: 'Fragment to delete with sufficient length.',
-        embedding: Array(768).fill(0.1),
         position: 0,
       });
       await repository.saveFragments([fragment]);
@@ -269,133 +261,46 @@ describe('KnowledgeRepository Integration Tests', () => {
       // Assert
       expect(found).toHaveLength(0);
     });
-  });
 
-  describe('Vector Search', () => {
-    it('should perform vector similarity search', async () => {
+    it('should count fragments by source', async () => {
       // Arrange
       const source = new KnowledgeSource({
-        title: 'Vector Search Test',
+        title: 'Count Fragments Test',
         sectorId: createTestUuid('sector-'),
         sourceType: SourceType.PDF,
         content: 'Content.',
       });
       const savedSource = await repository.saveSource(source);
 
-      // Create fragments with different embeddings
-      const queryEmbedding = Array(768)
-        .fill(0)
-        .map(() => Math.random());
-
-      const similarFragment = new Fragment({
-        sourceId: savedSource.id!,
-        content:
-          'Similar fragment with sufficient character length for testing.',
-        embedding: queryEmbedding.map((v) => v + Math.random() * 0.1), // Very similar
-        position: 0,
-      });
-
-      const differentFragment = new Fragment({
-        sourceId: savedSource.id!,
-        content:
-          'Different fragment with sufficient character length for testing.',
-        embedding: Array(768).fill(0.9), // Very different
-        position: 1,
-      });
-
-      await repository.saveFragments([similarFragment, differentFragment]);
-
-      // Act
-      const results = await repository.vectorSearch(
-        queryEmbedding,
-        savedSource.sectorId,
-        2,
-        0.0,
-      );
-
-      // Assert
-      expect(results.length).toBeGreaterThan(0);
-      expect(results[0]).toHaveProperty('similarity');
-      // The more similar fragment should have higher similarity
-      if (results.length === 2) {
-        expect(results[0].similarity).toBeGreaterThan(results[1].similarity);
-      }
-    });
-
-    it('should respect limit in vector search', async () => {
-      // Arrange
-      const source = new KnowledgeSource({
-        title: 'Vector Search Limit Test',
-        sectorId: createTestUuid('sector-'),
-        sourceType: SourceType.PDF,
-        content: 'Content.',
-      });
-      const savedSource = await repository.saveSource(source);
-
-      const fragments = Array.from(
-        { length: 5 },
-        (_, i) =>
-          new Fragment({
-            sourceId: savedSource.id!,
-            content: `Fragment ${i} with sufficient character length for testing purposes.`,
-            embedding: Array(768)
-              .fill(0)
-              .map(() => Math.random()),
-            position: i,
-          }),
-      );
+      const fragments = [
+        new Fragment({
+          sourceId: savedSource.id!,
+          content: 'Fragment 1 content with sufficient length.',
+          position: 0,
+        }),
+        new Fragment({
+          sourceId: savedSource.id!,
+          content: 'Fragment 2 content with sufficient length.',
+          position: 1,
+        }),
+        new Fragment({
+          sourceId: savedSource.id!,
+          content: 'Fragment 3 content with sufficient length.',
+          position: 2,
+        }),
+      ];
       await repository.saveFragments(fragments);
 
-      const queryEmbedding = Array(768)
-        .fill(0)
-        .map(() => Math.random());
-
       // Act
-      const results = await repository.vectorSearch(
-        queryEmbedding,
-        savedSource.sectorId,
-        3,
-        0.0,
-      );
+      const count = await repository.countFragmentsBySource(savedSource.id!);
 
       // Assert
-      expect(results.length).toBeLessThanOrEqual(3);
-    });
-
-    it('should filter by similarity threshold', async () => {
-      // Arrange
-      const source = new KnowledgeSource({
-        title: 'Similarity Threshold Test',
-        sectorId: createTestUuid('sector-'),
-        sourceType: SourceType.PDF,
-        content: 'Content.',
-      });
-      const savedSource = await repository.saveSource(source);
-
-      const queryEmbedding = Array(768).fill(0.5);
-
-      const fragment = new Fragment({
-        sourceId: savedSource.id!,
-        content:
-          'Fragment for similarity threshold test with sufficient length.',
-        embedding: queryEmbedding, // Identical (similarity = 1.0)
-        position: 0,
-      });
-      await repository.saveFragments([fragment]);
-
-      // Act - high threshold should return results
-      const highThresholdResults = await repository.vectorSearch(
-        queryEmbedding,
-        savedSource.sectorId,
-        5,
-        0.99,
-      );
-
-      // Assert
-      expect(highThresholdResults.length).toBeGreaterThan(0);
-      expect(highThresholdResults[0].similarity).toBeGreaterThanOrEqual(0.99);
+      expect(count).toBe(3);
     });
   });
+
+  // Note: Vector search tests have been moved to IVectorStore integration tests (6B.6)
+  // The repository no longer handles vector operations - those are delegated to Pinecone.
 
   describe('Transactions', () => {
     it('should rollback transaction on error', async () => {

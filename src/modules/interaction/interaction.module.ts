@@ -7,7 +7,7 @@ import { ConversationModel } from './infrastructure/persistence/models/conversat
 import { MessageModel } from './infrastructure/persistence/models/message.model';
 import { createRagQueryService } from '@shared/genkit/flows/rag-query.flow';
 import { KnowledgeModule } from '@modules/knowledge/knowledge.module';
-import { IKnowledgeRepository } from '@modules/knowledge/domain/repositories/knowledge.repository.interface';
+import { IVectorStore } from '@modules/knowledge/domain/services/vector-store.interface';
 import { IConversationRepository } from './domain/repositories/conversation.repository.interface';
 
 /**
@@ -19,7 +19,7 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
  * - Query assistant endpoint
  * - Conversation management
  * - Integration with RAG flow
- * - Integration with knowledge base
+ * - Integration with knowledge base via Pinecone vector search
  *
  * Architecture:
  * - Presentation: Controller, DTOs
@@ -28,14 +28,14 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
  * - Infrastructure: TypeORM models, repositories (implementations)
  *
  * Dependencies:
- * - KnowledgeModule: For vector search
+ * - KnowledgeModule: For IVectorStore (Pinecone vector search)
  * - TypeORM: For persistence
  * - Genkit: For RAG flow
  */
 @Module({
   imports: [
     TypeOrmModule.forFeature([ConversationModel, MessageModel]),
-    KnowledgeModule, // Import to access KnowledgeRepository
+    KnowledgeModule, // Import to access IVectorStore
   ],
   controllers: [InteractionController],
   providers: [
@@ -49,27 +49,27 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
       provide: QueryAssistantUseCase,
       useFactory: (
         conversationRepository: IConversationRepository,
-        knowledgeRepository: IKnowledgeRepository,
+        vectorStore: IVectorStore,
       ) => {
-        // Create type-safe wrapper for vectorSearch with proper mapping
+        // Create type-safe wrapper for vectorSearch using IVectorStore (Pinecone)
         const vectorSearchFn = async (
           embedding: number[],
           sectorId: string,
           limit: number,
         ) => {
-          const fragments = await knowledgeRepository.vectorSearch(
+          const results = await vectorStore.vectorSearch(
             embedding,
             sectorId,
             limit,
           );
 
-          // Map to required format with guaranteed non-undefined fields
-          return fragments.map((fragment) => ({
-            id: fragment.id ?? '',
-            content: fragment.content,
-            similarity: fragment.similarity,
-            sourceId: fragment.sourceId,
-            metadata: fragment.metadata,
+          // Map VectorSearchResult to the format expected by the RAG flow
+          return results.map((result) => ({
+            id: result.id,
+            content: result.metadata.content,
+            similarity: result.score,
+            sourceId: result.metadata.sourceId,
+            metadata: result.metadata as unknown as Record<string, unknown>,
           }));
         };
 
@@ -81,7 +81,7 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
           ragQueryService.executeQuery,
         );
       },
-      inject: ['IConversationRepository', 'IKnowledgeRepository'],
+      inject: ['IConversationRepository', 'IVectorStore'],
     },
   ],
   exports: ['IConversationRepository'],

@@ -8,6 +8,9 @@ import { Fragment } from '../entities/fragment.entity';
  * Follows Repository pattern and Dependency Inversion Principle.
  *
  * Implementation will be in Infrastructure layer (TypeORM).
+ *
+ * Note: Vector similarity search has been moved to IVectorStore (Pinecone).
+ * This repository now handles only relational data in PostgreSQL.
  */
 export interface IKnowledgeRepository {
   // ==================== KnowledgeSource Operations ====================
@@ -91,21 +94,6 @@ export interface IKnowledgeRepository {
   ): Promise<Fragment[]>;
 
   /**
-   * Performs vector similarity search
-   * @param embedding - The query embedding vector
-   * @param sectorId - The sector ID to filter results
-   * @param limit - Maximum number of results (default: 5)
-   * @param similarityThreshold - Minimum similarity score (0-1, default: 0.7)
-   * @returns Array of fragments ordered by similarity (highest first)
-   */
-  vectorSearch(
-    embedding: number[],
-    sectorId: string,
-    limit?: number,
-    similarityThreshold?: number,
-  ): Promise<FragmentWithSimilarity[]>;
-
-  /**
    * Deletes all fragments for a knowledge source
    * @param sourceId - The source ID
    */
@@ -126,11 +114,4 @@ export interface IKnowledgeRepository {
    * @returns The result of the work function
    */
   transaction<T>(work: () => Promise<T>): Promise<T>;
-}
-
-/**
- * Fragment with similarity score from vector search
- */
-export interface FragmentWithSimilarity extends Fragment {
-  similarity: number;
 }

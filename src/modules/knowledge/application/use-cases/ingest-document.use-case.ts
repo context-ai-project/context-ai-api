@@ -1,5 +1,9 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { IKnowledgeRepository } from '@modules/knowledge/domain/repositories/knowledge.repository.interface';
+import type {
+  IVectorStore,
+  VectorUpsertInput,
+} from '@modules/knowledge/domain/services/vector-store.interface';
 import { DocumentParserService } from '@modules/knowledge/infrastructure/services/document-parser.service';
 import {
   ChunkingService,
@@ -10,10 +14,7 @@ import {
   KnowledgeSource,
   type SourceMetadata,
 } from '@modules/knowledge/domain/entities/knowledge-source.entity';
-import {
-  Fragment,
-  type FragmentMetadata,
-} from '@modules/knowledge/domain/entities/fragment.entity';
+import { Fragment } from '@modules/knowledge/domain/entities/fragment.entity';
 import type {
   IngestDocumentDto,
   IngestDocumentResult,
@@ -33,8 +34,9 @@ const MIN_SECTOR_ID_LENGTH = 1;
  * 3. Creates KnowledgeSource entity
  * 4. Chunks content into fragments
  * 5. Generates embeddings for each fragment
- * 6. Persists source and fragments
- * 7. Updates source status
+ * 6. Persists source and fragments to PostgreSQL
+ * 7. Upserts embeddings to Pinecone vector store
+ * 8. Updates source status
  *
  * @example
  * ```typescript
@@ -53,6 +55,8 @@ export class IngestDocumentUseCase {
   constructor(
     @Inject('IKnowledgeRepository')
     private readonly repository: IKnowledgeRepository,
+    @Inject('IVectorStore')
+    private readonly vectorStore: IVectorStore,
     private readonly parserService: DocumentParserService,
     private readonly chunkingService: ChunkingService,
     private readonly embeddingService: EmbeddingService,
@@ -113,45 +117,56 @@ export class IngestDocumentUseCase {
       const embeddings: number[][] =
         await this.embeddingService.generateDocumentEmbeddings(chunkTexts);
 
-      // Step 7: Create Fragment entities
+      // Step 7: Create Fragment entities (without embeddings - stored in Pinecone)
       this.logger.debug('Creating fragment entities...');
       const fragments: Fragment[] = chunks.map(
-        (chunk: TextChunk, index: number) => {
-          const content: string = chunk.content;
-          const position: number = chunk.position;
-          // Safe: index from map() is guaranteed to be valid array index within embeddings array
-          // eslint-disable-next-line security/detect-object-injection
-          const embeddingAtIndex: number[] = embeddings[index];
-          const metadata: FragmentMetadata = {
-            startIndex: chunk.startIndex,
-            endIndex: chunk.endIndex,
-            tokens: chunk.tokens,
-          };
-
-          return new Fragment({
+        (chunk: TextChunk) =>
+          new Fragment({
             sourceId: savedSource.id!,
-            content,
-            position,
-            embedding: embeddingAtIndex,
-            metadata,
-          });
-        },
+            content: chunk.content,
+            position: chunk.position,
+            tokenCount: chunk.tokens,
+            metadata: {
+              startIndex: chunk.startIndex,
+              endIndex: chunk.endIndex,
+              tokens: chunk.tokens,
+            },
+          }),
       );
 
-      // Step 8: Save fragments
-      this.logger.debug('Saving fragments...');
-      await this.repository.saveFragments(fragments);
+      // Step 8: Save fragments to PostgreSQL
+      this.logger.debug('Saving fragments to PostgreSQL...');
+      const savedFragments = await this.repository.saveFragments(fragments);
 
-      // Step 9: Update source status to COMPLETED
+      // Step 9: Upsert embeddings to Pinecone vector store
+      this.logger.debug('Upserting embeddings to Pinecone...');
+      const vectorInputs: VectorUpsertInput[] = savedFragments.map(
+        (fragment: Fragment, index: number) => ({
+          id: fragment.id!,
+          // Safe: index from map() is guaranteed to be valid array index within embeddings array
+          // eslint-disable-next-line security/detect-object-injection
+          embedding: embeddings[index],
+          metadata: {
+            sourceId: savedSource.id!,
+            sectorId: dto.sectorId,
+            content: fragment.content,
+            position: fragment.position,
+            tokenCount: fragment.tokenCount,
+          },
+        }),
+      );
+      await this.vectorStore.upsertVectors(vectorInputs);
+
+      // Step 10: Update source status to COMPLETED
       this.logger.debug('Updating source status to COMPLETED...');
       savedSource.markAsCompleted();
       await this.repository.saveSource(savedSource);
 
-      // Step 10: Build result
+      // Step 11: Build result
       const result: IngestDocumentResult = {
         sourceId: savedSource.id,
         title: savedSource.title,
-        fragmentCount: fragments.length,
+        fragmentCount: savedFragments.length,
         contentSize: Buffer.byteLength(parsed.content, 'utf8'),
         status: 'COMPLETED',
       };
