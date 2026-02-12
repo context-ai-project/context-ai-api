@@ -10,6 +10,7 @@
   "setupFilesAfterEnv": ["<rootDir>/e2e/jest-setup.ts"],
   "moduleNameMapper": {
     "^@modules/(.*)$": "<rootDir>/../src/modules/$1",
+    "^@shared/(.*)$": "<rootDir>/../src/shared/$1",
     "^@config/(.*)$": "<rootDir>/../src/config/$1",
     "^@common/(.*)$": "<rootDir>/../src/common/$1",
     "^@context-ai/shared$": "<rootDir>/../../context-ai-shared/src/index.ts"
