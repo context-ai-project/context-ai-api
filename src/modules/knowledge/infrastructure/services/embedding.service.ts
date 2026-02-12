@@ -75,11 +75,11 @@ export enum EmbeddingTaskType {
  * const queryEmbedding = await service.generateQueryEmbedding(searchQuery);
  * ```
  *
- * pgvector Integration:
- * - Ensure your pgvector column dimensions match the configured dimensions (3072 by default)
+ * Vector Store Integration:
+ * - Embeddings are stored in Pinecone via IVectorStore
  * - Use RETRIEVAL_DOCUMENT taskType for indexing documents
  * - Use RETRIEVAL_QUERY taskType for search queries
- * - Example: `CREATE TABLE embeddings (id SERIAL PRIMARY KEY, vector vector(3072));`
+ * - Default dimension: 3072 (gemini-embedding-001)
  *
  * Security:
  * - Input validation (OWASP)
@@ -203,7 +203,7 @@ export class EmbeddingService {
 
   /**
    * Generates embedding optimized for document indexing
-   * Use this method when storing documents in pgvector for retrieval
+   * Use this method when storing documents in vector store for retrieval
    * @param text - The document text to embed
    * @returns Vector embedding as number array
    */

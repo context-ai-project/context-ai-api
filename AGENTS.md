@@ -21,7 +21,7 @@ This document provides essential guidelines and collaboration rules for AI agent
 
 **Context.AI API** is a RAG-based knowledge management system built with:
 - **Backend**: NestJS + TypeScript
-- **Database**: PostgreSQL + pgvector
+- **Database**: PostgreSQL + Pinecone (vector search)
 - **AI Framework**: Google Genkit
 - **Architecture**: Clean Architecture / DDD
 
@@ -201,7 +201,7 @@ GitHub Actions validates:
 |----------|-----------|
 | Framework | NestJS |
 | Language | TypeScript (strict mode) |
-| Database | PostgreSQL + pgvector |
+| Database | PostgreSQL + Pinecone |
 | AI | Google Genkit |
 | Embeddings | text-embedding-005 |
 | ORM | TypeORM |

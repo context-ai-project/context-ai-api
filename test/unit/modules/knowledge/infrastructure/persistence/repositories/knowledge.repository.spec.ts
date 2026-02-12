@@ -45,7 +45,6 @@ describe('KnowledgeRepository', () => {
     count: jest.fn(),
     delete: jest.fn(),
     create: jest.fn(),
-    query: jest.fn(),
   };
 
   const mockQueryRunner: Partial<QueryRunner> = {
@@ -313,25 +312,24 @@ describe('KnowledgeRepository', () => {
       it('should save multiple fragments in batch', async () => {
         // Arrange
         const sourceId = '550e8400-e29b-41d4-a716-446655440000'; // Valid UUID
-        const mockEmbedding = Array(768).fill(0.1);
         const fragments = [
           new Fragment({
             sourceId,
             content: 'This is test content for fragment 1',
             position: 0,
-            embedding: mockEmbedding,
+            tokenCount: 10,
           }),
           new Fragment({
             sourceId,
             content: 'This is test content for fragment 2',
             position: 1,
-            embedding: mockEmbedding,
+            tokenCount: 10,
           }),
           new Fragment({
             sourceId,
             content: 'This is test content for fragment 3',
             position: 2,
-            embedding: mockEmbedding,
+            tokenCount: 10,
           }),
         ];
 
@@ -342,7 +340,6 @@ describe('KnowledgeRepository', () => {
           model.content = f.content;
           model.position = f.position;
           model.tokenCount = f.tokenCount;
-          model.embedding = null;
           model.metadata = {};
           model.createdAt = new Date();
           model.updatedAt = new Date();
@@ -433,63 +430,6 @@ describe('KnowledgeRepository', () => {
           where: { sourceId },
           order: { createdAt: 'ASC' },
         });
-      });
-    });
-
-    describe('vectorSearch', () => {
-      it('should perform vector similarity search', async () => {
-        // Arrange
-        const embedding = Array(768).fill(0.1);
-        const sectorId = 'sector-123';
-        const limit = 5;
-        const similarityThreshold = 0.7;
-        const sourceId = '550e8400-e29b-41d4-a716-446655440000';
-
-        // Mock results must be in snake_case (as returned by raw SQL query)
-        const mockResults = [
-          {
-            id: 'frag-1',
-            source_id: sourceId,
-            content:
-              'This is test content for fragment frag-1 with sufficient length',
-            embedding: null,
-            position: 0,
-            token_count: 100,
-            metadata: {},
-            created_at: new Date(),
-            updated_at: new Date(),
-            similarity: 0.95,
-          },
-          {
-            id: 'frag-2',
-            source_id: sourceId,
-            content:
-              'This is test content for fragment frag-2 with sufficient length',
-            embedding: null,
-            position: 1,
-            token_count: 100,
-            metadata: {},
-            created_at: new Date(),
-            updated_at: new Date(),
-            similarity: 0.85,
-          },
-        ];
-
-        mockFragmentRepository.query.mockResolvedValue(mockResults);
-
-        // Act
-        const result = await repository.vectorSearch(
-          embedding,
-          sectorId,
-          limit,
-          similarityThreshold,
-        );
-
-        // Assert
-        expect(result).toHaveLength(2);
-        expect(result[0].similarity).toBe(0.95);
-        expect(result[1].similarity).toBe(0.85);
-        expect(mockFragmentRepository.query).toHaveBeenCalled();
       });
     });
 
@@ -590,7 +530,6 @@ function createMockFragmentModel(
   model.id = id;
   model.sourceId = sourceId;
   model.content = `This is test content for fragment ${id} with sufficient length`;
-  model.embedding = null;
   model.position = position;
   model.tokenCount = 100;
   model.metadata = {};

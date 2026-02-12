@@ -1,10 +1,14 @@
 import {
   Controller,
   Post,
+  Delete,
+  Param,
+  Query,
   UseInterceptors,
   UploadedFile,
   Body,
   BadRequestException,
+  NotFoundException,
   Logger,
   HttpCode,
   HttpStatus,
@@ -26,15 +30,19 @@ import {
   ApiBody,
   ApiResponse,
   ApiProperty,
+  ApiParam,
+  ApiQuery,
   ApiBearerAuth,
   ApiForbiddenResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { IngestDocumentUseCase } from '../application/use-cases/ingest-document.use-case';
+import { DeleteSourceUseCase } from '../application/use-cases/delete-source.use-case';
 import type {
   IngestDocumentDto,
   IngestDocumentResult,
 } from '../application/dtos/ingest-document.dto';
+import type { DeleteSourceResult } from '../application/dtos/delete-source.dto';
 import { SourceType } from '@shared/types';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
@@ -195,7 +203,10 @@ class ErrorResponseDto {
 export class KnowledgeController {
   private readonly logger = new Logger(KnowledgeController.name);
 
-  constructor(private readonly ingestDocumentUseCase: IngestDocumentUseCase) {}
+  constructor(
+    private readonly ingestDocumentUseCase: IngestDocumentUseCase,
+    private readonly deleteSourceUseCase: DeleteSourceUseCase,
+  ) {}
 
   /**
    * Upload and ingest a document into the knowledge base
@@ -348,6 +359,114 @@ export class KnowledgeController {
       });
 
       // Re-throw to be handled by NestJS exception filters
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a knowledge source and its associated data
+   *
+   * Removes the source, all fragments from PostgreSQL,
+   * and all vector embeddings from Pinecone.
+   *
+   * @param sourceId - The knowledge source ID to delete
+   * @param sectorId - The sector ID for Pinecone namespace targeting
+   * @returns Deletion result with statistics
+   */
+  @Delete('documents/:sourceId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['knowledge:delete'])
+  @ApiOperation({
+    summary: 'Delete a knowledge source',
+    description:
+      'Deletes a knowledge source, its fragments from PostgreSQL, ' +
+      'and its vector embeddings from Pinecone. ' +
+      'The operation is idempotent — deleting an already-deleted source returns an error. ' +
+      '\n\n**Required Permission:** knowledge:delete',
+  })
+  @ApiParam({
+    name: 'sourceId',
+    description: 'Knowledge source UUID',
+    example: EXAMPLE_UUID,
+  })
+  @ApiQuery({
+    name: 'sectorId',
+    description: 'Sector UUID for Pinecone namespace',
+    example: EXAMPLE_UUID,
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Source successfully deleted',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request (missing sectorId, invalid UUID)',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Knowledge source not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required - Missing or invalid JWT token',
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied - Requires knowledge:delete permission',
+  })
+  async deleteDocument(
+    @Param('sourceId') sourceId: string,
+    @Query('sectorId') sectorId: string,
+  ): Promise<DeleteSourceResult> {
+    this.logger.log(`Delete request received for source: ${sourceId}`);
+
+    // Validate sectorId query parameter
+    if (!sectorId || sectorId.trim().length === 0) {
+      throw new BadRequestException('sectorId query parameter is required');
+    }
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidRegex.test(sourceId.trim())) {
+      throw new BadRequestException('sourceId must be a valid UUID');
+    }
+
+    if (!uuidRegex.test(sectorId.trim())) {
+      throw new BadRequestException('sectorId must be a valid UUID');
+    }
+
+    try {
+      const result = await this.deleteSourceUseCase.execute({
+        sourceId: sourceId.trim(),
+        sectorId: sectorId.trim(),
+      });
+
+      this.logger.log(
+        `Source deleted successfully: ${result.sourceId} (${result.fragmentsDeleted} fragments, vectors: ${result.vectorsDeleted ? 'cleaned' : 'failed'})`,
+      );
+
+      return result;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      // Map domain errors to HTTP errors
+      if (errorMessage.includes('not found')) {
+        throw new NotFoundException(errorMessage);
+      }
+
+      if (errorMessage.includes('already deleted')) {
+        throw new BadRequestException(errorMessage);
+      }
+
+      this.logger.error(`Source deletion failed: ${errorMessage}`, {
+        sourceId,
+        sectorId,
+        error: error instanceof Error ? error.stack : undefined,
+      });
+
       throw error;
     }
   }

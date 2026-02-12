@@ -10,7 +10,7 @@ Resultados de las pruebas de integración del entorno de desarrollo local.
 ## 🎯 Objetivo
 
 Verificar que todo el stack de desarrollo funciona correctamente:
-- PostgreSQL con pgvector en Docker
+- PostgreSQL en Docker
 - Servidor NestJS
 - Swagger UI
 - Conexión database → API
@@ -30,7 +30,7 @@ docker-compose up -d
 
 **Detalles**:
 - Container: `contextai-db`
-- Imagen: `pgvector/pgvector:pg16`
+- Imagen: `postgres:16-alpine`
 - Puerto: `5433:5432` (host:container)
 - Network: `context-ai-api_contextai-network`
 - Volume: `context-ai-api_postgres_data`
@@ -56,14 +56,15 @@ docker exec contextai-db psql -U contextai_user -d contextai -c "\dx"
  pg_trgm   | 1.6     | public     | Trigram matching for text search
  plpgsql   | 1.0     | pg_catalog | PL/pgSQL procedural language
  uuid-ossp | 1.1     | public     | generate universally unique identifiers (UUIDs)
- vector    | 0.8.1   | public     | Vector similarity search for embeddings
 ```
 
+> **Nota**: La extensión `pgvector` ya no se utiliza. Los embeddings vectoriales se gestionan a través de **Pinecone** (servicio externo). La imagen Docker se cambió de `ankane/pgvector:v0.8.1-pg16` a `postgres:16-alpine`.
+
 **Verificación**:
-- ✅ pgvector (0.8.1) - Para embeddings y RAG
 - ✅ pg_trgm (1.6) - Para búsqueda de texto
 - ✅ uuid-ossp (1.1) - Para generación de UUIDs
 - ✅ plpgsql (1.0) - Lenguaje procedural
+- ℹ️ Vector embeddings gestionados por Pinecone (servicio externo)
 
 ---
 
@@ -209,7 +210,6 @@ curl http://localhost:3001/api/docs-json | jq '.info'
 |-----------|--------|--------|
 | Docker Compose | ✅ Exitoso | ~10s |
 | PostgreSQL Container | ✅ Healthy | ~5s |
-| pgvector Extension | ✅ Instalado (0.8.1) | - |
 | NestJS Server | ✅ Running | ~2s |
 | Database Connection | ✅ Conectado | ~91ms |
 | Health Check API | ✅ 200 OK | <50ms |
@@ -225,8 +225,8 @@ curl http://localhost:3001/api/docs-json | jq '.info'
 El entorno de desarrollo está completamente funcional y listo para comenzar la implementación de los módulos de la aplicación.
 
 ### Componentes Verificados:
-1. ✅ PostgreSQL 16 con pgvector
-2. ✅ Extensiones necesarias instaladas
+1. ✅ PostgreSQL 16
+2. ✅ Extensiones de PostgreSQL verificadas
 3. ✅ Conexión TypeORM funcionando
 4. ✅ Servidor NestJS corriendo
 5. ✅ Swagger UI accesible y funcional

@@ -33,9 +33,9 @@ Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para más detalle
 ## 🚀 Tecnologías
 
 - **Framework**: NestJS 11
-- **Database**: PostgreSQL 16 + pgvector
+- **Database**: PostgreSQL 16 + Pinecone (vector search)
 - **ORM**: TypeORM
-- **IA**: Google Genkit + Gemini 1.5 Pro
+- **IA**: Google Genkit + Gemini 2.5 Flash
 - **Auth**: Auth0 (OAuth2 + JWT)
 - **Testing**: Jest (TDD)
 - **Validation**: class-validator
@@ -45,7 +45,8 @@ Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para más detalle
 - Node.js 22+
 - pnpm 8+
 - Docker & Docker Compose
-- PostgreSQL 16 con extensión pgvector
+- PostgreSQL 16
+- Cuenta de Pinecone (para vector embeddings)
 
 ## 🛠️ Setup Local
 
@@ -178,7 +179,7 @@ Se ejecuta en cada push y pull request a `main` y `develop`:
 - ✅ Usa cache de pnpm para optimizar velocidad
 
 #### 2. **Test Job**
-- ✅ Levanta PostgreSQL 16 + pgvector como servicio
+- ✅ Levanta PostgreSQL 16 como servicio
 - ✅ Ejecuta todos los tests unitarios
 - ✅ Genera reporte de cobertura
 - ✅ Sube resultados a Codecov (opcional)
@@ -306,7 +307,8 @@ src/
 ## 📦 Dependencias Principales
 
 - `@nestjs/typeorm` - ORM integration
-- `pg` + `pgvector` - PostgreSQL con soporte vectorial
+- `pg` - PostgreSQL driver
+- `@pinecone-database/pinecone` - Pinecone vector database SDK
 - `@nestjs/passport` + `passport-jwt` - Autenticación JWT
 - `class-validator` - Validación de DTOs
 - `helmet` - Security headers

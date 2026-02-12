@@ -1,3 +1,4 @@
+import * as dotenv from 'dotenv';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   TypeOrmModuleAsyncOptions,
@@ -9,6 +10,9 @@ import { FragmentModel } from '../modules/knowledge/infrastructure/persistence/m
 import { ConversationModel } from '../modules/interaction/infrastructure/persistence/models/conversation.model';
 import { MessageModel } from '../modules/interaction/infrastructure/persistence/models/message.model';
 
+// Load .env for CLI usage (NestJS loads it via ConfigModule, but CLI needs it explicitly)
+dotenv.config();
+
 /**
  * TypeORM Configuration
  *
@@ -16,7 +20,7 @@ import { MessageModel } from '../modules/interaction/infrastructure/persistence/
  * Supports both development and production environments.
  *
  * Features:
- * - PostgreSQL with pgvector extension
+ * - PostgreSQL (vector embeddings managed externally by Pinecone)
  * - Automatic migrations
  * - Entity synchronization (development only)
  * - Connection pooling

@@ -15,14 +15,12 @@ import {
  *
  * Features:
  * - UUID primary key
- * - pgvector support for embeddings
- * - Indexes for performance (including vector index)
+ * - Indexes for performance
  * - JSON column for metadata
  *
- * pgvector Configuration:
- * - Embedding column uses 'vector' type
- * - Supports 768 or 1536 dimensions
- * - IVFFlat index for fast similarity search
+ * Note: Vector embeddings are stored externally in Pinecone.
+ * The fragment ID is used as the vector ID in Pinecone.
+ * PostgreSQL only stores relational/text data.
  *
  * Security:
  * - Content validation in entity layer
@@ -40,18 +38,6 @@ export class FragmentModel {
 
   @Column({ type: 'text' })
   content!: string;
-
-  /**
-   * Vector embedding column
-   * Uses pgvector extension
-   * Default: 768 dimensions (text-embedding-005 default)
-   * Can be 256, 512, 768, or 1536 dimensions
-   */
-  @Column({
-    type: 'vector',
-    nullable: true,
-  })
-  embedding!: string | null;
 
   @Column({ type: 'int' })
   position!: number;

@@ -19,33 +19,26 @@ export type FragmentMetadata = Record<string, MetadataValue>;
 /**
  * Fragment Entity
  *
- * Represents a chunk of content from a knowledge source with its vector embedding.
+ * Represents a chunk of content from a knowledge source.
  * Fragments are the basic unit of retrieval in the RAG system.
  *
  * Key Responsibilities:
  * - Store content chunks from documents
- * - Maintain vector embeddings for semantic search
  * - Track position within the source document
+ * - Maintain token count for context window management
  * - Support metadata for additional context
+ *
+ * Note: Vector embeddings are managed externally by IVectorStore (Pinecone).
+ * The fragment ID is used as the vector ID in the vector store.
  */
 export class Fragment {
   public id?: string;
   public sourceId: string;
   public content: string;
   public position: number;
-  public embedding: number[];
+  public tokenCount: number;
   public metadata?: FragmentMetadata;
   public createdAt: Date;
-
-  // Supported embedding dimensions
-  private static readonly GEMINI_EMBEDDING_001_DIMENSION = 3072; // Gemini gemini-embedding-001
-  private static readonly GEMINI_DIMENSION = 768; // Gemini text-embedding-004 (legacy)
-  private static readonly OPENAI_DIMENSION = 1536; // OpenAI text-embedding-3-small
-  private static readonly VALID_DIMENSIONS = [
-    Fragment.GEMINI_EMBEDDING_001_DIMENSION,
-    Fragment.GEMINI_DIMENSION,
-    Fragment.OPENAI_DIMENSION,
-  ];
 
   // Content validation constants
   private static readonly MIN_CONTENT_LENGTH = 10;
@@ -55,7 +48,7 @@ export class Fragment {
     sourceId: string;
     content: string;
     position: number;
-    embedding: number[];
+    tokenCount?: number;
     metadata?: FragmentMetadata;
   }) {
     this.validate(data);
@@ -63,7 +56,9 @@ export class Fragment {
     this.sourceId = data.sourceId;
     this.content = data.content;
     this.position = data.position;
-    this.embedding = data.embedding;
+    this.tokenCount =
+      data.tokenCount ??
+      Math.ceil(data.content.length / Fragment.CHARS_PER_TOKEN);
     this.metadata = data.metadata;
     this.createdAt = new Date();
   }
@@ -75,7 +70,6 @@ export class Fragment {
     sourceId: string;
     content: string;
     position: number;
-    embedding: number[];
   }): void {
     // Source ID validation
     if (!data.sourceId || data.sourceId.trim() === '') {
@@ -96,32 +90,6 @@ export class Fragment {
     // Position validation
     if (data.position < 0) {
       throw new Error('Position cannot be negative');
-    }
-
-    // Embedding validation
-    if (data.embedding == null) {
-      throw new Error('Embedding cannot be null or undefined');
-    }
-
-    if (!Array.isArray(data.embedding)) {
-      throw new Error('Embedding must be an array');
-    }
-
-    if (data.embedding.length === 0) {
-      throw new Error('Embedding array cannot be empty');
-    }
-
-    this.validateEmbeddingDimension(data.embedding);
-  }
-
-  /**
-   * Validates embedding dimension
-   */
-  private validateEmbeddingDimension(embedding: number[]): void {
-    if (!Fragment.VALID_DIMENSIONS.includes(embedding.length)) {
-      throw new Error(
-        `Embedding must be ${Fragment.VALID_DIMENSIONS.join(' or ')} dimensions`,
-      );
     }
   }
 
@@ -201,41 +169,5 @@ export class Fragment {
    */
   public isFirstFragment(): boolean {
     return this.position === 0;
-  }
-
-  // ==================== Embedding Operations ====================
-
-  /**
-   * Returns the dimension of the embedding vector
-   * @returns The length of the embedding array (768 or 1536)
-   */
-  public getEmbeddingDimension(): number {
-    return this.embedding.length;
-  }
-
-  /**
-   * Updates the embedding vector (for reprocessing scenarios)
-   * @param newEmbedding - The new embedding vector
-   * @throws Error if the embedding dimension is invalid
-   */
-  public updateEmbedding(newEmbedding: number[]): void {
-    this.validateEmbeddingDimension(newEmbedding);
-    this.embedding = newEmbedding;
-  }
-
-  /**
-   * Checks if this fragment uses Gemini embeddings
-   * @returns True if the embedding dimension is 768 (Gemini text-embedding-004)
-   */
-  public usesGeminiEmbedding(): boolean {
-    return this.embedding.length === Fragment.GEMINI_DIMENSION;
-  }
-
-  /**
-   * Checks if this fragment uses OpenAI embeddings
-   * @returns True if the embedding dimension is 1536 (OpenAI text-embedding-3-small)
-   */
-  public usesOpenAIEmbedding(): boolean {
-    return this.embedding.length === Fragment.OPENAI_DIMENSION;
   }
 }

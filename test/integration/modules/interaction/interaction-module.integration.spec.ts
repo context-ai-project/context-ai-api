@@ -8,6 +8,7 @@ import { QueryAssistantUseCase } from '@modules/interaction/application/use-case
 import { InteractionController } from '@modules/interaction/presentation/interaction.controller';
 import { IConversationRepository } from '@modules/interaction/domain/repositories/conversation.repository.interface';
 import { IKnowledgeRepository } from '@modules/knowledge/domain/repositories/knowledge.repository.interface';
+import { IVectorStore } from '@modules/knowledge/domain/services/vector-store.interface';
 import databaseConfig from '@config/database.config';
 
 /**
@@ -18,6 +19,8 @@ import databaseConfig from '@config/database.config';
  * - Dependency injection
  * - Service instantiation
  * - Controller availability
+ *
+ * Updated for Phase 6B: vectorSearch moved from IKnowledgeRepository to IVectorStore
  */
 describe('InteractionModule Integration', () => {
   let moduleRef: TestingModule;
@@ -129,12 +132,22 @@ describe('InteractionModule Integration', () => {
       // If we reach here, DI worked
     });
 
-    it('should inject KnowledgeRepository for RAG flow', () => {
+    it('should inject KnowledgeRepository for relational data', () => {
       const knowledgeRepo = moduleRef.get<IKnowledgeRepository>(
         'IKnowledgeRepository',
       );
       expect(knowledgeRepo).toBeDefined();
-      expect(typeof knowledgeRepo.vectorSearch).toBe('function');
+      // vectorSearch is no longer on the repository - it's on IVectorStore
+      expect(typeof knowledgeRepo.saveSource).toBe('function');
+      expect(typeof knowledgeRepo.saveFragments).toBe('function');
+    });
+
+    it('should inject IVectorStore for vector operations', () => {
+      const vectorStore = moduleRef.get<IVectorStore>('IVectorStore');
+      expect(vectorStore).toBeDefined();
+      expect(typeof vectorStore.vectorSearch).toBe('function');
+      expect(typeof vectorStore.upsertVectors).toBe('function');
+      expect(typeof vectorStore.deleteBySourceId).toBe('function');
     });
 
     it('should inject UseCase into Controller', () => {
@@ -160,8 +173,14 @@ describe('InteractionModule Integration', () => {
         'IKnowledgeRepository',
       );
       expect(knowledgeRepo).toBeDefined();
-      expect(knowledgeRepo.vectorSearch).toBeDefined();
+      // Repository now handles only relational data
+      expect(typeof knowledgeRepo.findSourceById).toBe('function');
+    });
+
+    it('should have properly typed VectorStore', () => {
+      const vectorStore = moduleRef.get<IVectorStore>('IVectorStore');
+      expect(vectorStore).toBeDefined();
+      expect(typeof vectorStore.vectorSearch).toBe('function');
     });
   });
 });
-

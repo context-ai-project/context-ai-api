@@ -58,7 +58,7 @@ describe('KnowledgeSource Entity', () => {
 - **Location**: `test/integration/**/*.spec.ts`
 - **Purpose**: Test interactions with real PostgreSQL database
 - **Speed**: Medium (seconds)
-- **Dependencies**: Real database (PostgreSQL + pgvector)
+- **Dependencies**: Real database (PostgreSQL)
 - **Database**: `context_ai_test` (separate from development)
 
 **Example**:
@@ -99,7 +99,7 @@ describe('Document Ingestion E2E', () => {
 - pnpm ≥ 8
 
 ### **For Integration & E2E Tests**
-- PostgreSQL 16 with `pgvector` extension
+- PostgreSQL 16
 - Docker & Docker Compose (recommended)
 
 ### **Environment Setup**
@@ -309,19 +309,6 @@ docker compose up -d
 
 # Check logs
 docker compose logs db
-```
-
-### **pgvector Extension Not Found**
-
-**Problem**: `extension "vector" does not exist`
-
-**Solution**:
-```bash
-# Connect to database
-docker compose exec db psql -U context_ai_user -d context_ai_test
-
-# Enable extension
-CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
 ### **Migration Issues**

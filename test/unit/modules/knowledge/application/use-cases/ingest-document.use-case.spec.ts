@@ -12,6 +12,7 @@ jest.mock('@genkit-ai/google-genai', () => ({
 
 import { IngestDocumentUseCase } from '../../../../../../src/modules/knowledge/application/use-cases/ingest-document.use-case';
 import { IKnowledgeRepository } from '../../../../../../src/modules/knowledge/domain/repositories/knowledge.repository.interface';
+import { IVectorStore } from '../../../../../../src/modules/knowledge/domain/services/vector-store.interface';
 import { DocumentParserService } from '../../../../../../src/modules/knowledge/infrastructure/services/document-parser.service';
 import { ChunkingService } from '../../../../../../src/modules/knowledge/infrastructure/services/chunking.service';
 import { EmbeddingService } from '../../../../../../src/modules/knowledge/infrastructure/services/embedding.service';
@@ -26,28 +27,35 @@ import type {
 describe('IngestDocumentUseCase', () => {
   let useCase: IngestDocumentUseCase;
   let mockRepository: jest.Mocked<IKnowledgeRepository>;
+  let mockVectorStore: jest.Mocked<IVectorStore>;
   let mockParserService: jest.Mocked<DocumentParserService>;
   let mockChunkingService: jest.Mocked<ChunkingService>;
   let mockEmbeddingService: jest.Mocked<EmbeddingService>;
 
   beforeEach(() => {
-    // Mock Repository
+    // Mock Repository (no longer includes vectorSearch)
     mockRepository = {
       saveSource: jest.fn(),
       findSourceById: jest.fn(),
       findSourcesBySector: jest.fn(),
       findSourcesByStatus: jest.fn(),
+      softDeleteSource: jest.fn(),
       deleteSource: jest.fn(),
       countSourcesBySector: jest.fn(),
-      saveFragment: jest.fn(),
       saveFragments: jest.fn(),
       findFragmentById: jest.fn(),
       findFragmentsBySource: jest.fn(),
-      vectorSearch: jest.fn(),
       deleteFragmentsBySource: jest.fn(),
       countFragmentsBySource: jest.fn(),
       transaction: jest.fn(),
     } as unknown as jest.Mocked<IKnowledgeRepository>;
+
+    // Mock Vector Store
+    mockVectorStore = {
+      upsertVectors: jest.fn().mockResolvedValue(undefined),
+      vectorSearch: jest.fn(),
+      deleteBySourceId: jest.fn(),
+    } as unknown as jest.Mocked<IVectorStore>;
 
     // Mock Parser Service
     mockParserService = {
@@ -75,6 +83,7 @@ describe('IngestDocumentUseCase', () => {
 
     useCase = new IngestDocumentUseCase(
       mockRepository,
+      mockVectorStore,
       mockParserService,
       mockChunkingService,
       mockEmbeddingService,
@@ -88,6 +97,24 @@ describe('IngestDocumentUseCase', () => {
   // Helper function to create mock buffer
   const createMockPdfBuffer = (content: string): Buffer => {
     return Buffer.from(`%PDF-1.4\n${content}`);
+  };
+
+  // Helper to create a saved fragment with ID
+  const createSavedFragment = (
+    id: string,
+    sourceId: string,
+    content: string,
+    position: number,
+    tokenCount: number,
+  ): Fragment => {
+    const fragment = new Fragment({
+      sourceId,
+      content,
+      position,
+      tokenCount,
+    });
+    Reflect.set(fragment, 'id', id);
+    return fragment;
   };
 
   describe('Successful Document Ingestion', () => {
@@ -111,7 +138,7 @@ describe('IngestDocumentUseCase', () => {
           endIndex: 28,
         },
       ];
-      const mockEmbedding = Array(768).fill(0.1);
+      const mockEmbedding = Array(3072).fill(0.1);
 
       // Mock service responses
       mockParserService.parse.mockResolvedValue({
@@ -137,13 +164,15 @@ describe('IngestDocumentUseCase', () => {
         },
       );
 
+      // Return fragments with IDs (needed for vector upsert)
       mockRepository.saveFragments.mockResolvedValue([
-        new Fragment({
-          sourceId: 'source-123',
-          content: mockChunks[0].content,
-          position: 0,
-          embedding: mockEmbedding,
-        }),
+        createSavedFragment(
+          'fragment-001',
+          'source-123',
+          mockChunks[0].content,
+          0,
+          5,
+        ),
       ]);
 
       // Act
@@ -167,6 +196,22 @@ describe('IngestDocumentUseCase', () => {
       ).toHaveBeenCalled();
       expect(mockRepository.saveSource).toHaveBeenCalled();
       expect(mockRepository.saveFragments).toHaveBeenCalled();
+
+      // Verify vector store was called with correct data
+      expect(mockVectorStore.upsertVectors).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'fragment-001',
+            embedding: mockEmbedding,
+            metadata: expect.objectContaining({
+              sourceId: 'source-123',
+              sectorId: dto.sectorId,
+              content: mockChunks[0].content,
+              position: 0,
+            }),
+          }),
+        ]),
+      );
     });
 
     it('should ingest a Markdown document successfully', async () => {
@@ -188,7 +233,7 @@ describe('IngestDocumentUseCase', () => {
           endIndex: parsedContent.length,
         },
       ];
-      const mockEmbedding = Array(768).fill(0.2);
+      const mockEmbedding = Array(3072).fill(0.2);
 
       mockParserService.parse.mockResolvedValue({
         content: parsedContent,
@@ -212,12 +257,13 @@ describe('IngestDocumentUseCase', () => {
       );
 
       mockRepository.saveFragments.mockResolvedValue([
-        new Fragment({
-          sourceId: 'source-456',
-          content: mockChunks[0].content,
-          position: 0,
-          embedding: mockEmbedding,
-        }),
+        createSavedFragment(
+          'fragment-010',
+          'source-456',
+          mockChunks[0].content,
+          0,
+          6,
+        ),
       ]);
 
       // Act
@@ -230,6 +276,7 @@ describe('IngestDocumentUseCase', () => {
         dto.buffer,
         SourceType.MARKDOWN,
       );
+      expect(mockVectorStore.upsertVectors).toHaveBeenCalledTimes(1);
     });
 
     it('should handle documents with multiple fragments', async () => {
@@ -267,9 +314,9 @@ describe('IngestDocumentUseCase', () => {
       ];
 
       const mockEmbeddings = [
-        Array(768).fill(0.1),
-        Array(768).fill(0.2),
-        Array(768).fill(0.3),
+        Array(3072).fill(0.1),
+        Array(3072).fill(0.2),
+        Array(3072).fill(0.3),
       ];
 
       mockParserService.parse.mockResolvedValue({
@@ -293,17 +340,17 @@ describe('IngestDocumentUseCase', () => {
         },
       );
 
-      const mockFragments = mockChunks.map(
-        (chunk, index) =>
-          new Fragment({
-            sourceId: 'source-789',
-            content: chunk.content,
-            position: index,
-            embedding: mockEmbeddings[index],
-          }),
+      const mockSavedFragments = mockChunks.map((chunk, index) =>
+        createSavedFragment(
+          `fragment-${index}`,
+          'source-789',
+          chunk.content,
+          index,
+          chunk.tokens,
+        ),
       );
 
-      mockRepository.saveFragments.mockResolvedValue(mockFragments);
+      mockRepository.saveFragments.mockResolvedValue(mockSavedFragments);
 
       // Act
       const result = await useCase.execute(dto);
@@ -319,6 +366,15 @@ describe('IngestDocumentUseCase', () => {
           expect.objectContaining({ position: 0 }),
           expect.objectContaining({ position: 1 }),
           expect.objectContaining({ position: 2 }),
+        ]),
+      );
+
+      // Verify 3 vectors were upserted
+      expect(mockVectorStore.upsertVectors).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'fragment-0' }),
+          expect.objectContaining({ id: 'fragment-1' }),
+          expect.objectContaining({ id: 'fragment-2' }),
         ]),
       );
     });
@@ -433,10 +489,69 @@ describe('IngestDocumentUseCase', () => {
         'API rate limit exceeded',
       );
 
-      // Verify source was marked as FAILED
+      // Verify source was saved with PROCESSING status initially
       const savedSource = (mockRepository.saveSource as jest.Mock).mock
         .calls[0][0] as KnowledgeSource;
       expect(savedSource.status).toBe(SourceStatus.PROCESSING);
+    });
+
+    it('should handle vector store upsert errors', async () => {
+      // Arrange
+      const dto: IngestDocumentDto = {
+        title: 'Test Document',
+        sectorId: '550e8400-e29b-41d4-a716-446655440000',
+        sourceType: SourceType.PDF,
+        buffer: createMockPdfBuffer('content'),
+      };
+
+      mockParserService.parse.mockResolvedValue({
+        content: 'Test content here',
+        metadata: {
+          sourceType: SourceType.PDF,
+          parsedAt: new Date(),
+          originalSize: dto.buffer.length,
+        },
+      });
+
+      mockChunkingService.chunk.mockReturnValue([
+        {
+          content: 'Test content here',
+          position: 0,
+          tokens: 3,
+          startIndex: 0,
+          endIndex: 17,
+        },
+      ]);
+
+      mockEmbeddingService.generateDocumentEmbeddings.mockResolvedValue([
+        Array(3072).fill(0.1),
+      ]);
+
+      mockRepository.saveSource.mockImplementation(
+        async (source: KnowledgeSource) => {
+          Reflect.set(source, 'id', 'source-vec-error');
+          return source;
+        },
+      );
+
+      mockRepository.saveFragments.mockResolvedValue([
+        createSavedFragment(
+          'fragment-err',
+          'source-vec-error',
+          'Test content here',
+          0,
+          3,
+        ),
+      ]);
+
+      mockVectorStore.upsertVectors.mockRejectedValue(
+        new Error('Pinecone connection failed'),
+      );
+
+      // Act & Assert
+      await expect(useCase.execute(dto)).rejects.toThrow(
+        'Pinecone connection failed',
+      );
     });
 
     it('should handle repository errors', async () => {
@@ -498,7 +613,7 @@ describe('IngestDocumentUseCase', () => {
       ]);
 
       mockEmbeddingService.generateDocumentEmbeddings.mockResolvedValue([
-        Array(768).fill(0.1),
+        Array(3072).fill(0.1),
       ]);
 
       // Capture the status at the time of each save
@@ -513,7 +628,9 @@ describe('IngestDocumentUseCase', () => {
         },
       );
 
-      mockRepository.saveFragments.mockResolvedValue([]);
+      mockRepository.saveFragments.mockResolvedValue([
+        createSavedFragment('frag-001', 'source-123', 'Test content', 0, 2),
+      ]);
 
       // Act
       await useCase.execute(dto);
@@ -551,7 +668,7 @@ describe('IngestDocumentUseCase', () => {
       ]);
 
       mockEmbeddingService.generateDocumentEmbeddings.mockResolvedValue([
-        Array(768).fill(0.1),
+        Array(3072).fill(0.1),
       ]);
 
       mockRepository.saveSource.mockImplementation(
@@ -561,7 +678,9 @@ describe('IngestDocumentUseCase', () => {
         },
       );
 
-      mockRepository.saveFragments.mockResolvedValue([]);
+      mockRepository.saveFragments.mockResolvedValue([
+        createSavedFragment('frag-001', 'source-123', 'Test content', 0, 2),
+      ]);
 
       // Act
       await useCase.execute(dto);
@@ -571,6 +690,121 @@ describe('IngestDocumentUseCase', () => {
       const finalSource = (mockRepository.saveSource as jest.Mock).mock
         .calls[1][0] as KnowledgeSource;
       expect(finalSource.status).toBe(SourceStatus.COMPLETED);
+    });
+  });
+
+  describe('Vector Store Integration', () => {
+    it('should upsert vectors to store after saving fragments', async () => {
+      // Arrange
+      const dto: IngestDocumentDto = {
+        title: 'Vector Test',
+        sectorId: '550e8400-e29b-41d4-a716-446655440000',
+        sourceType: SourceType.PDF,
+        buffer: createMockPdfBuffer('Vector content for testing'),
+      };
+
+      const mockChunks = [
+        {
+          content: 'Vector content for testing',
+          position: 0,
+          tokens: 5,
+          startIndex: 0,
+          endIndex: 26,
+        },
+      ];
+      const mockEmbedding = Array(3072).fill(0.5);
+
+      mockParserService.parse.mockResolvedValue({
+        content: 'Vector content for testing',
+        metadata: {
+          sourceType: SourceType.PDF,
+          parsedAt: new Date(),
+          originalSize: dto.buffer.length,
+        },
+      });
+
+      mockChunkingService.chunk.mockReturnValue(mockChunks);
+      mockEmbeddingService.generateDocumentEmbeddings.mockResolvedValue([
+        mockEmbedding,
+      ]);
+
+      mockRepository.saveSource.mockImplementation(
+        async (source: KnowledgeSource) => {
+          Reflect.set(source, 'id', 'source-vec');
+          return source;
+        },
+      );
+
+      mockRepository.saveFragments.mockResolvedValue([
+        createSavedFragment(
+          'frag-vec-001',
+          'source-vec',
+          'Vector content for testing',
+          0,
+          5,
+        ),
+      ]);
+
+      // Act
+      await useCase.execute(dto);
+
+      // Assert - verify vector upsert was called after fragments saved
+      expect(mockVectorStore.upsertVectors).toHaveBeenCalledTimes(1);
+      expect(mockVectorStore.upsertVectors).toHaveBeenCalledWith([
+        {
+          id: 'frag-vec-001',
+          embedding: mockEmbedding,
+          metadata: {
+            sourceId: 'source-vec',
+            sectorId: dto.sectorId,
+            content: 'Vector content for testing',
+            position: 0,
+            tokenCount: 5,
+          },
+        },
+      ]);
+
+      // Assert - fragments were saved to relational DB first, then vectors upserted
+      const saveFragmentsOrder = (mockRepository.saveFragments as jest.Mock).mock.invocationCallOrder[0];
+      const upsertVectorsOrder = (mockVectorStore.upsertVectors as jest.Mock).mock.invocationCallOrder[0];
+      expect(saveFragmentsOrder).toBeLessThan(upsertVectorsOrder);
+    });
+
+    it('should call vector store with empty array when no fragments were created', async () => {
+      // Arrange
+      const dto: IngestDocumentDto = {
+        title: 'Empty Chunks Test',
+        sectorId: '550e8400-e29b-41d4-a716-446655440000',
+        sourceType: SourceType.PDF,
+        buffer: createMockPdfBuffer('content'),
+      };
+
+      mockParserService.parse.mockResolvedValue({
+        content: 'Parsed content',
+        metadata: {
+          sourceType: SourceType.PDF,
+          parsedAt: new Date(),
+          originalSize: dto.buffer.length,
+        },
+      });
+
+      mockChunkingService.chunk.mockReturnValue([]);
+      mockEmbeddingService.generateDocumentEmbeddings.mockResolvedValue([]);
+
+      mockRepository.saveSource.mockImplementation(
+        async (source: KnowledgeSource) => {
+          Reflect.set(source, 'id', 'source-empty');
+          return source;
+        },
+      );
+
+      mockRepository.saveFragments.mockResolvedValue([]);
+
+      // Act
+      await useCase.execute(dto);
+
+      // Assert - vector store called with empty array (or skipped)
+      expect(mockVectorStore.upsertVectors).toHaveBeenCalledWith([]);
     });
   });
 });

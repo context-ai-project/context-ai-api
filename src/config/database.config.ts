@@ -9,7 +9,7 @@ const DEFAULT_CONNECTION_TIMEOUT_MS = 10000; // 10 seconds
 /**
  * Database Configuration
  *
- * Loads and validates PostgreSQL with pgvector database configuration from environment variables.
+ * Loads and validates PostgreSQL database configuration from environment variables.
  *
  * Environment variables:
  * - DB_HOST: Database host (default: 'localhost')
@@ -23,7 +23,7 @@ const DEFAULT_CONNECTION_TIMEOUT_MS = 10000; // 10 seconds
  * - NODE_ENV: Application environment
  *
  * Features:
- * - PostgreSQL with pgvector extension for vector similarity search
+ * - PostgreSQL for relational data (vector embeddings managed by Pinecone)
  * - Connection pooling
  * - Auto-load entities from modules
  * - Synchronization disabled by default (use migrations)

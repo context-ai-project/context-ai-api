@@ -367,8 +367,8 @@ describe('EmbeddingService', () => {
     });
   });
 
-  describe('Integration with Fragment Entity', () => {
-    it('should produce embeddings compatible with Fragment entity', async () => {
+  describe('Integration with Vector Store', () => {
+    it('should produce embeddings compatible with IVectorStore', async () => {
       // Arrange
       const text = 'This is content for a Fragment entity.';
       const mockEmbedding = Array(3072).fill(0.1);
@@ -378,7 +378,7 @@ describe('EmbeddingService', () => {
       const embedding = await service.generateEmbedding(text);
 
       // Assert
-      // Fragment entity expects embeddings to be 768, 1536, or 3072 dimensions
+      // Embeddings are stored in Pinecone via IVectorStore (3072 dimensions for text-embedding-004)
       expect([768, 1536, 3072]).toContain(embedding.length);
       // All values should be numbers
       embedding.forEach((value) => {
@@ -507,7 +507,7 @@ describe('EmbeddingService', () => {
   describe('Specialized Embedding Methods', () => {
     it('should generate document embedding with RETRIEVAL_DOCUMENT taskType', async () => {
       // Arrange
-      const docText = 'This is a document to be stored in pgvector';
+      const docText = 'This is a document to be stored in Pinecone';
       const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 

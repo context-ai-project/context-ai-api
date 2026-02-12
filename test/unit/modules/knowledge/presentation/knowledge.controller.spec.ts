@@ -11,12 +11,14 @@ jest.mock('@genkit-ai/google-genai', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { KnowledgeController } from '../../../../../src/modules/knowledge/presentation/knowledge.controller';
 import { IngestDocumentUseCase } from '../../../../../src/modules/knowledge/application/use-cases/ingest-document.use-case';
+import { DeleteSourceUseCase } from '../../../../../src/modules/knowledge/application/use-cases/delete-source.use-case';
 import { SourceType } from '@shared/types';
 import type { IngestDocumentResult } from '../../../../../src/modules/knowledge/application/dtos/ingest-document.dto';
+import type { DeleteSourceResult } from '../../../../../src/modules/knowledge/application/dtos/delete-source.dto';
 import { JwtAuthGuard } from '../../../../../src/modules/auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../../../../../src/modules/auth/guards/rbac.guard';
 import { PermissionService } from '../../../../../src/modules/auth/application/services/permission.service';
@@ -25,6 +27,7 @@ import { TokenRevocationService } from '../../../../../src/modules/auth/applicat
 describe('KnowledgeController', () => {
   let controller: KnowledgeController;
   let mockIngestUseCase: jest.Mocked<IngestDocumentUseCase>;
+  let mockDeleteUseCase: jest.Mocked<DeleteSourceUseCase>;
 
   beforeEach(async () => {
     // Mock IngestDocumentUseCase
@@ -32,12 +35,21 @@ describe('KnowledgeController', () => {
       execute: jest.fn(),
     } as unknown as jest.Mocked<IngestDocumentUseCase>;
 
+    // Mock DeleteSourceUseCase
+    mockDeleteUseCase = {
+      execute: jest.fn(),
+    } as unknown as jest.Mocked<DeleteSourceUseCase>;
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [KnowledgeController],
       providers: [
         {
           provide: IngestDocumentUseCase,
           useValue: mockIngestUseCase,
+        },
+        {
+          provide: DeleteSourceUseCase,
+          useValue: mockDeleteUseCase,
         },
         {
           provide: Reflector,
@@ -424,6 +436,76 @@ describe('KnowledgeController', () => {
           metadata: { author: 'John Doe', version: '1.0' },
         }),
       );
+    });
+  });
+
+  describe('deleteDocument', () => {
+    const validSourceId = '550e8400-e29b-41d4-a716-446655440000';
+    const validSectorId = '660e8400-e29b-41d4-a716-446655440001';
+
+    it('should successfully delete a knowledge source', async () => {
+      const expectedResult: DeleteSourceResult = {
+        sourceId: validSourceId,
+        fragmentsDeleted: 5,
+        vectorsDeleted: true,
+      };
+
+      mockDeleteUseCase.execute.mockResolvedValue(expectedResult);
+
+      const result = await controller.deleteDocument(validSourceId, validSectorId);
+
+      expect(result).toEqual(expectedResult);
+      expect(mockDeleteUseCase.execute).toHaveBeenCalledWith({
+        sourceId: validSourceId,
+        sectorId: validSectorId,
+      });
+    });
+
+    it('should throw BadRequestException if sectorId is missing', async () => {
+      await expect(
+        controller.deleteDocument(validSourceId, ''),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.deleteDocument(validSourceId, ''),
+      ).rejects.toThrow('sectorId query parameter is required');
+    });
+
+    it('should throw BadRequestException if sourceId is not a valid UUID', async () => {
+      await expect(
+        controller.deleteDocument('not-a-uuid', validSectorId),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.deleteDocument('not-a-uuid', validSectorId),
+      ).rejects.toThrow('sourceId must be a valid UUID');
+    });
+
+    it('should throw BadRequestException if sectorId is not a valid UUID', async () => {
+      await expect(
+        controller.deleteDocument(validSourceId, 'not-a-uuid'),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.deleteDocument(validSourceId, 'not-a-uuid'),
+      ).rejects.toThrow('sectorId must be a valid UUID');
+    });
+
+    it('should throw NotFoundException if source not found', async () => {
+      mockDeleteUseCase.execute.mockRejectedValue(
+        new Error('Knowledge source not found: ' + validSourceId),
+      );
+
+      await expect(
+        controller.deleteDocument(validSourceId, validSectorId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException if source is already deleted', async () => {
+      mockDeleteUseCase.execute.mockRejectedValue(
+        new Error('Knowledge source is already deleted'),
+      );
+
+      await expect(
+        controller.deleteDocument(validSourceId, validSectorId),
+      ).rejects.toThrow('Knowledge source is already deleted');
     });
   });
 });
