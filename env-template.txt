@@ -23,8 +23,13 @@ GOOGLE_API_KEY=your-gemini-api-key-here
 GENKIT_ENV=dev
 
 # Pinecone Vector Database
+# Use different index names (or separate API keys) per environment:
+#   Dev:  PINECONE_INDEX=context-ai-dev   (local / staging)
+#   Prod: PINECONE_INDEX=context-ai-prod  (production)
+# Both indexes must be created in the Pinecone dashboard with
+# dimensions=3072 (gemini-embedding-001), metric=cosine, type=serverless.
 PINECONE_API_KEY=pcsk_xxxxx
-PINECONE_INDEX=context-ai
+PINECONE_INDEX=context-ai-dev
 
 # CORS & Security
 FRONTEND_URL=http://localhost:3000
