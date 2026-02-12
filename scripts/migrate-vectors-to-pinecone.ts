@@ -27,7 +27,7 @@
 
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
-import { Pinecone } from '@pinecone-database/pinecone';
+import { Pinecone, type RecordMetadata } from '@pinecone-database/pinecone';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
@@ -333,7 +333,7 @@ async function migrate(): Promise<void> {
                 records: upsertBatch.map((v) => ({
                   id: v.id,
                   values: v.values,
-                  metadata: v.metadata as unknown as Record<string, unknown>,
+                  metadata: v.metadata as RecordMetadata,
                 })),
               });
               stats.vectorsUpserted += upsertBatch.length;

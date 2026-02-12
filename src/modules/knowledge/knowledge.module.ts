@@ -12,7 +12,6 @@ import { DeleteSourceUseCase } from './application/use-cases/delete-source.use-c
 import { DocumentParserService } from './infrastructure/services/document-parser.service';
 import { ChunkingService } from './infrastructure/services/chunking.service';
 import { EmbeddingService } from './infrastructure/services/embedding.service';
-import { PineconeVectorStore } from './infrastructure/services/pinecone-vector-store.service';
 
 // Infrastructure - Persistence
 import { KnowledgeSourceModel } from './infrastructure/persistence/models/knowledge-source.model';
@@ -70,11 +69,8 @@ import { PineconeModule } from './infrastructure/pinecone/pinecone.module';
       useClass: KnowledgeRepository,
     },
 
-    // Infrastructure Layer - Vector Store Implementation with interface token
-    {
-      provide: 'IVectorStore',
-      useExisting: PineconeVectorStore,
-    },
+    // Note: 'IVectorStore' is provided by PineconeModule (imported above)
+    // No need to re-register it here
   ],
   exports: [
     // Export use cases for other modules if needed
@@ -82,8 +78,8 @@ import { PineconeModule } from './infrastructure/pinecone/pinecone.module';
     DeleteSourceUseCase,
     // Export repository with interface token
     'IKnowledgeRepository',
-    // Export vector store with interface token for InteractionModule
-    'IVectorStore',
+    // Re-export PineconeModule so other modules can access 'IVectorStore'
+    PineconeModule,
   ],
 })
 export class KnowledgeModule {}
