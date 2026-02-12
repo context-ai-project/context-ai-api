@@ -11,7 +11,7 @@ jest.mock('@genkit-ai/google-genai', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { KnowledgeController } from '../../../../../src/modules/knowledge/presentation/knowledge.controller';
 import { IngestDocumentUseCase } from '../../../../../src/modules/knowledge/application/use-cases/ingest-document.use-case';
@@ -495,7 +495,7 @@ describe('KnowledgeController', () => {
 
       await expect(
         controller.deleteDocument(validSourceId, validSectorId),
-      ).rejects.toThrow('Knowledge source not found');
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException if source is already deleted', async () => {

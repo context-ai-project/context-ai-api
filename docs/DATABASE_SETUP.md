@@ -40,7 +40,7 @@ docker exec -it context-ai-postgres psql -U context_ai_user -d context_ai_db
 # Check tables
 \dt
 
-# Check vector index
+# Inspect fragments table schema
 \d fragments
 
 # Exit

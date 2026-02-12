@@ -22,11 +22,11 @@ describe('Genkit Setup Integration Tests', () => {
   describe('Configuration', () => {
     it('should initialize Genkit successfully', () => {
       expect(ai).toBeDefined();
-      expect(GENKIT_CONFIG.LLM_MODEL).toBe('googleai/gemini-1.5-pro');
+      expect(GENKIT_CONFIG.LLM_MODEL).toBe('googleai/gemini-2.5-flash');
       expect(GENKIT_CONFIG.EMBEDDING_MODEL).toBe(
         'googleai/gemini-embedding-001',
       );
-      expect(GENKIT_CONFIG.EMBEDDING_DIMENSIONS).toBe(768);
+      expect(GENKIT_CONFIG.EMBEDDING_DIMENSIONS).toBe(3072);
     });
   });
 

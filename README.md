@@ -35,7 +35,7 @@ Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para más detalle
 - **Framework**: NestJS 11
 - **Database**: PostgreSQL 16 + Pinecone (vector search)
 - **ORM**: TypeORM
-- **IA**: Google Genkit + Gemini 1.5 Pro
+- **IA**: Google Genkit + Gemini 2.5 Flash
 - **Auth**: Auth0 (OAuth2 + JWT)
 - **Testing**: Jest (TDD)
 - **Validation**: class-validator

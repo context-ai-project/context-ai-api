@@ -770,7 +770,7 @@ describe('IngestDocumentUseCase', () => {
       expect(saveFragmentsOrder).toBeLessThan(upsertVectorsOrder);
     });
 
-    it('should not call vector store if no fragments were created', async () => {
+    it('should call vector store with empty array when no fragments were created', async () => {
       // Arrange
       const dto: IngestDocumentDto = {
         title: 'Empty Chunks Test',

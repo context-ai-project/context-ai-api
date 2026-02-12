@@ -13,8 +13,8 @@ describe('DeleteSourceUseCase', () => {
   let mockRepository: jest.Mocked<IKnowledgeRepository>;
   let mockVectorStore: jest.Mocked<IVectorStore>;
 
-  const mockSourceId = 'source-uuid-123';
-  const mockSectorId = 'sector-uuid-456';
+  const mockSourceId = '550e8400-e29b-41d4-a716-446655440000';
+  const mockSectorId = '660e8400-e29b-41d4-a716-446655440001';
 
   beforeEach(() => {
     // Mock Repository
@@ -31,7 +31,7 @@ describe('DeleteSourceUseCase', () => {
       findFragmentsBySource: jest.fn(),
       deleteFragmentsBySource: jest.fn(),
       countFragmentsBySource: jest.fn(),
-      transaction: jest.fn(),
+      transaction: jest.fn().mockImplementation(async (cb: () => Promise<void>) => cb()),
     } as unknown as jest.Mocked<IKnowledgeRepository>;
 
     // Mock Vector Store
@@ -140,15 +140,16 @@ describe('DeleteSourceUseCase', () => {
     });
 
     it('should throw error if source is not found', async () => {
+      const nonExistentId = '770e8400-e29b-41d4-a716-446655440099';
       const dto: DeleteSourceDto = {
-        sourceId: 'nonexistent-id',
+        sourceId: nonExistentId,
         sectorId: mockSectorId,
       };
 
       mockRepository.findSourceById.mockResolvedValue(null);
 
       await expect(useCase.execute(dto)).rejects.toThrow(
-        'Knowledge source not found: nonexistent-id',
+        `Knowledge source not found: ${nonExistentId}`,
       );
 
       expect(mockVectorStore.deleteBySourceId).not.toHaveBeenCalled();

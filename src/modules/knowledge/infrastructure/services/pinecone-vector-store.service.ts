@@ -107,7 +107,18 @@ export class PineconeVectorStore implements IVectorStore {
       return;
     }
 
+    // Validate all inputs belong to the same sector (namespace)
     const sectorId = inputs[0].metadata.sectorId;
+    const hasMixedSectors = inputs.some(
+      (input) => input.metadata.sectorId !== sectorId,
+    );
+    if (hasMixedSectors) {
+      throw new Error(
+        'All vectors in a single upsert must belong to the same sectorId. ' +
+          'Group inputs by sectorId before calling upsertVectors.',
+      );
+    }
+
     const ns = this.index.namespace(sectorId);
 
     try {

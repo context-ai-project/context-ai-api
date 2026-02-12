@@ -90,13 +90,27 @@ function parseArgs(): { dryRun: boolean; sectorId: string | null } {
 // ==================== Database Connection ====================
 
 function createDataSource(): DataSource {
+  const host = process.env.DB_HOST;
+  const port = process.env.DB_PORT;
+  const username = process.env.DB_USERNAME;
+  const password = process.env.DB_PASSWORD;
+  const database = process.env.DB_DATABASE;
+
+  if (!username || !password || !database) {
+    throw new Error(
+      'Database credentials must be set via environment variables: ' +
+        'DB_USERNAME, DB_PASSWORD, DB_DATABASE. ' +
+        'See env-template.txt for reference.',
+    );
+  }
+
   return new DataSource({
     type: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || String(DB_PORT_DEFAULT), 10),
-    username: process.env.DB_USERNAME || 'context_ai_user',
-    password: process.env.DB_PASSWORD || 'context_ai_pass',
-    database: process.env.DB_DATABASE || 'context_ai_db',
+    host: host || 'localhost',
+    port: parseInt(port || String(DB_PORT_DEFAULT), 10),
+    username,
+    password,
+    database,
     synchronize: false,
     logging: false,
   });
@@ -116,10 +130,8 @@ function truncateText(text: string): string {
 async function generateEmbeddings(
   texts: string[],
   ai: ReturnType<typeof genkit>,
-): Promise<number[][]> {
-  const embeddings: number[][] = [];
-
-  for (const text of texts) {
+): Promise<(number[] | null)[]> {
+  const embeddingPromises = texts.map(async (text) => {
     const truncated = truncateText(text);
     const result = await ai.embed({
       embedder: EMBEDDING_MODEL,
@@ -132,13 +144,23 @@ async function generateEmbeddings(
 
     // Genkit returns array of { embedding: number[] }
     if (Array.isArray(result) && result.length > 0 && result[0].embedding) {
-      embeddings.push(result[0].embedding);
+      return result[0].embedding;
     } else {
       throw new Error('Invalid embedding response format');
     }
-  }
+  });
 
-  return embeddings;
+  // Use Promise.allSettled to allow partial failures
+  const results = await Promise.allSettled(embeddingPromises);
+  return results.map((result, idx) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    }
+    console.error(
+      `    ❌ Embedding generation failed for text ${idx}: ${result.reason}`,
+    );
+    return null;
+  });
 }
 
 // ==================== Main Migration Logic ====================
@@ -286,19 +308,42 @@ async function migrate(): Promise<void> {
         );
 
         try {
-          // Generate embeddings
+          // Generate embeddings (partial failures are returned as null)
           console.log('    🧠 Generating embeddings...');
           const texts = batch.map((f) => f.content);
-          const embeddings = await generateEmbeddings(texts, ai);
-          stats.embeddingsGenerated += embeddings.length;
+          const embeddingResults = await generateEmbeddings(texts, ai);
+
+          // Filter out failed embeddings (null entries)
+          const successfulPairs: { fragment: FragmentRow; embedding: number[] }[] = [];
+          for (let k = 0; k < batch.length; k++) {
+            const emb = embeddingResults[k];
+            if (emb !== null) {
+              successfulPairs.push({ fragment: batch[k], embedding: emb });
+            }
+          }
+
+          const failedCount = batch.length - successfulPairs.length;
+          stats.embeddingsGenerated += successfulPairs.length;
+          stats.errors += failedCount;
+
+          if (failedCount > 0) {
+            console.warn(
+              `    ⚠️  ${failedCount}/${batch.length} embeddings failed in this batch`,
+            );
+          }
           console.log(
-            `    ✅ Generated ${embeddings.length} embeddings`,
+            `    ✅ Generated ${successfulPairs.length} embeddings`,
           );
 
-          // Prepare Pinecone vectors
-          const vectors = batch.map((fragment, idx) => ({
+          if (successfulPairs.length === 0) {
+            console.warn('    ⚠️  No successful embeddings — skipping upsert');
+            continue;
+          }
+
+          // Prepare Pinecone vectors (only for successful embeddings)
+          const vectors = successfulPairs.map(({ fragment, embedding }) => ({
             id: fragment.id,
-            values: embeddings[idx],
+            values: embedding,
             metadata: {
               sourceId: fragment.source_id,
               sectorId: fragment.sector_id,
@@ -343,7 +388,7 @@ async function migrate(): Promise<void> {
             );
           }
 
-          stats.processedFragments += batch.length;
+          stats.processedFragments += successfulPairs.length;
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';

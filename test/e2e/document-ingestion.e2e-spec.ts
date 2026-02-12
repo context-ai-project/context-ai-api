@@ -8,6 +8,7 @@ import { KnowledgeRepository } from '../../src/modules/knowledge/infrastructure/
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createDefaultTestPdf } from '../fixtures/create-test-pdf';
+import { GENKIT_CONFIG } from '../../src/shared/genkit/genkit.config';
 
 // Mock Genkit to avoid real API calls
 const mockEmbedFn = jest.fn();
@@ -88,8 +89,8 @@ describe('Document Ingestion E2E Tests', () => {
     dataSource = moduleFixture.get<DataSource>(DataSource);
     repository = moduleFixture.get<KnowledgeRepository>(KnowledgeRepository);
 
-    // Setup embedding mock (3072 dimensions for text-embedding-004)
-    const mockEmbedding = Array(3072).fill(0.1);
+    // Setup embedding mock (dimensions from shared config)
+    const mockEmbedding = Array(GENKIT_CONFIG.EMBEDDING_DIMENSIONS).fill(0.1);
     mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
   });
 

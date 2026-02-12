@@ -4,8 +4,8 @@ import {
 } from '@modules/knowledge/domain/entities/fragment.entity';
 import { FragmentModel } from '@modules/knowledge/infrastructure/persistence/models/fragment.model';
 
-// Token estimation constant (words per token ratio)
-const WORDS_PER_TOKEN_RATIO = 0.75;
+// Token estimation: ~4 chars per token (same formula as Fragment entity)
+const CHARS_PER_TOKEN = 4;
 
 /**
  * Fragment Mapper
@@ -59,10 +59,9 @@ export class FragmentMapper {
     model.content = entity.content;
     model.position = entity.position;
 
-    // Use entity tokenCount, or calculate if not set
+    // Use entity tokenCount, or calculate if not set (same formula as Fragment entity)
     model.tokenCount =
-      entity.tokenCount ??
-      Math.ceil(entity.content.split(/\s+/).length / WORDS_PER_TOKEN_RATIO);
+      entity.tokenCount ?? Math.ceil(entity.content.length / CHARS_PER_TOKEN);
 
     model.metadata = (entity.metadata as Record<string, unknown>) ?? null;
     model.createdAt = entity.createdAt;

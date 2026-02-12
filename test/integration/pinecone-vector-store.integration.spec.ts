@@ -37,7 +37,10 @@ const SHOULD_RUN = Boolean(PINECONE_API_KEY && PINECONE_INDEX);
 // Test constants
 const TEST_NAMESPACE = `test-integration-${Date.now()}`;
 const VECTOR_DIMENSIONS = 3072;
-const PINECONE_CONSISTENCY_DELAY_MS = 3000;
+const PINECONE_CONSISTENCY_DELAY_MS = parseInt(
+  process.env.PINECONE_CONSISTENCY_DELAY_MS ?? '3000',
+  10,
+);
 
 /**
  * Creates a deterministic test vector with the given seed.
@@ -330,7 +333,7 @@ describeIfPinecone('PineconeVectorStore Integration Tests', () => {
   });
 
   describe('error handling', () => {
-    it('should throw when using invalid API key', async () => {
+    it('should return false for healthCheck when using invalid API key', async () => {
       const badPinecone = new Pinecone({ apiKey: 'invalid-key' });
       const badStore = new PineconeVectorStore(
         badPinecone,

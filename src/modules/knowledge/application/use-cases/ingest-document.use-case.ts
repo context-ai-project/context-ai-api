@@ -140,6 +140,14 @@ export class IngestDocumentUseCase {
 
       // Step 9: Upsert embeddings to Pinecone vector store
       this.logger.debug('Upserting embeddings to Pinecone...');
+
+      // Guard: embedding and fragment arrays must be the same length
+      if (embeddings.length !== savedFragments.length) {
+        throw new Error(
+          `Embedding/fragment count mismatch: got ${embeddings.length} embeddings for ${savedFragments.length} fragments`,
+        );
+      }
+
       const vectorInputs: VectorUpsertInput[] = savedFragments.map(
         (fragment: Fragment, index: number) => ({
           id: fragment.id!,
@@ -159,8 +167,18 @@ export class IngestDocumentUseCase {
 
       // Step 10: Update source status to COMPLETED
       this.logger.debug('Updating source status to COMPLETED...');
-      savedSource.markAsCompleted();
-      await this.repository.saveSource(savedSource);
+      try {
+        savedSource.markAsCompleted();
+        await this.repository.saveSource(savedSource);
+      } catch (statusError: unknown) {
+        // Vectors + fragments are already persisted; log the inconsistency
+        // but do NOT re-throw — the data is usable even if status lags.
+        const msg =
+          statusError instanceof Error ? statusError.message : 'Unknown error';
+        this.logger.error(
+          `Failed to mark source ${savedSource.id} as COMPLETED after successful ingestion: ${msg}`,
+        );
+      }
 
       // Step 11: Build result
       const result: IngestDocumentResult = {
