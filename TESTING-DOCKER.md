@@ -56,14 +56,15 @@ docker exec contextai-db psql -U contextai_user -d contextai -c "\dx"
  pg_trgm   | 1.6     | public     | Trigram matching for text search
  plpgsql   | 1.0     | pg_catalog | PL/pgSQL procedural language
  uuid-ossp | 1.1     | public     | generate universally unique identifiers (UUIDs)
- vector    | 0.8.1   | public     | Vector similarity search for embeddings
 ```
+
+> **Nota**: La extensión `pgvector` ya no se utiliza. Los embeddings vectoriales se gestionan a través de **Pinecone** (servicio externo). La imagen Docker se cambió de `ankane/pgvector:v0.8.1-pg16` a `postgres:16-alpine`.
 
 **Verificación**:
 - ✅ pg_trgm (1.6) - Para búsqueda de texto
-- ℹ️ Vector embeddings gestionados por Pinecone (servicio externo)
 - ✅ uuid-ossp (1.1) - Para generación de UUIDs
 - ✅ plpgsql (1.0) - Lenguaje procedural
+- ℹ️ Vector embeddings gestionados por Pinecone (servicio externo)
 
 ---
 

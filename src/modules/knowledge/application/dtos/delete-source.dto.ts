@@ -34,7 +34,12 @@ export interface DeleteSourceResult {
   fragmentsDeleted: number;
 
   /**
-   * Whether vectors were cleaned up from Pinecone
+   * Whether vectors were successfully cleaned up from Pinecone.
+   *
+   * Note: This is a boolean (success/failure) rather than a count because
+   * Pinecone's deleteMany by metadata filter does not return the number of
+   * deleted vectors. `fragmentsDeleted` is a count because PostgreSQL
+   * provides that information.
    */
   vectorsDeleted: boolean;
 }

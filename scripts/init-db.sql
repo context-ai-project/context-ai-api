@@ -18,6 +18,12 @@ GRANT ALL PRIVILEGES ON SCHEMA public TO context_ai_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO context_ai_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO context_ai_user;
 
+-- Grant default privileges for future objects created by the owner (e.g. migrations)
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL PRIVILEGES ON TABLES TO context_ai_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL PRIVILEGES ON SEQUENCES TO context_ai_user;
+
 -- Create function to update updated_at timestamp automatically
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

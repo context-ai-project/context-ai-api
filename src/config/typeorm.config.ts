@@ -5,13 +5,13 @@ import {
   TypeOrmModuleOptions,
 } from '@nestjs/typeorm';
 import { DataSource, DataSourceOptions } from 'typeorm';
-
-// Load .env for CLI usage (NestJS loads it via ConfigModule, but CLI needs it explicitly)
-dotenv.config();
 import { KnowledgeSourceModel } from '../modules/knowledge/infrastructure/persistence/models/knowledge-source.model';
 import { FragmentModel } from '../modules/knowledge/infrastructure/persistence/models/fragment.model';
 import { ConversationModel } from '../modules/interaction/infrastructure/persistence/models/conversation.model';
 import { MessageModel } from '../modules/interaction/infrastructure/persistence/models/message.model';
+
+// Load .env for CLI usage (NestJS loads it via ConfigModule, but CLI needs it explicitly)
+dotenv.config();
 
 /**
  * TypeORM Configuration

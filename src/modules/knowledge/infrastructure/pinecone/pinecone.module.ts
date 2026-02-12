@@ -26,6 +26,13 @@ import { PineconeVectorStore } from '../services/pinecone-vector-store.service';
         const apiKey = configService.get<string>('PINECONE_API_KEY');
 
         if (!apiKey) {
+          const isProduction =
+            configService.get<string>('NODE_ENV') === 'production';
+          if (isProduction) {
+            throw new Error(
+              'PINECONE_API_KEY is required in production. Set it in your environment variables.',
+            );
+          }
           logger.warn(
             'PINECONE_API_KEY is not configured. Vector store operations will fail.',
           );

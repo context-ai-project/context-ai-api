@@ -84,17 +84,19 @@ export class DeleteSourceUseCase {
       );
     }
 
-    // Step 5: Delete fragments from PostgreSQL
-    await this.repository.deleteFragmentsBySource(dto.sourceId);
-    this.logger.debug(
-      `${fragmentCount} fragments deleted from PostgreSQL for source ${dto.sourceId}`,
-    );
+    // Step 5 & 6: Delete fragments and soft-delete source within a transaction
+    // to ensure atomicity — if either step fails, both are rolled back.
+    await this.repository.transaction(async () => {
+      await this.repository.deleteFragmentsBySource(dto.sourceId);
+      this.logger.debug(
+        `${fragmentCount} fragments deleted from PostgreSQL for source ${dto.sourceId}`,
+      );
 
-    // Step 6: Soft-delete the source
-    await this.repository.softDeleteSource(dto.sourceId);
-    this.logger.log(
-      `Source ${dto.sourceId} soft-deleted successfully (${fragmentCount} fragments, vectors: ${vectorsDeleted ? 'cleaned' : 'failed'})`,
-    );
+      await this.repository.softDeleteSource(dto.sourceId);
+      this.logger.log(
+        `Source ${dto.sourceId} soft-deleted successfully (${fragmentCount} fragments, vectors: ${vectorsDeleted ? 'cleaned' : 'failed'})`,
+      );
+    });
 
     return {
       sourceId: dto.sourceId,
@@ -116,6 +118,17 @@ export class DeleteSourceUseCase {
 
     if (!dto.sectorId || dto.sectorId.trim() === '') {
       throw new Error('SectorId cannot be empty');
+    }
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidRegex.test(dto.sourceId.trim())) {
+      throw new Error('SourceId must be a valid UUID');
+    }
+
+    if (!uuidRegex.test(dto.sectorId.trim())) {
+      throw new Error('SectorId must be a valid UUID');
     }
   }
 }
