@@ -9,78 +9,61 @@ import { Injectable } from '@nestjs/common';
 import type { IConversationRepository } from '../../domain/repositories/conversation.repository.interface';
 import { Conversation } from '../../domain/entities/conversation.entity';
 import { Message } from '../../domain/entities/message.entity';
+import type { UserContext } from '../../domain/value-objects/user-context.vo';
 import type {
   RagQueryInput,
   RagQueryOutput,
 } from '@shared/genkit/flows/rag-query.flow';
+import { ragQueryOutputSchema } from '@shared/genkit/flows/rag-query.flow';
 
 // Constants
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
 
 /**
- * Safely execute RAG query and validate result
- * This wrapper ensures type safety for the RAG query result
+ * Safely execute RAG query and validate result using Zod schema.
+ * Uses ragQueryOutputSchema.parse() for type-safe validation instead of
+ * manual property-by-property checks.
  */
 async function safeExecuteRagQuery(
   ragQueryFn: RagQueryFlowFunction,
   input: RagQueryInput,
-): Promise<{
-  response: string;
-  sources: Array<{
-    id: string;
-    content: string;
-    similarity: number;
-    sourceId: string;
-    metadata?: Record<string, unknown>;
-  }>;
-  timestamp: Date;
-  conversationId?: string;
-}> {
+): Promise<RagQueryOutput> {
   const result: unknown = await ragQueryFn(input);
 
-  // Validate result structure
-  if (!result || typeof result !== 'object') {
-    throw new Error('Invalid RAG query result: result is not an object');
-  }
+  // Validate result structure using Zod schema (single source of truth)
+  return ragQueryOutputSchema.parse(result);
+}
 
-  const resultObj = result as Record<string, unknown>;
-
-  if (typeof resultObj.response !== 'string') {
-    throw new Error('Invalid RAG query result: response is not a string');
-  }
-
-  if (!Array.isArray(resultObj.sources)) {
-    throw new Error('Invalid RAG query result: sources is not an array');
-  }
-
-  if (!(resultObj.timestamp instanceof Date)) {
-    throw new Error('Invalid RAG query result: timestamp is not a Date');
-  }
-
-  return {
-    response: resultObj.response,
-    sources: (resultObj.sources as unknown[]).map((s: unknown) => {
-      const source = s as Record<string, unknown>;
-      return {
-        id: String(source.id),
-        content: String(source.content),
-        similarity: Number(source.similarity),
-        sourceId: String(source.sourceId),
-        metadata: source.metadata as Record<string, unknown> | undefined,
-      };
-    }),
-    timestamp: resultObj.timestamp,
-    conversationId: resultObj.conversationId as string | undefined,
-  };
+/**
+ * Search configuration options for the RAG query
+ */
+export interface SearchOptions {
+  maxResults?: number;
+  minSimilarity?: number;
 }
 
 export interface QueryAssistantInput {
-  userId: string;
-  sectorId: string;
+  userContext: UserContext;
   query: string;
   conversationId?: string;
-  maxResults?: number;
-  minSimilarity?: number;
+  searchOptions?: SearchOptions;
+}
+
+/**
+ * Evaluation score for a single metric
+ */
+export interface EvaluationScoreOutput {
+  score: number;
+  status: 'PASS' | 'FAIL' | 'UNKNOWN';
+  reasoning: string;
+}
+
+/**
+ * RAG evaluation results
+ */
+export interface EvaluationOutput {
+  faithfulness: EvaluationScoreOutput;
+  relevancy: EvaluationScoreOutput;
 }
 
 export interface QueryAssistantOutput {
@@ -94,6 +77,7 @@ export interface QueryAssistantOutput {
     metadata?: Record<string, unknown>;
   }>;
   timestamp: Date;
+  evaluation?: EvaluationOutput;
 }
 
 export type RagQueryFlowFunction = (
@@ -136,11 +120,13 @@ export class QueryAssistantUseCase {
     // 4. Execute RAG query flow with type-safe wrapper
     const ragQueryInput = {
       query: contextualQuery,
-      sectorId: input.sectorId,
+      sectorId: input.userContext.sectorId,
       conversationId: conversation.id,
-      ...(input.maxResults !== undefined && { maxResults: input.maxResults }),
-      ...(input.minSimilarity !== undefined && {
-        minSimilarity: input.minSimilarity,
+      ...(input.searchOptions?.maxResults !== undefined && {
+        maxResults: input.searchOptions.maxResults,
+      }),
+      ...(input.searchOptions?.minSimilarity !== undefined && {
+        minSimilarity: input.searchOptions.minSimilarity,
       }),
     } as RagQueryInput;
 
@@ -149,29 +135,48 @@ export class QueryAssistantUseCase {
       ragQueryInput,
     );
 
-    // 5. Add assistant message to conversation
+    // 5. Add assistant message to conversation with evaluation scores
     const sourceFragmentIds = ragResult.sources.map((s) => s.id);
+
+    const messageMetadata: Record<string, unknown> = {
+      sourceFragments: sourceFragmentIds,
+      sourcesCount: ragResult.sources.length,
+    };
+
+    // Store evaluation scores in message metadata if available
+    if (ragResult.evaluation) {
+      messageMetadata.evaluation = {
+        faithfulness: {
+          score: ragResult.evaluation.faithfulness.score,
+          status: ragResult.evaluation.faithfulness.status,
+          reasoning: ragResult.evaluation.faithfulness.reasoning,
+        },
+        relevancy: {
+          score: ragResult.evaluation.relevancy.score,
+          status: ragResult.evaluation.relevancy.status,
+          reasoning: ragResult.evaluation.relevancy.reasoning,
+        },
+      };
+    }
 
     const assistantMessage = new Message({
       conversationId: conversation.id,
       role: 'assistant',
       content: ragResult.response,
-      metadata: {
-        sourceFragments: sourceFragmentIds,
-        sourcesCount: ragResult.sources.length,
-      },
+      metadata: messageMetadata,
     });
     conversation.addMessage(assistantMessage);
 
     // 6. Save conversation with messages
     await this.conversationRepository.save(conversation);
 
-    // 7. Return formatted response
+    // 7. Return formatted response with evaluation
     const response: QueryAssistantOutput = {
       response: ragResult.response,
       conversationId: conversation.id,
       sources: ragResult.sources,
       timestamp: ragResult.timestamp,
+      evaluation: ragResult.evaluation,
     };
 
     return response;
@@ -181,11 +186,14 @@ export class QueryAssistantUseCase {
    * Validate input parameters
    */
   private validateInput(input: QueryAssistantInput): void {
-    if (!input.userId || input.userId.trim() === '') {
+    if (!input.userContext?.userId || input.userContext.userId.trim() === '') {
       throw new Error('User ID is required');
     }
 
-    if (!input.sectorId || input.sectorId.trim() === '') {
+    if (
+      !input.userContext?.sectorId ||
+      input.userContext.sectorId.trim() === ''
+    ) {
       throw new Error('Sector ID is required');
     }
 
@@ -216,8 +224,8 @@ export class QueryAssistantUseCase {
     // Otherwise, get or create conversation for user and sector
     const existingConversation =
       await this.conversationRepository.findByUserAndSector(
-        input.userId,
-        input.sectorId,
+        input.userContext.userId,
+        input.userContext.sectorId,
       );
 
     if (existingConversation) {
@@ -226,8 +234,8 @@ export class QueryAssistantUseCase {
 
     // Create new conversation
     return new Conversation({
-      userId: input.userId,
-      sectorId: input.sectorId,
+      userId: input.userContext.userId,
+      sectorId: input.userContext.sectorId,
     });
   }
 

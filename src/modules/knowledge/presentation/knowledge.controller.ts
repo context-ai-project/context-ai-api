@@ -13,15 +13,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  IsString,
-  IsUUID,
-  IsEnum,
-  IsOptional,
-  IsObject,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -29,7 +20,6 @@ import {
   ApiConsumes,
   ApiBody,
   ApiResponse,
-  ApiProperty,
   ApiParam,
   ApiQuery,
   ApiBearerAuth,
@@ -43,7 +33,14 @@ import type {
   IngestDocumentResult,
 } from '../application/dtos/ingest-document.dto';
 import type { DeleteSourceResult } from '../application/dtos/delete-source.dto';
+import {
+  UploadDocumentDto,
+  IngestDocumentResponseDto,
+  ErrorResponseDto,
+} from './dtos/knowledge.dto';
 import { SourceType } from '@shared/types';
+import { isValidUUID } from '@shared/validators';
+import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
 /**
@@ -76,114 +73,6 @@ const EXAMPLE_DOCUMENT_TITLE = 'Employee Handbook 2024';
 
 // API descriptions
 const DESC_DOCUMENT_TITLE = 'Document title';
-
-/**
- * DTO for document upload request
- * Used for Swagger documentation and validation
- */
-class UploadDocumentDto {
-  @ApiProperty({
-    description: DESC_DOCUMENT_TITLE,
-    example: EXAMPLE_DOCUMENT_TITLE,
-    minLength: 1,
-    maxLength: MAX_TITLE_LENGTH,
-  })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(MAX_TITLE_LENGTH)
-  title!: string;
-
-  @ApiProperty({
-    description: 'Sector/context identifier',
-    example: EXAMPLE_UUID,
-    format: 'uuid',
-  })
-  @IsUUID()
-  sectorId!: string;
-
-  @ApiProperty({
-    description: 'Source type',
-    enum: ['PDF', 'MARKDOWN', 'URL'],
-    example: 'PDF',
-  })
-  @IsEnum(['PDF', 'MARKDOWN', 'URL'])
-  sourceType!: SourceType;
-
-  @ApiProperty({
-    description: 'Optional metadata for the document',
-    required: false,
-    example: { author: 'HR Department', version: '1.0' },
-  })
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * DTO for successful document ingestion response
- */
-class IngestDocumentResponseDto {
-  @ApiProperty({
-    description: 'Created knowledge source ID',
-    example: EXAMPLE_UUID,
-  })
-  sourceId!: string;
-
-  @ApiProperty({
-    description: DESC_DOCUMENT_TITLE,
-    example: EXAMPLE_DOCUMENT_TITLE,
-  })
-  title!: string;
-
-  @ApiProperty({
-    description: 'Number of fragments created',
-    example: 15,
-  })
-  fragmentCount!: number;
-
-  @ApiProperty({
-    description: 'Content size in bytes',
-    example: 45678,
-  })
-  contentSize!: number;
-
-  @ApiProperty({
-    description: 'Processing status',
-    example: 'COMPLETED',
-    enum: ['COMPLETED', 'FAILED'],
-  })
-  status!: string;
-
-  @ApiProperty({
-    description: 'Error message if processing failed',
-    required: false,
-    example: null,
-  })
-  errorMessage?: string;
-}
-
-/**
- * DTO for error response
- */
-class ErrorResponseDto {
-  @ApiProperty({
-    description: 'HTTP status code',
-    example: 400,
-  })
-  statusCode!: number;
-
-  @ApiProperty({
-    description: 'Error message',
-    example: 'File is required',
-  })
-  message!: string;
-
-  @ApiProperty({
-    description: 'Error type',
-    example: 'Bad Request',
-  })
-  error!: string;
-}
 
 /**
  * Knowledge Controller
@@ -349,14 +238,14 @@ export class KnowledgeController {
 
       return result;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-
-      this.logger.error(`Document ingestion failed: ${errorMessage}`, {
-        title: dto.title,
-        sourceType: dto.sourceType,
-        error: error instanceof Error ? error.stack : undefined,
-      });
+      this.logger.error(
+        `Document ingestion failed: ${extractErrorMessage(error)}`,
+        {
+          title: dto.title,
+          sourceType: dto.sourceType,
+          error: extractErrorStack(error),
+        },
+      );
 
       // Re-throw to be handled by NestJS exception filters
       throw error;
@@ -426,14 +315,11 @@ export class KnowledgeController {
       throw new BadRequestException('sectorId query parameter is required');
     }
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidRegex.test(sourceId.trim())) {
+    if (!isValidUUID(sourceId)) {
       throw new BadRequestException('sourceId must be a valid UUID');
     }
 
-    if (!uuidRegex.test(sectorId.trim())) {
+    if (!isValidUUID(sectorId)) {
       throw new BadRequestException('sectorId must be a valid UUID');
     }
 
@@ -449,8 +335,7 @@ export class KnowledgeController {
 
       return result;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
 
       // Map domain errors to HTTP errors
       if (errorMessage.includes('not found')) {
@@ -464,7 +349,7 @@ export class KnowledgeController {
       this.logger.error(`Source deletion failed: ${errorMessage}`, {
         sourceId,
         sectorId,
-        error: error instanceof Error ? error.stack : undefined,
+        error: extractErrorStack(error),
       });
 
       throw error;
@@ -497,14 +382,12 @@ export class KnowledgeController {
     }
 
     // Basic UUID format validation (after trimming)
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(dto.sectorId.trim())) {
+    if (!isValidUUID(dto.sectorId)) {
       throw new BadRequestException('SectorId must be a valid UUID');
     }
 
-    // Validate sourceType
-    const validSourceTypes = ['PDF', 'MARKDOWN', 'URL'];
+    // Validate sourceType using SourceType enum (single source of truth)
+    const validSourceTypes = Object.values(SourceType) as string[];
     const sourceTypeStr = String(dto.sourceType);
     if (!dto.sourceType || !validSourceTypes.includes(sourceTypeStr)) {
       throw new BadRequestException(

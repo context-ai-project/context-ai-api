@@ -130,11 +130,9 @@ describe('Phase 4: Interaction Flow Integration Tests', () => {
       // When: User queries the assistant
       const query = 'How do I request vacation?';
       const result = await queryAssistantUseCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query,
-        maxResults: 5,
-        minSimilarity: 0.5,
+        searchOptions: { maxResults: 5, minSimilarity: 0.5 },
       });
 
       // Then: Should receive response with conversation
@@ -166,23 +164,19 @@ describe('Phase 4: Interaction Flow Integration Tests', () => {
     it('should continue existing conversation', async () => {
       // Given: Previous conversation exists
       const firstResult = await queryAssistantUseCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: 'What is the vacation policy?',
-        maxResults: 5,
-        minSimilarity: 0.5,
+        searchOptions: { maxResults: 5, minSimilarity: 0.5 },
       });
 
       const conversationId = firstResult.conversationId;
 
       // When: Continue the same conversation
       const secondResult = await queryAssistantUseCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: 'How many days do I get?',
         conversationId,
-        maxResults: 5,
-        minSimilarity: 0.5,
+        searchOptions: { maxResults: 5, minSimilarity: 0.5 },
       });
 
       // Then: Should use same conversation

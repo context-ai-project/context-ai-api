@@ -1,22 +1,10 @@
-import { SourceType } from '@shared/types';
-
-/**
- * Type-safe metadata value
- * Represents JSON-serializable values
- */
-export type MetadataValue =
-  | string
-  | number
-  | boolean
-  | null
-  | MetadataValue[]
-  | { [key: string]: MetadataValue };
+import { SourceType, SourceStatus, type Metadata } from '@shared/types';
 
 /**
  * Knowledge source metadata type
  * Stores additional context about the source (e.g., file info, parsing details)
  */
-export type SourceMetadata = Record<string, MetadataValue>;
+export type SourceMetadata = Metadata;
 
 /**
  * KnowledgeSource Entity (Aggregate Root)
@@ -31,7 +19,7 @@ export class KnowledgeSource {
   public sourceType: SourceType;
   public content: string;
   public metadata?: SourceMetadata;
-  public status: string;
+  public status: SourceStatus;
   public errorMessage?: string;
   public createdAt: Date;
   public updatedAt: Date;
@@ -55,7 +43,7 @@ export class KnowledgeSource {
     this.sourceType = data.sourceType;
     this.content = data.content;
     this.metadata = data.metadata;
-    this.status = 'PENDING';
+    this.status = SourceStatus.PENDING;
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }
@@ -102,7 +90,7 @@ export class KnowledgeSource {
    */
   public markAsProcessing(): void {
     this.ensureNotDeleted();
-    this.status = 'PROCESSING';
+    this.status = SourceStatus.PROCESSING;
     this.updatedAt = new Date();
   }
 
@@ -113,13 +101,13 @@ export class KnowledgeSource {
   public markAsCompleted(): void {
     this.ensureNotDeleted();
 
-    if (this.status !== 'PROCESSING') {
+    if (this.status !== SourceStatus.PROCESSING) {
       throw new Error(
         'Cannot mark as completed: source is not being processed',
       );
     }
 
-    this.status = 'COMPLETED';
+    this.status = SourceStatus.COMPLETED;
     this.updatedAt = new Date();
   }
 
@@ -130,7 +118,7 @@ export class KnowledgeSource {
    */
   public markAsFailed(errorMessage: string): void {
     this.ensureNotDeleted();
-    this.status = 'FAILED';
+    this.status = SourceStatus.FAILED;
     this.errorMessage = errorMessage;
     this.updatedAt = new Date();
   }
@@ -139,7 +127,7 @@ export class KnowledgeSource {
    * Soft deletes the source by setting status to DELETED and recording the deletion timestamp
    */
   public delete(): void {
-    this.status = 'DELETED';
+    this.status = SourceStatus.DELETED;
     this.deletedAt = new Date();
     this.updatedAt = new Date();
   }
@@ -151,7 +139,7 @@ export class KnowledgeSource {
    * @returns True if status is PENDING
    */
   public isPending(): boolean {
-    return this.status === 'PENDING';
+    return this.status === SourceStatus.PENDING;
   }
 
   /**
@@ -159,7 +147,7 @@ export class KnowledgeSource {
    * @returns True if status is PROCESSING
    */
   public isProcessing(): boolean {
-    return this.status === 'PROCESSING';
+    return this.status === SourceStatus.PROCESSING;
   }
 
   /**
@@ -167,7 +155,7 @@ export class KnowledgeSource {
    * @returns True if status is COMPLETED
    */
   public isCompleted(): boolean {
-    return this.status === 'COMPLETED';
+    return this.status === SourceStatus.COMPLETED;
   }
 
   /**
@@ -175,7 +163,7 @@ export class KnowledgeSource {
    * @returns True if status is FAILED
    */
   public hasFailed(): boolean {
-    return this.status === 'FAILED';
+    return this.status === SourceStatus.FAILED;
   }
 
   /**
@@ -183,7 +171,7 @@ export class KnowledgeSource {
    * @returns True if status is DELETED
    */
   public isDeleted(): boolean {
-    return this.status === 'DELETED';
+    return this.status === SourceStatus.DELETED;
   }
 
   // ==================== Metadata Management ====================
@@ -207,6 +195,7 @@ export class KnowledgeSource {
   /**
    * Checks if the source is stale (older than configured threshold)
    * @returns True if the source was created more than STALE_DAYS_THRESHOLD days ago
+   * @planned Phase 6 — Knowledge freshness checks / re-ingestion scheduler
    */
   public isStale(): boolean {
     const thresholdDate = new Date();
@@ -220,6 +209,7 @@ export class KnowledgeSource {
    * Checks if the source belongs to a specific sector
    * @param sectorId - The sector ID to check
    * @returns True if the source belongs to the specified sector
+   * @planned Phase 6 — Multi-sector knowledge management
    */
   public belongsToSector(sectorId: string): boolean {
     return this.sectorId === sectorId;

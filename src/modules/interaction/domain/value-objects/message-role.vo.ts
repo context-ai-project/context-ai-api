@@ -10,9 +10,9 @@ export type MessageRole = 'user' | 'assistant' | 'system';
  * Message Role Constants
  */
 export const MESSAGE_ROLES = {
-  USER: 'user' as MessageRole,
-  ASSISTANT: 'assistant' as MessageRole,
-  SYSTEM: 'system' as MessageRole,
+  USER: 'user',
+  ASSISTANT: 'assistant',
+  SYSTEM: 'system',
 } as const;
 
 /**

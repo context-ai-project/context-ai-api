@@ -21,6 +21,8 @@
  * ```
  */
 
+import type { FragmentResult } from '@shared/genkit/flows/rag-query.flow';
+
 /**
  * Available prompt types
  */
@@ -32,15 +34,9 @@ export enum PromptType {
 }
 
 /**
- * Fragment result from vector search
+ * Re-export FragmentResult for consumers that import from prompts
  */
-export interface FragmentResult {
-  id: string;
-  content: string;
-  similarity: number;
-  sourceId: string;
-  metadata?: Record<string, unknown>;
-}
+export type { FragmentResult };
 
 /**
  * Context for building prompts
@@ -52,10 +48,13 @@ export interface PromptContext {
 }
 
 /**
- * System prompts for different types
+ * System prompts for different types.
+ * Uses Map instead of Record to avoid eslint security/detect-object-injection warnings.
  */
-const SYSTEM_PROMPTS: Record<PromptType, string> = {
-  [PromptType.ONBOARDING]: `You are an onboarding assistant for the company. Your role is to help new employees understand company policies, procedures, and guidelines.
+const SYSTEM_PROMPTS = new Map<PromptType, string>([
+  [
+    PromptType.ONBOARDING,
+    `You are an onboarding assistant for the company. Your role is to help new employees understand company policies, procedures, and guidelines.
 
 IMPORTANT INSTRUCTIONS:
 - Answer ONLY based on the provided documentation context below
@@ -64,8 +63,11 @@ IMPORTANT INSTRUCTIONS:
 - Reference the documentation sources when applicable
 - Use a friendly, professional tone
 - Focus on helping employees get started smoothly`,
+  ],
 
-  [PromptType.POLICY]: `You are a company policy assistant. Your role is to help employees understand company policies and regulations.
+  [
+    PromptType.POLICY,
+    `You are a company policy assistant. Your role is to help employees understand company policies and regulations.
 
 IMPORTANT INSTRUCTIONS:
 - Answer ONLY based on the provided documentation context below
@@ -74,8 +76,11 @@ IMPORTANT INSTRUCTIONS:
 - Reference specific policy sections when applicable
 - Use a clear, professional tone
 - Highlight important policy requirements or restrictions`,
+  ],
 
-  [PromptType.PROCEDURE]: `You are a procedure assistant. Your role is to help employees follow company procedures correctly.
+  [
+    PromptType.PROCEDURE,
+    `You are a procedure assistant. Your role is to help employees follow company procedures correctly.
 
 IMPORTANT INSTRUCTIONS:
 - Answer ONLY based on the provided documentation context below
@@ -84,8 +89,11 @@ IMPORTANT INSTRUCTIONS:
 - Be specific and actionable in your instructions
 - Reference documentation sections when applicable
 - Use a clear, instructional tone`,
+  ],
 
-  [PromptType.GENERAL]: `You are a company assistant. Your role is to help employees with questions about the company.
+  [
+    PromptType.GENERAL,
+    `You are a company assistant. Your role is to help employees with questions about the company.
 
 IMPORTANT INSTRUCTIONS:
 - Answer ONLY based on the provided documentation context below
@@ -93,7 +101,8 @@ IMPORTANT INSTRUCTIONS:
 - Be helpful and informative
 - Reference the documentation sources when applicable
 - Use a friendly, professional tone`,
-};
+  ],
+]);
 
 /**
  * Prompt Service
@@ -107,9 +116,10 @@ export class PromptService {
    * @returns Formatted prompt string
    */
   buildPrompt(type: PromptType, context: PromptContext): string {
-    // Safe: PromptType is a controlled enum
-    // eslint-disable-next-line security/detect-object-injection
-    const systemPrompt = SYSTEM_PROMPTS[type];
+    const systemPrompt = SYSTEM_PROMPTS.get(type);
+    if (!systemPrompt) {
+      throw new Error(`Unknown prompt type: ${type}`);
+    }
     const conversationSection = this.buildConversationSection(
       context.conversationHistory,
     );
@@ -179,9 +189,11 @@ export class PromptService {
    * @returns System prompt string
    */
   getSystemPrompt(type: PromptType): string {
-    // Safe: PromptType is a controlled enum
-    // eslint-disable-next-line security/detect-object-injection
-    return SYSTEM_PROMPTS[type];
+    const prompt = SYSTEM_PROMPTS.get(type);
+    if (!prompt) {
+      throw new Error(`Unknown prompt type: ${type}`);
+    }
+    return prompt;
   }
 
   /**

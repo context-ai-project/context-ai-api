@@ -2,7 +2,7 @@
  * Google Genkit Configuration
  *
  * This module configures Google Genkit with:
- * - Gemini 1.5 Pro for LLM operations
+ * - Gemini 2.5 Flash for LLM operations
  * - gemini-embedding-001 for embeddings (3072 dimensions)
  *
  * Environment variables required:

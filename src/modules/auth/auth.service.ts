@@ -7,6 +7,14 @@ import { ConfigService } from '@nestjs/config';
  * Handles authentication-related business logic.
  * Provides configuration access for JWT strategies.
  *
+ * NOTE: This class currently acts as a thin wrapper over ConfigService
+ * (Middle Man pattern). It is intentionally kept as a dedicated abstraction
+ * layer so that future authentication logic (token refresh, session management,
+ * multi-provider support) has a clear home without coupling consumers to
+ * ConfigService directly.
+ *
+ * @see CS-14 in docs/code-smells-analysis.md
+ *
  * Related services:
  * - TokenRevocationService: Token validation and revocation
  * - PermissionService: User permissions lookup

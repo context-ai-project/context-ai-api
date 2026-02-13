@@ -28,11 +28,13 @@ Nomenclatura: `feature/phase-{número}-{descripción-corta}`
 
 ```
 ✅ main (Fase 1-2 completadas)
-├── feature/phase-3-knowledge-context     ← Backend: Knowledge Module
-├── feature/phase-4-rag-interaction       ← Backend: RAG + Chat
-├── feature/phase-5-frontend-chat         ← Frontend: UI de Chat
-├── feature/phase-6-auth-authorization    ← Backend + Frontend: Auth0 + RBAC
-└── feature/phase-7-testing-validation    ← Tests E2E + Validation
+├── feature/phase-3-knowledge-context       ← Backend: Knowledge Module
+├── feature/phase-4-interaction-context     ← Backend: RAG + Chat
+├── feature/phase-5-chat-interface          ← Frontend: UI de Chat
+├── feature/phase-6-auth-authorization      ← Backend + Frontend: Auth0 + RBAC
+├── feature/phase-6b-pinecone-migration     ← Backend: Migración a Pinecone
+├── feature/phase-7-testing-consolidation   ← Tests + Consolidación
+└── feature/phase-8-deployment              ← Deployment + Docker
 ```
 
 ---
@@ -82,16 +84,15 @@ git push origin feature/phase-3-knowledge-context
 
 - Merge strategy: **Squash and merge** para mantener historial limpio
 
-### 5. Cleanup
+### 5. Post-merge
 
 ```bash
-# Después del merge, eliminar branch local
+# Después del merge, actualizar main local
 git checkout main
 git pull origin main
-git branch -d feature/phase-3-knowledge-context
-
-# Branch remoto se elimina automáticamente al hacer merge en GitHub
 ```
+
+> ⚠️ **IMPORTANTE**: No eliminar feature branches después del merge. Todas las ramas `feature/*` deben preservarse para la validación y evaluación del proyecto final del Máster.
 
 ---
 

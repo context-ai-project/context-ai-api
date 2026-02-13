@@ -106,8 +106,10 @@ describe('InteractionController', () => {
   });
 
   describe('query', () => {
+    // userId comes from JWT session via @CurrentUser('userId'), not from the DTO body
+    const jwtUserId = '550e8400-e29b-41d4-a716-446655440999';
+
     const validDto: QueryAssistantDto = {
-      userId: '550e8400-e29b-41d4-a716-446655440999',
       sectorId: '440e8400-e29b-41d4-a716-446655440000',
       query: '¿Cuántos días de vacaciones tengo?',
     };
@@ -134,7 +136,7 @@ describe('InteractionController', () => {
     it('should successfully process a query', async () => {
       queryAssistantUseCase.execute.mockResolvedValue(mockUseCaseResult);
 
-      const result = await controller.query(validDto);
+      const result = await controller.query(validDto, jwtUserId);
 
       expect(result).toEqual({
         response: mockUseCaseResult.response,
@@ -144,12 +146,13 @@ describe('InteractionController', () => {
       });
 
       expect(queryAssistantUseCase.execute).toHaveBeenCalledWith({
-        userId: validDto.userId,
-        sectorId: validDto.sectorId,
+        userContext: { userId: jwtUserId, sectorId: validDto.sectorId },
         query: validDto.query,
         conversationId: undefined,
-        maxResults: undefined,
-        minSimilarity: undefined,
+        searchOptions: {
+          maxResults: undefined,
+          minSimilarity: undefined,
+        },
       });
       expect(queryAssistantUseCase.execute).toHaveBeenCalledTimes(1);
     });
@@ -164,15 +167,16 @@ describe('InteractionController', () => {
 
       queryAssistantUseCase.execute.mockResolvedValue(mockUseCaseResult);
 
-      await controller.query(dtoWithOptionals);
+      await controller.query(dtoWithOptionals, jwtUserId);
 
       expect(queryAssistantUseCase.execute).toHaveBeenCalledWith({
-        userId: dtoWithOptionals.userId,
-        sectorId: dtoWithOptionals.sectorId,
+        userContext: { userId: jwtUserId, sectorId: dtoWithOptionals.sectorId },
         query: dtoWithOptionals.query,
         conversationId: dtoWithOptionals.conversationId,
-        maxResults: dtoWithOptionals.maxResults,
-        minSimilarity: dtoWithOptionals.minSimilarity,
+        searchOptions: {
+          maxResults: dtoWithOptionals.maxResults,
+          minSimilarity: dtoWithOptionals.minSimilarity,
+        },
       });
     });
 
@@ -184,7 +188,7 @@ describe('InteractionController', () => {
 
       queryAssistantUseCase.execute.mockResolvedValue(mockUseCaseResult);
 
-      await controller.query(shortQueryDto);
+      await controller.query(shortQueryDto, jwtUserId);
 
       expect(queryAssistantUseCase.execute).toHaveBeenCalled();
     });
@@ -199,7 +203,7 @@ describe('InteractionController', () => {
 
       queryAssistantUseCase.execute.mockResolvedValue(mockUseCaseResult);
 
-      await controller.query(longQueryDto);
+      await controller.query(longQueryDto, jwtUserId);
 
       expect(queryAssistantUseCase.execute).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -233,7 +237,7 @@ describe('InteractionController', () => {
         resultWithMultipleSources,
       );
 
-      const result = await controller.query(validDto);
+      const result = await controller.query(validDto, jwtUserId);
 
       expect(result.sources).toHaveLength(2);
       expect(result.sources[0]).toEqual({
@@ -260,7 +264,7 @@ describe('InteractionController', () => {
 
       queryAssistantUseCase.execute.mockResolvedValue(resultWithNoSources);
 
-      const result = await controller.query(validDto);
+      const result = await controller.query(validDto, jwtUserId);
 
       expect(result.sources).toEqual([]);
     });
@@ -269,7 +273,7 @@ describe('InteractionController', () => {
       const error = new Error('Use case execution failed');
       queryAssistantUseCase.execute.mockRejectedValue(error);
 
-      await expect(controller.query(validDto)).rejects.toThrow(
+      await expect(controller.query(validDto, jwtUserId)).rejects.toThrow(
         'Use case execution failed',
       );
     });
@@ -279,7 +283,7 @@ describe('InteractionController', () => {
         'Unknown string error',
       );
 
-      await expect(controller.query(validDto)).rejects.toThrow('Unknown error');
+      await expect(controller.query(validDto, jwtUserId)).rejects.toThrow('Unknown error');
     });
 
     it('should return timestamp from use case result', async () => {
@@ -291,7 +295,7 @@ describe('InteractionController', () => {
 
       queryAssistantUseCase.execute.mockResolvedValue(resultWithTimestamp);
 
-      const result = await controller.query(validDto);
+      const result = await controller.query(validDto, jwtUserId);
 
       expect(result.timestamp).toEqual(timestamp);
     });

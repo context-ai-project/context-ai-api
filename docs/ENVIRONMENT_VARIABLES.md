@@ -7,8 +7,10 @@ This document describes all environment variables used by the Context.ai API.
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `NODE_ENV` | Application environment (development, production, test) | `development` | No |
-| `PORT` | Server port | `3000` | No |
-| `API_PREFIX` | API route prefix | `api` | No |
+| `PORT` | Server port | `3001` | No |
+| `API_PREFIX` | API route prefix | `api/v1` | No |
+| `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:3000` | No |
+| `ALLOWED_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:3000` | No |
 
 ## Database Configuration
 
@@ -28,7 +30,7 @@ This document describes all environment variables used by the Context.ai API.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `GOOGLE_API_KEY` | Google AI API key for Genkit (Gemini 1.5 Pro + text-embedding-005) | - | **Yes** |
+| `GOOGLE_API_KEY` | Google AI API key for Genkit (Gemini 2.5 Flash + gemini-embedding-001) | - | **Yes** |
 | `GENKIT_ENV` | Genkit environment (dev, prod) | `dev` | No |
 
 ## Auth0 Configuration (Phase 6)
@@ -47,11 +49,12 @@ This document describes all environment variables used by the Context.ai API.
 |----------|-------------|---------|----------|
 | `INTERNAL_API_KEY` | Shared secret for server-to-server calls (e.g., NextAuth → API user sync). Must be the same value in both frontend and backend. Generate with `openssl rand -hex 32`. | - | **Yes** |
 
-## CORS Configuration
+## Pinecone Vector Store
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `CORS_ORIGIN` | Allowed CORS origins (comma-separated) | `http://localhost:5173` | No |
+| `PINECONE_API_KEY` | Pinecone API key for vector store operations | - | **Yes** |
+| `PINECONE_INDEX` | Pinecone index name | `context-ai` | No |
 
 ## Rate Limiting
 
@@ -80,13 +83,14 @@ NODE_ENV=development
 PORT=3001
 API_PREFIX=api/v1
 
-# Database (local development with Docker)
-DATABASE_URL=postgresql://contextai_user:dev_password@localhost:5432/contextai
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_USER=contextai_user
-DATABASE_PASSWORD=dev_password
-DATABASE_NAME=contextai
+# Database (local development with Docker — port 5433 maps to internal 5432)
+DB_HOST=localhost
+DB_PORT=5433
+DB_USERNAME=context_ai_user
+DB_PASSWORD=context_ai_pass
+DB_DATABASE=context_ai_db
+DB_SYNCHRONIZE=false
+DB_LOGGING=false
 
 # Auth0 Authentication
 AUTH0_DOMAIN=your-tenant.auth0.com
@@ -99,6 +103,10 @@ INTERNAL_API_KEY=generate-with-openssl-rand-hex-32
 # Google AI (Genkit)
 GOOGLE_API_KEY=your_google_api_key_here
 GENKIT_ENV=dev
+
+# Pinecone Vector Store
+PINECONE_API_KEY=your_pinecone_api_key_here
+PINECONE_INDEX=context-ai
 
 # CORS & Security
 FRONTEND_URL=http://localhost:3000
@@ -124,7 +132,8 @@ LOG_LEVEL=debug
    - **`GOOGLE_API_KEY`** - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
    - **`AUTH0_DOMAIN`**, **`AUTH0_AUDIENCE`**, **`AUTH0_ISSUER`** - See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md)
    - **`INTERNAL_API_KEY`** - Generate with `openssl rand -hex 32` (must match frontend)
-   - **`DATABASE_*`** - Update if not using default Docker values
+   - **`PINECONE_API_KEY`** - Get from [Pinecone Console](https://app.pinecone.io/)
+   - **`DB_*`** - Update if not using default Docker values
 
 3. For local development with Docker:
    ```bash

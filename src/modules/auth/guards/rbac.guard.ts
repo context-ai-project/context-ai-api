@@ -16,6 +16,17 @@ import {
 import { ROLES_KEY } from '../decorators/require-roles.decorator';
 
 /**
+ * Context for access control logging.
+ * Groups the (userId, request) data clump that is passed to all logging methods.
+ */
+interface AccessLogContext {
+  userId: string;
+  method: string;
+  path: string;
+  ip?: string;
+}
+
+/**
  * RBAC Guard
  *
  * Role-Based Access Control guard that validates user permissions and roles.
@@ -109,11 +120,19 @@ export class RBACGuard implements CanActivate {
       );
     }
 
+    // Build shared access log context
+    const logContext: AccessLogContext = {
+      userId: user.userId,
+      method: request.method,
+      path: request.url.split('?')[0],
+      ip: request.ip,
+    };
+
     // Validate role-based access
     const hasRoleAccess = await this.validateRoleAccess(
       user.userId,
       requiredRoles,
-      request,
+      logContext,
     );
     if (!hasRoleAccess) {
       return false;
@@ -124,19 +143,14 @@ export class RBACGuard implements CanActivate {
       user.userId,
       requiredPermissions,
       context,
-      request,
+      logContext,
     );
     if (!hasPermissionAccess) {
       return false;
     }
 
     // Access granted
-    this.logAccessGranted(
-      user.userId,
-      request,
-      requiredRoles,
-      requiredPermissions,
-    );
+    this.logAccessGranted(logContext, requiredRoles, requiredPermissions);
     return true;
   }
 
@@ -145,13 +159,13 @@ export class RBACGuard implements CanActivate {
    *
    * @param userId - Internal user UUID
    * @param requiredRoles - Array of required role names
-   * @param request - HTTP request object
+   * @param logContext - Access log context
    * @returns Promise<boolean> - true if access granted, false otherwise
    */
   private async validateRoleAccess(
     userId: string,
     requiredRoles: string[] | undefined,
-    request: { method: string; url: string; ip?: string },
+    logContext: AccessLogContext,
   ): Promise<boolean> {
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
@@ -159,7 +173,7 @@ export class RBACGuard implements CanActivate {
 
     const hasRole = await this.checkRoles(userId, requiredRoles);
     if (!hasRole) {
-      this.logAccessDenied(userId, request, 'roles', requiredRoles);
+      this.logAccessDenied(logContext, 'roles', requiredRoles);
       throw new ForbiddenException(
         `Access denied. Required role: ${requiredRoles.join(' or ')}`,
       );
@@ -173,14 +187,14 @@ export class RBACGuard implements CanActivate {
    * @param userId - Internal user UUID
    * @param requiredPermissions - Array of required permission names
    * @param context - Execution context
-   * @param request - HTTP request object
+   * @param logContext - Access log context
    * @returns Promise<boolean> - true if access granted, false otherwise
    */
   private async validatePermissionAccess(
     userId: string,
     requiredPermissions: string[] | undefined,
     context: ExecutionContext,
-    request: { method: string; url: string; ip?: string },
+    logContext: AccessLogContext,
   ): Promise<boolean> {
     if (!requiredPermissions || requiredPermissions.length === 0) {
       return true;
@@ -200,8 +214,7 @@ export class RBACGuard implements CanActivate {
 
     if (!hasPermission) {
       this.logAccessDenied(
-        userId,
-        request,
+        logContext,
         'permissions',
         requiredPermissions,
         permissionMode,
@@ -263,29 +276,23 @@ export class RBACGuard implements CanActivate {
   /**
    * Log access denied for security audit
    *
-   * @param userId - Internal user UUID
-   * @param request - HTTP request object
+   * @param logContext - Access log context (userId, method, path, ip)
    * @param type - Type of access control (roles or permissions)
    * @param required - Required roles or permissions
    * @param mode - Permission match mode (optional)
    */
   private logAccessDenied(
-    userId: string,
-    request: {
-      method: string;
-      url: string;
-      ip?: string;
-    },
+    logContext: AccessLogContext,
     type: 'roles' | 'permissions',
     required: string[],
     mode?: PermissionMatchMode,
   ): void {
     const userIdPrefix = 8;
     this.logger.warn('Access denied', {
-      userId: userId.substring(0, userIdPrefix) + '...',
-      method: request.method,
-      path: request.url.split('?')[0],
-      ip: request.ip,
+      userId: logContext.userId.substring(0, userIdPrefix) + '...',
+      method: logContext.method,
+      path: logContext.path,
+      ip: logContext.ip,
       type,
       required,
       mode:
@@ -297,25 +304,20 @@ export class RBACGuard implements CanActivate {
   /**
    * Log access granted for security audit
    *
-   * @param userId - Internal user UUID
-   * @param request - HTTP request object
+   * @param logContext - Access log context (userId, method, path, ip)
    * @param roles - Required roles (if any)
    * @param permissions - Required permissions (if any)
    */
   private logAccessGranted(
-    userId: string,
-    request: {
-      method: string;
-      url: string;
-    },
+    logContext: AccessLogContext,
     roles?: string[],
     permissions?: string[],
   ): void {
     const userIdPrefix = 8;
     this.logger.log('Access granted', {
-      userId: userId.substring(0, userIdPrefix) + '...',
-      method: request.method,
-      path: request.url.split('?')[0],
+      userId: logContext.userId.substring(0, userIdPrefix) + '...',
+      method: logContext.method,
+      path: logContext.path,
       roles: roles || [],
       permissions: permissions || [],
       timestamp: new Date().toISOString(),

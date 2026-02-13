@@ -5,6 +5,7 @@ import {
   AuditEventType,
 } from '../../domain/entities/audit-log.entity';
 import { AuditLogRepository } from '../../infrastructure/persistence/repositories/audit-log.repository';
+import { extractErrorStack } from '@shared/utils';
 
 /**
  * Request context for audit logging
@@ -28,8 +29,8 @@ interface RequestContext {
  * **Usage**:
  * ```typescript
  * // In a controller or guard
- * await auditService.logLogin(userId, request);
- * await auditService.logAccessDenied(userId, request, { resource: '/admin' });
+ * await auditService.logEvent(AuditEventType.LOGIN, userId, { ip, userAgent });
+ * await auditService.logEvent(AuditEventType.ACCESS_DENIED, userId, { ip, userAgent }, { resource: '/admin' });
  * ```
  *
  * Phase 6 Implementation:
@@ -42,193 +43,21 @@ export class AuditService {
   constructor(private readonly auditLogRepository: AuditLogRepository) {}
 
   /**
-   * Log a successful login event
+   * Generic audit event logging method.
+   * Use this for any audit event type — replaces the individual one-liner wrappers.
+   *
+   * @param eventType - The type of audit event
+   * @param userId - The user ID (null for unauthenticated events like LOGIN_FAILED)
+   * @param context - Request context (IP, user agent)
+   * @param metadata - Optional additional metadata
+   *
+   * @example
+   * ```typescript
+   * await auditService.logEvent(AuditEventType.LOGIN, userId, { ip, userAgent });
+   * await auditService.logEvent(AuditEventType.LOGIN_FAILED, null, { ip, userAgent }, { reason: 'bad password' });
+   * ```
    */
-  async logLogin(
-    userId: string,
-    context: RequestContext,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    await this.log(AuditEventType.LOGIN, userId, context, metadata);
-  }
-
-  /**
-   * Log a logout event
-   */
-  async logLogout(
-    userId: string,
-    context: RequestContext,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    await this.log(AuditEventType.LOGOUT, userId, context, metadata);
-  }
-
-  /**
-   * Log a failed login attempt
-   */
-  async logLoginFailed(
-    context: RequestContext,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    await this.log(
-      AuditEventType.LOGIN_FAILED,
-      null, // No userId for failed login
-      context,
-      metadata,
-    );
-  }
-
-  /**
-   * Log an access denied event (403)
-   */
-  async logAccessDenied(
-    userId: string | null,
-    context: RequestContext,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    await this.log(AuditEventType.ACCESS_DENIED, userId, context, metadata);
-  }
-
-  /**
-   * Log a role change event
-   */
-  async logRoleChanged(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      oldRole: string;
-      newRole: string;
-      changedBy: string;
-    },
-  ): Promise<void> {
-    await this.log(AuditEventType.ROLE_CHANGED, userId, context, metadata);
-  }
-
-  /**
-   * Log a permission change event
-   */
-  async logPermissionChanged(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      permission: string;
-      action: 'granted' | 'revoked';
-      changedBy: string;
-    },
-  ): Promise<void> {
-    await this.log(
-      AuditEventType.PERMISSION_CHANGED,
-      userId,
-      context,
-      metadata,
-    );
-  }
-
-  /**
-   * Log a token revocation event
-   */
-  async logTokenRevoked(
-    userId: string,
-    context: RequestContext,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    await this.log(AuditEventType.TOKEN_REVOKED, userId, context, metadata);
-  }
-
-  /**
-   * Log a rate limit exceeded event
-   */
-  async logRateLimitExceeded(
-    userId: string | null,
-    context: RequestContext,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    await this.log(
-      AuditEventType.RATE_LIMIT_EXCEEDED,
-      userId,
-      context,
-      metadata,
-    );
-  }
-
-  /**
-   * Log a sensitive data access event
-   */
-  async logSensitiveDataAccess(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      resource: string;
-      action: string;
-    },
-  ): Promise<void> {
-    await this.log(
-      AuditEventType.SENSITIVE_DATA_ACCESS,
-      userId,
-      context,
-      metadata,
-    );
-  }
-
-  /**
-   * Log a data export event
-   */
-  async logDataExport(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      format: string;
-      recordCount: number;
-    },
-  ): Promise<void> {
-    await this.log(AuditEventType.DATA_EXPORT, userId, context, metadata);
-  }
-
-  /**
-   * Log a user creation event
-   */
-  async logUserCreated(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      createdBy: string;
-      role: string;
-    },
-  ): Promise<void> {
-    await this.log(AuditEventType.USER_CREATED, userId, context, metadata);
-  }
-
-  /**
-   * Log a user deletion event
-   */
-  async logUserDeleted(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      deletedBy: string;
-    },
-  ): Promise<void> {
-    await this.log(AuditEventType.USER_DELETED, userId, context, metadata);
-  }
-
-  /**
-   * Log a user suspension event
-   */
-  async logUserSuspended(
-    userId: string,
-    context: RequestContext,
-    metadata: {
-      suspendedBy: string;
-      reason: string;
-    },
-  ): Promise<void> {
-    await this.log(AuditEventType.USER_SUSPENDED, userId, context, metadata);
-  }
-
-  /**
-   * Generic log method (internal use)
-   */
-  private async log(
+  async logEvent(
     eventType: AuditEventType,
     userId: string | null,
     context: RequestContext,
@@ -254,12 +83,12 @@ export class AuditService {
         ip: this.maskIp(context.ip ?? 'unknown'),
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // IMPORTANT: Never fail the main operation due to audit logging errors
       // Just log the error and continue
       this.logger.error(
         'Failed to save audit log',
-        error instanceof Error ? error.stack : String(error),
+        extractErrorStack(error) ?? String(error),
         {
           eventType,
           userId,

@@ -119,7 +119,7 @@ export class KnowledgeController {
 When a user authenticates for the first time, the JwtStrategy:
 1. Validates the JWT token via JWKS
 2. Extracts the Auth0 `sub` claim (user ID)
-3. Looks up or creates the user in our database via `AuthService.validateAndSyncUser()`
+3. Looks up or creates the user in our database via `UserService.syncUser()`
 4. Attaches the `ValidatedUser` object to `req.user`
 
 ---
@@ -138,9 +138,9 @@ Users ──M:N──▸ Roles ──M:N──▸ Permissions
 
 | Role | Permissions | Description |
 |------|------------|-------------|
-| `user` | `chat:read`, `knowledge:read`, `profile:read` | Default for all users |
-| `manager` | user + `knowledge:create`, `knowledge:update`, `knowledge:delete` | Content managers |
-| `admin` | manager + `users:manage`, `admin:*` | Full system access |
+| `user` | `chat:read`, `knowledge:read`, `profile:read`, `profile:update` | Default for all users (4 permissions) |
+| `manager` | user + `knowledge:create`, `knowledge:update`, `knowledge:delete`, `users:read` | Content managers (8 permissions) |
+| `admin` | All permissions (includes `users:manage`, `system:admin`) | Full system access (10 permissions) |
 
 ### Permission Decorators
 
@@ -211,36 +211,36 @@ See [RATE_LIMITING.md](RATE_LIMITING.md) for full details.
 | Medium | 60s | 100 req | Sustained abuse |
 | Long | 3600s | 1000 req | Hourly cap |
 
-Custom throttler for AI endpoints (fewer requests due to cost):
+Per-endpoint overrides in InteractionController:
 
-| Tier | TTL | Limit |
-|------|-----|-------|
-| Short | 1s | 2 req |
-| Medium | 60s | 20 req |
-| Long | 3600s | 200 req |
+| Endpoint | Limit | TTL |
+|----------|-------|-----|
+| `POST /interaction/query` | 30 req | 60s |
+| `GET /interaction/conversations` | 50 req | 60s |
+| `GET /interaction/conversations/:id` | 60 req | 60s |
+| `DELETE /interaction/conversations/:id` | 20 req | 60s |
 
 ---
 
 ## 📝 Audit Logging
 
-**14 Security Event Types**:
+**13 Security Event Types** (defined in `AuditEventType` enum):
 
 | Event | When |
 |-------|------|
 | `LOGIN` | Successful authentication |
 | `LOGOUT` | User-initiated logout |
 | `LOGIN_FAILED` | Failed authentication |
-| `ACCESS_DENIED` | 403 Forbidden |
-| `TOKEN_EXPIRED` | JWT expired |
-| `TOKEN_REVOKED` | Token blacklisted |
 | `ROLE_CHANGED` | Admin changes user role |
 | `PERMISSION_CHANGED` | Permission modification |
-| `DATA_ACCESS` | Sensitive data accessed |
-| `DATA_MODIFICATION` | Data created/updated/deleted |
-| `RATE_LIMITED` | 429 Too Many Requests |
-| `SUSPICIOUS_ACTIVITY` | Anomaly detected |
-| `ADMIN_ACTION` | Administrative operation |
-| `SYSTEM_EVENT` | System-level event |
+| `ACCESS_DENIED` | 403 Forbidden |
+| `TOKEN_REVOKED` | Token blacklisted |
+| `RATE_LIMIT_EXCEEDED` | 429 Too Many Requests |
+| `SENSITIVE_DATA_ACCESS` | Sensitive data accessed |
+| `DATA_EXPORT` | Data exported |
+| `USER_CREATED` | New user account created |
+| `USER_DELETED` | User account deleted |
+| `USER_SUSPENDED` | User account suspended |
 
 **Features**:
 - Append-only table (no updates/deletes)
@@ -330,7 +330,7 @@ Custom throttler for AI endpoints (fewer requests due to cost):
 
 | Control | Implementation | Status |
 |---------|---------------|--------|
-| Auth event logging | AuditService (14 event types) | ✅ |
+| Auth event logging | AuditService (13 event types) | ✅ |
 | Structured logging | NestJS Logger with context | ✅ |
 | IP tracking (masked) | Privacy-conscious logging | ✅ |
 | Threat detection helpers | `isSecurityThreat()` on AuditLog | ✅ |
@@ -410,11 +410,12 @@ const value = object[key]; // Unsafe!
 |----------|---------|---------|
 | `AUTH0_DOMAIN` | Auth0 tenant domain | `your-tenant.auth0.com` |
 | `AUTH0_AUDIENCE` | API identifier | `https://api.contextai.com` |
-| `AUTH0_CLIENT_ID` | Auth0 application ID | `abc123...` |
-| `AUTH0_CLIENT_SECRET` | Auth0 application secret | `secret...` |
-| `DATABASE_HOST` | PostgreSQL host | `localhost` |
-| `DATABASE_PASSWORD` | PostgreSQL password | `***` |
+| `AUTH0_ISSUER` | Auth0 issuer URL (with trailing `/`) | `https://your-tenant.auth0.com/` |
+| `INTERNAL_API_KEY` | Server-to-server shared secret | `openssl rand -hex 32` |
+| `DB_HOST` | PostgreSQL host | `localhost` |
+| `DB_PASSWORD` | PostgreSQL password | `***` |
 | `GOOGLE_API_KEY` | Google AI API key | `AIza...` |
+| `PINECONE_API_KEY` | Pinecone vector store API key | `pcsk_...` |
 
 ### Security Rules
 
@@ -513,7 +514,7 @@ pnpm test          # Unit tests (530+)
 - [x] Default roles seeder (user, manager, admin)
 - [x] Token revocation (immediate logout)
 - [x] Rate limiting (3-tier + AI-specific)
-- [x] Audit logging (14 event types)
+- [x] Audit logging (13 event types)
 - [x] @CurrentUser decorator (type-safe)
 - [x] E2E tests for auth pipeline (42 tests)
 - [x] Unit tests for all auth modules (530+ total)

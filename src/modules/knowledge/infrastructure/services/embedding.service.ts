@@ -1,13 +1,14 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { genkit, Genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { extractErrorMessage, extractErrorStack } from '@shared/utils';
+import { CHARS_PER_TOKEN_ESTIMATE } from '@shared/constants';
 
 // Constants for embedding configuration (OWASP: Magic Numbers)
 const DEFAULT_EMBEDDING_MODEL = 'googleai/gemini-embedding-001';
 const DEFAULT_EMBEDDING_DIMENSIONS = 3072;
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_TOKEN_LIMIT = 2048; // Gemini embedding model token limit
-const CHARS_PER_TOKEN_ESTIMATE = 4; // ~4 characters per token
 
 // Supported dimensions for gemini-embedding-001 and compatible models (OWASP: Magic Numbers)
 const SUPPORTED_DIMENSIONS_768 = 768; // Legacy/alternative models
@@ -191,11 +192,10 @@ export class EmbeddingService {
 
       throw new Error('Invalid embedding response format');
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       this.logger.error(
         `Failed to generate embedding: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
+        extractErrorStack(error),
       );
       throw new Error(`Failed to generate embedding: ${errorMessage}`);
     }

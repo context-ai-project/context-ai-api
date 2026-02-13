@@ -183,7 +183,11 @@ export class ConversationRepository implements IConversationRepository {
     });
 
     // Return updated conversation
-    return this.findById(conversationId) as Promise<Conversation>;
+    const updatedConversation = await this.findById(conversationId);
+    if (!updatedConversation) {
+      throw new Error(`Conversation not found after update: ${conversationId}`);
+    }
+    return updatedConversation;
   }
 
   /**

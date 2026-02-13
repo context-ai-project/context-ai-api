@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRepository } from '../../../users/infrastructure/persistence/repositories/user.repository';
 import { RoleRepository } from '../../infrastructure/persistence/repositories/role.repository';
-import { PermissionRepository } from '../../infrastructure/persistence/repositories/permission.repository';
+import { extractErrorMessage } from '@shared/utils';
 
 /**
  * Permission Service
@@ -26,7 +26,6 @@ export class PermissionService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly roleRepository: RoleRepository,
-    private readonly permissionRepository: PermissionRepository,
   ) {}
 
   /**
@@ -47,10 +46,10 @@ export class PermissionService {
       }
 
       return userWithRoles.roles.map((role) => role.name);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to get user roles', {
         userId: userId.substring(0, 8) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: extractErrorMessage(error),
       });
       return [];
     }
@@ -97,10 +96,10 @@ export class PermissionService {
       }
 
       return Array.from(permissionSet);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to get user permissions', {
         userId: userId.substring(0, 8) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: extractErrorMessage(error),
       });
       return [];
     }
@@ -206,6 +205,7 @@ export class PermissionService {
    *
    * @param userId - Internal user UUID
    * @returns True if user has admin role, false otherwise
+   * @planned Phase 6 — Admin panel role shortcuts
    */
   async isAdmin(userId: string): Promise<boolean> {
     return this.hasRole(userId, 'admin');
@@ -216,6 +216,7 @@ export class PermissionService {
    *
    * @param userId - Internal user UUID
    * @returns True if user has manager role, false otherwise
+   * @planned Phase 6 — Admin panel role shortcuts
    */
   async isManager(userId: string): Promise<boolean> {
     return this.hasRole(userId, 'manager');
@@ -226,6 +227,7 @@ export class PermissionService {
    *
    * @param userId - Internal user UUID
    * @returns True if user has user role, false otherwise
+   * @planned Phase 6 — Admin panel role shortcuts
    */
   async isUser(userId: string): Promise<boolean> {
     return this.hasRole(userId, 'user');

@@ -135,30 +135,14 @@ export class Conversation {
    * Get last user message
    */
   public getLastUserMessage(): Message | undefined {
-    for (let i = this._messages.length - 1; i >= 0; i--) {
-      // Safe: iterating over known array
-      // eslint-disable-next-line security/detect-object-injection
-      if (this._messages[i].isFromUser()) {
-        // eslint-disable-next-line security/detect-object-injection
-        return this._messages[i];
-      }
-    }
-    return undefined;
+    return this._messages.findLast((msg) => msg.isFromUser());
   }
 
   /**
    * Get last assistant message
    */
   public getLastAssistantMessage(): Message | undefined {
-    for (let i = this._messages.length - 1; i >= 0; i--) {
-      // Safe: iterating over known array
-      // eslint-disable-next-line security/detect-object-injection
-      if (this._messages[i].isFromAssistant()) {
-        // eslint-disable-next-line security/detect-object-injection
-        return this._messages[i];
-      }
-    }
-    return undefined;
+    return this._messages.findLast((msg) => msg.isFromAssistant());
   }
 
   /**
@@ -200,6 +184,7 @@ export class Conversation {
 
   /**
    * Get conversation duration in milliseconds
+   * @planned Phase 6 — Analytics dashboard: conversation metrics
    */
   public getDuration(): number {
     if (this._messages.length === 0) {
@@ -214,6 +199,7 @@ export class Conversation {
 
   /**
    * Count messages by role
+   * @planned Phase 6 — Analytics dashboard: conversation metrics
    */
   public countMessagesByRole(role: 'user' | 'assistant' | 'system'): number {
     return this._messages.filter((msg) => msg.role === role).length;

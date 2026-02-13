@@ -1,11 +1,9 @@
 import {
   Fragment,
-  FragmentMetadata,
+  type FragmentMetadata,
 } from '@modules/knowledge/domain/entities/fragment.entity';
 import { FragmentModel } from '@modules/knowledge/infrastructure/persistence/models/fragment.model';
-
-// Token estimation: ~4 chars per token (same formula as Fragment entity)
-const CHARS_PER_TOKEN = 4;
+import { CHARS_PER_TOKEN_ESTIMATE } from '@shared/constants';
 
 /**
  * Fragment Mapper
@@ -23,24 +21,22 @@ const CHARS_PER_TOKEN = 4;
 export class FragmentMapper {
   /**
    * Converts TypeORM model to domain entity
+   * Uses Fragment.fromPersistence() factory to properly hydrate the entity
+   * without breaking encapsulation.
    * @param model - The TypeORM model
    * @returns Domain entity
    */
   static toDomain(model: FragmentModel): Fragment {
-    const fragment = new Fragment({
+    return Fragment.fromPersistence({
+      id: model.id,
       sourceId: model.sourceId,
       content: model.content,
       position: model.position,
       tokenCount: model.tokenCount,
       metadata: model.metadata as FragmentMetadata | undefined,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
     });
-
-    // Set persisted fields using Reflect to avoid type errors
-    Reflect.set(fragment, 'id', model.id);
-    Reflect.set(fragment, 'createdAt', model.createdAt);
-    Reflect.set(fragment, 'updatedAt', model.updatedAt);
-
-    return fragment;
   }
 
   /**
@@ -59,13 +55,14 @@ export class FragmentMapper {
     model.content = entity.content;
     model.position = entity.position;
 
-    // Use entity tokenCount, or calculate if not set (same formula as Fragment entity)
+    // Use entity tokenCount, or calculate if not set
     model.tokenCount =
-      entity.tokenCount ?? Math.ceil(entity.content.length / CHARS_PER_TOKEN);
+      entity.tokenCount ??
+      Math.ceil(entity.content.length / CHARS_PER_TOKEN_ESTIMATE);
 
     model.metadata = (entity.metadata as Record<string, unknown>) ?? null;
     model.createdAt = entity.createdAt;
-    model.updatedAt = Reflect.get(entity, 'updatedAt') as Date;
+    model.updatedAt = entity.updatedAt;
 
     return model;
   }

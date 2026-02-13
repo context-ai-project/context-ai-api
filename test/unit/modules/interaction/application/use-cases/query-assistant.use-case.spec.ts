@@ -66,8 +66,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -96,8 +95,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -131,8 +129,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
         conversationId,
       });
@@ -162,8 +159,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -206,8 +202,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -257,8 +252,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -291,8 +285,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -325,11 +318,12 @@ describe('QueryAssistantUseCase', () => {
       const customMinSimilarity = 0.8;
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
-        maxResults: customMaxResults,
-        minSimilarity: customMinSimilarity,
+        searchOptions: {
+          maxResults: customMaxResults,
+          minSimilarity: customMinSimilarity,
+        },
       });
 
       expect(mockRagQueryFlow).toHaveBeenCalledWith(
@@ -370,8 +364,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       const result = await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -410,8 +403,7 @@ describe('QueryAssistantUseCase', () => {
       });
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 
@@ -431,14 +423,148 @@ describe('QueryAssistantUseCase', () => {
     });
   });
 
+  describe('Evaluation Integration', () => {
+    it('should include evaluation scores in output when available', async () => {
+      const conversation = new Conversation({
+        id: 'conv-eval',
+        userId: testUserId,
+        sectorId: testSectorId,
+      });
+
+      mockConversationRepository.findByUserAndSector.mockResolvedValue(
+        conversation,
+      );
+
+      const evaluationData = {
+        faithfulness: {
+          score: 0.9,
+          status: 'PASS' as const,
+          reasoning: 'Response is grounded in the context.',
+        },
+        relevancy: {
+          score: 0.85,
+          status: 'PASS' as const,
+          reasoning: 'Response addresses the user question.',
+        },
+      };
+
+      mockRagQueryFlow.mockResolvedValue({
+        response: 'Test response',
+        sources: [
+          {
+            id: 'frag-1',
+            content: 'Source content',
+            sourceId: 'source-1',
+            similarity: 0.9,
+          },
+        ],
+        timestamp: new Date(),
+        evaluation: evaluationData,
+      });
+
+      const result = await useCase.execute({
+        userContext: { userId: testUserId, sectorId: testSectorId },
+        query: testQuery,
+      });
+
+      expect(result.evaluation).toBeDefined();
+      expect(result.evaluation?.faithfulness.score).toBe(0.9);
+      expect(result.evaluation?.faithfulness.status).toBe('PASS');
+      expect(result.evaluation?.relevancy.score).toBe(0.85);
+      expect(result.evaluation?.relevancy.status).toBe('PASS');
+    });
+
+    it('should store evaluation scores in assistant message metadata', async () => {
+      const conversation = new Conversation({
+        userId: testUserId,
+        sectorId: testSectorId,
+      });
+
+      mockConversationRepository.findByUserAndSector.mockResolvedValue(
+        conversation,
+      );
+
+      const evaluationData = {
+        faithfulness: {
+          score: 0.75,
+          status: 'PASS' as const,
+          reasoning: 'Mostly grounded.',
+        },
+        relevancy: {
+          score: 0.8,
+          status: 'PASS' as const,
+          reasoning: 'Addresses the question.',
+        },
+      };
+
+      mockRagQueryFlow.mockResolvedValue({
+        response: 'Test response',
+        sources: [],
+        timestamp: new Date(),
+        evaluation: evaluationData,
+      });
+
+      await useCase.execute({
+        userContext: { userId: testUserId, sectorId: testSectorId },
+        query: testQuery,
+      });
+
+      expect(mockConversationRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              role: 'assistant',
+              metadata: expect.objectContaining({
+                evaluation: expect.objectContaining({
+                  faithfulness: expect.objectContaining({
+                    score: 0.75,
+                    status: 'PASS',
+                  }),
+                  relevancy: expect.objectContaining({
+                    score: 0.8,
+                    status: 'PASS',
+                  }),
+                }),
+              }),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('should not include evaluation when RAG flow returns without it', async () => {
+      const conversation = new Conversation({
+        userId: testUserId,
+        sectorId: testSectorId,
+      });
+
+      mockConversationRepository.findByUserAndSector.mockResolvedValue(
+        conversation,
+      );
+
+      mockRagQueryFlow.mockResolvedValue({
+        response: 'Test response',
+        sources: [],
+        timestamp: new Date(),
+        // No evaluation field
+      });
+
+      const result = await useCase.execute({
+        userContext: { userId: testUserId, sectorId: testSectorId },
+        query: testQuery,
+      });
+
+      expect(result.evaluation).toBeUndefined();
+    });
+  });
+
   describe('Error Handling', () => {
     it('should throw error if conversation not found by ID', async () => {
       mockConversationRepository.findById.mockResolvedValue(undefined);
 
       await expect(
         useCase.execute({
-          userId: testUserId,
-          sectorId: testSectorId,
+          userContext: { userId: testUserId, sectorId: testSectorId },
           query: testQuery,
           conversationId: 'non-existent',
         }),
@@ -459,8 +585,7 @@ describe('QueryAssistantUseCase', () => {
 
       await expect(
         useCase.execute({
-          userId: testUserId,
-          sectorId: testSectorId,
+          userContext: { userId: testUserId, sectorId: testSectorId },
           query: testQuery,
         }),
       ).rejects.toThrow('RAG service error');
@@ -469,24 +594,21 @@ describe('QueryAssistantUseCase', () => {
     it('should validate required parameters', async () => {
       await expect(
         useCase.execute({
-          userId: '',
-          sectorId: testSectorId,
+          userContext: { userId: '', sectorId: testSectorId },
           query: testQuery,
         }),
       ).rejects.toThrow();
 
       await expect(
         useCase.execute({
-          userId: testUserId,
-          sectorId: '',
+          userContext: { userId: testUserId, sectorId: '' },
           query: testQuery,
         }),
       ).rejects.toThrow();
 
       await expect(
         useCase.execute({
-          userId: testUserId,
-          sectorId: testSectorId,
+          userContext: { userId: testUserId, sectorId: testSectorId },
           query: '',
         }),
       ).rejects.toThrow();
@@ -513,8 +635,7 @@ describe('QueryAssistantUseCase', () => {
       const startTime = Date.now();
 
       await useCase.execute({
-        userId: testUserId,
-        sectorId: testSectorId,
+        userContext: { userId: testUserId, sectorId: testSectorId },
         query: testQuery,
       });
 

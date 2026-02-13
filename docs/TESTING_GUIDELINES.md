@@ -249,10 +249,13 @@ const mockService: jest.Mocked<ServiceType> = {
 
 ```typescript
 const mockRepository: jest.Mocked<IKnowledgeRepository> = {
-  save: jest.fn(),
-  findById: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
+  saveSource: jest.fn(),
+  findSourceById: jest.fn(),
+  findSourcesBySector: jest.fn(),
+  softDeleteSource: jest.fn(),
+  saveFragments: jest.fn(),
+  deleteFragmentsBySource: jest.fn(),
+  transaction: jest.fn(),
 } as jest.Mocked<IKnowledgeRepository>;
 ```
 
@@ -347,24 +350,26 @@ export function createTestIngestDto(
 
 ## 🔍 Coverage Requirements
 
-**Minimum Coverage**:
-- Statements: 100%
-- Branches: 100%
-- Functions: 100%
-- Lines: 100%
+**Minimum Coverage** (configured in `package.json`):
+- Functions: 85%
+- Lines: 80%
+- Branches: 80%
+- Statements: 80%
 
-**Configuration** (`jest.config.js`):
-```javascript
-module.exports = {
-  coverageThreshold: {
-    global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
-    },
-  },
-};
+**Configuration** (in `package.json` → `jest` section):
+```json
+{
+  "coverage": {
+    "thresholds": {
+      "global": {
+        "functions": 85,
+        "lines": 80,
+        "branches": 80,
+        "statements": 80
+      }
+    }
+  }
+}
 ```
 
 ---

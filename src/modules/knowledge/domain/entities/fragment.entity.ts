@@ -1,20 +1,25 @@
-/**
- * Type-safe metadata value
- * Represents JSON-serializable values
- */
-export type MetadataValue =
-  | string
-  | number
-  | boolean
-  | null
-  | MetadataValue[]
-  | { [key: string]: MetadataValue };
+import { type Metadata } from '@shared/types';
+import { CHARS_PER_TOKEN_ESTIMATE } from '@shared/constants';
 
 /**
  * Fragment metadata type
  * Stores additional context about the fragment
  */
-export type FragmentMetadata = Record<string, MetadataValue>;
+export type FragmentMetadata = Metadata;
+
+/**
+ * Persistence data for hydrating a Fragment from the database
+ */
+export interface FragmentPersistenceData {
+  id: string;
+  sourceId: string;
+  content: string;
+  position: number;
+  tokenCount: number;
+  metadata?: FragmentMetadata;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * Fragment Entity
@@ -39,10 +44,10 @@ export class Fragment {
   public tokenCount: number;
   public metadata?: FragmentMetadata;
   public createdAt: Date;
+  public updatedAt: Date;
 
   // Content validation constants
   private static readonly MIN_CONTENT_LENGTH = 10;
-  private static readonly CHARS_PER_TOKEN = 4; // Rough estimate: 1 token ≈ 4 characters
 
   constructor(data: {
     sourceId: string;
@@ -58,9 +63,30 @@ export class Fragment {
     this.position = data.position;
     this.tokenCount =
       data.tokenCount ??
-      Math.ceil(data.content.length / Fragment.CHARS_PER_TOKEN);
+      Math.ceil(data.content.length / CHARS_PER_TOKEN_ESTIMATE);
     this.metadata = data.metadata;
     this.createdAt = new Date();
+    this.updatedAt = new Date();
+  }
+
+  /**
+   * Factory method to hydrate a Fragment from persistence data.
+   * Bypasses validation since data is already validated in the database.
+   * @param data - Persistence data including id, timestamps, etc.
+   * @returns Hydrated Fragment entity
+   */
+  static fromPersistence(data: FragmentPersistenceData): Fragment {
+    const fragment = new Fragment({
+      sourceId: data.sourceId,
+      content: data.content,
+      position: data.position,
+      tokenCount: data.tokenCount,
+      metadata: data.metadata,
+    });
+    fragment.id = data.id;
+    fragment.createdAt = data.createdAt;
+    fragment.updatedAt = data.updatedAt;
+    return fragment;
   }
 
   /**
@@ -98,6 +124,7 @@ export class Fragment {
   /**
    * Returns the length of the content in characters
    * @returns The number of characters in the content
+   * @planned Phase 6 — Analytics dashboard: fragment metrics
    */
   public getContentLength(): number {
     return this.content.length;
@@ -109,13 +136,14 @@ export class Fragment {
    * @returns Estimated token count
    */
   public estimateTokenCount(): number {
-    return Math.ceil(this.content.length / Fragment.CHARS_PER_TOKEN);
+    return Math.ceil(this.content.length / CHARS_PER_TOKEN_ESTIMATE);
   }
 
   /**
    * Checks if the content contains a specific term (case insensitive)
    * @param term - The term to search for
    * @returns True if the term is found in the content
+   * @planned Phase 6 — Knowledge search / content highlighting
    */
   public containsTerm(term: string): boolean {
     return this.content.toLowerCase().includes(term.toLowerCase());
@@ -149,6 +177,7 @@ export class Fragment {
    * Checks if this fragment comes before another fragment
    * @param other - The other fragment to compare with
    * @returns True if this fragment's position is less than the other's
+   * @planned Phase 6 — Fragment ordering / document reconstruction
    */
   public isBefore(other: Fragment): boolean {
     return this.position < other.position;
@@ -158,6 +187,7 @@ export class Fragment {
    * Checks if this fragment comes after another fragment
    * @param other - The other fragment to compare with
    * @returns True if this fragment's position is greater than the other's
+   * @planned Phase 6 — Fragment ordering / document reconstruction
    */
   public isAfter(other: Fragment): boolean {
     return this.position > other.position;
@@ -166,6 +196,7 @@ export class Fragment {
   /**
    * Checks if this is the first fragment in the document
    * @returns True if the fragment's position is 0
+   * @planned Phase 6 — Fragment ordering / document reconstruction
    */
   public isFirstFragment(): boolean {
     return this.position === 0;

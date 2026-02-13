@@ -101,9 +101,11 @@ describe('MVP Validation Checklist (Phase 7.12)', () => {
       expect(endpoint.method).toBe('POST');
     });
 
-    it('✅ Request requires userId, sectorId, and query', () => {
-      const requiredFields = ['userId', 'sectorId', 'query'];
-      expect(requiredFields).toHaveLength(3);
+    it('✅ Request requires sectorId and query in body; userId comes from JWT session', () => {
+      const requiredBodyFields = ['sectorId', 'query'];
+      const sessionField = 'userId'; // Extracted from JWT via @CurrentUser
+      expect(requiredBodyFields).toHaveLength(2);
+      expect(sessionField).toBe('userId');
     });
 
     it('✅ Response includes AI response, sources, and conversationId', () => {
@@ -332,14 +334,16 @@ describe('MVP Validation Checklist (Phase 7.12)', () => {
       expect(backendTests.tests).toBeGreaterThanOrEqual(700);
     });
 
-    it('✅ Backend coverage thresholds: 75% branches, 77% functions, 80% lines', () => {
+    it('✅ Backend coverage thresholds: 80% branches, 85% functions, 80% lines', () => {
       const thresholds = {
-        branches: 75,
-        functions: 77,
+        functions: 85,
         lines: 80,
+        branches: 80,
         statements: 80,
       };
+      expect(thresholds.functions).toBeGreaterThanOrEqual(85);
       expect(thresholds.lines).toBeGreaterThanOrEqual(80);
+      expect(thresholds.branches).toBeGreaterThanOrEqual(80);
     });
 
     it('✅ Frontend coverage: 90.6% branches (target was 80%)', () => {

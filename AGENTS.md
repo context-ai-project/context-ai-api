@@ -11,9 +11,12 @@ This document provides essential guidelines and collaboration rules for AI agent
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | **Testing** | [docs/TESTING_GUIDELINES.md](docs/TESTING_GUIDELINES.md) |
 | **Security** | [docs/SECURITY_GUIDELINES.md](docs/SECURITY_GUIDELINES.md) |
-| **Common Issues** | [docs/COMMON_PITFALLS.md](docs/COMMON_PITFALLS.md) |
 | **Database Setup** | [docs/DATABASE_SETUP.md](docs/DATABASE_SETUP.md) |
 | **Environment Variables** | [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) |
+| **Auth0 Setup** | [docs/AUTH0_SETUP.md](docs/AUTH0_SETUP.md) |
+| **CI/CD** | [docs/CI_CD.md](docs/CI_CD.md) |
+| **Rate Limiting** | [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md) |
+| **Branching Strategy** | [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md) |
 
 ---
 
@@ -30,14 +33,24 @@ This document provides essential guidelines and collaboration rules for AI agent
 ```
 context-ai-api/
 ├── src/
-│   ├── modules/           # Feature modules (knowledge, etc.)
-│   ├── shared/           # Shared utilities, types
-│   └── config/           # Configuration
+│   ├── modules/
+│   │   ├── audit/         # Audit logging (13 event types)
+│   │   ├── auth/          # Authentication, RBAC, guards, decorators
+│   │   ├── interaction/   # Chat/RAG conversation management
+│   │   ├── knowledge/     # Document ingestion, chunking, embeddings
+│   │   └── users/         # User management and sync
+│   ├── shared/            # Prompts, validators, utils, constants, genkit
+│   ├── config/            # App, auth, database, throttle configs
+│   └── migrations/        # TypeORM migrations
 ├── test/
-│   ├── unit/            # Unit tests
-│   ├── integration/     # Integration tests
-│   └── e2e/             # End-to-end tests
-└── docs/                # 📚 Detailed documentation
+│   ├── unit/              # Unit tests (mirrors src/ structure)
+│   ├── integration/       # Integration tests (DB, Pinecone, modules)
+│   ├── e2e/               # End-to-end tests (API flows)
+│   ├── contract/          # API contract tests
+│   ├── security/          # Security-specific tests
+│   ├── performance/       # Response time tests
+│   └── smoke/             # Smoke & MVP validation tests
+└── docs/                  # 📚 Detailed documentation
 ```
 
 ---
@@ -154,12 +167,12 @@ pnpm lint && pnpm build && pnpm test
 ### Pre-commit Hooks
 
 Husky automatically runs:
-- **pre-commit**: `pnpm lint`
-- **pre-push**: `pnpm lint && pnpm build`
+- **pre-commit**: `npx lint-staged` (runs eslint --fix + prettier on staged `src/**/*.ts` files)
+- **pre-push**: `pnpm test && pnpm lint`
 
 ### CI/CD Pipeline
 
-GitHub Actions validates:
+GitHub Actions workflows are defined in [docs/CI_CD.md](docs/CI_CD.md) and validate:
 1. Linting (ESLint + Prettier)
 2. Build (TypeScript)
 3. Tests (Unit + Integration + E2E)
@@ -187,7 +200,7 @@ GitHub Actions validates:
 1. **Don't disable ESLint** - Without reason
 2. **Don't use `any`** - Ever
 3. **Don't skip validation** - Lint + Build + Test
-4. **Don't skip tests** - 100% coverage
+4. **Don't skip tests** - Meet coverage thresholds (functions: 85%, lines/branches/statements: 80%)
 5. **Don't log secrets** - Use env vars
 6. **Don't bypass DTOs** - Always validate
 7. **Don't mix layers** - Follow architecture
@@ -203,11 +216,28 @@ GitHub Actions validates:
 | Language | TypeScript (strict mode) |
 | Database | PostgreSQL + Pinecone |
 | AI | Google Genkit |
-| Embeddings | text-embedding-005 |
+| LLM | Gemini 2.5 Flash |
+| Embeddings | gemini-embedding-001 (3072 dimensions) |
+| Vector DB | Pinecone |
 | ORM | TypeORM |
 | Validation | class-validator |
 | Testing | Jest |
 | Package Manager | pnpm |
+
+### Coverage Thresholds
+
+Configured in `package.json` → `jest.coverageThreshold`:
+
+| Metric | Threshold |
+|--------|-----------|
+| Functions | 85% |
+| Lines | 80% |
+| Branches | 80% |
+| Statements | 80% |
+
+```bash
+pnpm test:cov  # Run tests with coverage report
+```
 
 ### PDF Processing
 
@@ -230,7 +260,6 @@ pnpm add -D @types/pdf-parse
    - Architecture questions → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
    - Testing questions → [docs/TESTING_GUIDELINES.md](docs/TESTING_GUIDELINES.md)
    - Security questions → [docs/SECURITY_GUIDELINES.md](docs/SECURITY_GUIDELINES.md)
-   - Errors/Issues → [docs/COMMON_PITFALLS.md](docs/COMMON_PITFALLS.md)
 3. **Review conversation history** - Understand context
 4. **Check open files** - What user is working on
 5. **Read existing code** - Before suggesting changes
@@ -278,9 +307,12 @@ pnpm add -D @types/pdf-parse
 - **Architecture questions?** → Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **How to write tests?** → Read [docs/TESTING_GUIDELINES.md](docs/TESTING_GUIDELINES.md)
 - **Security concerns?** → Read [docs/SECURITY_GUIDELINES.md](docs/SECURITY_GUIDELINES.md)
-- **Error debugging?** → Read [docs/COMMON_PITFALLS.md](docs/COMMON_PITFALLS.md)
 - **Database setup?** → Read [docs/DATABASE_SETUP.md](docs/DATABASE_SETUP.md)
 - **Environment config?** → Read [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
+- **Auth0 config?** → Read [docs/AUTH0_SETUP.md](docs/AUTH0_SETUP.md)
+- **Rate limiting?** → Read [docs/RATE_LIMITING.md](docs/RATE_LIMITING.md)
+- **Git branching?** → Read [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md)
+- **CI/CD pipelines?** → Read [docs/CI_CD.md](docs/CI_CD.md)
 
 ---
 
@@ -314,7 +346,7 @@ git push origin feature/my-feature
 - **NestJS Docs**: https://docs.nestjs.com
 - **TypeORM Docs**: https://typeorm.io
 - **OWASP Top 10**: https://owasp.org/www-project-top-ten
-- **Swagger UI**: http://localhost:3000/api (when running locally)
+- **Swagger UI**: http://localhost:3001/api/docs (when running locally)
 
 ---
 
