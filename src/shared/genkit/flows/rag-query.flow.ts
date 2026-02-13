@@ -14,7 +14,6 @@ import { genkit, GENKIT_CONFIG } from '../genkit.config';
 import {
   createRagEvaluatorService,
   type RagEvaluationResult,
-  evaluationScoreSchema,
 } from '../evaluators';
 
 /**
@@ -63,14 +62,6 @@ export const fragmentSchema = z.object({
 export type FragmentResult = z.infer<typeof fragmentSchema>;
 
 /**
- * Evaluation result schema embedded in RAG output
- */
-const ragEvaluationSchema = z.object({
-  faithfulness: evaluationScoreSchema,
-  relevancy: evaluationScoreSchema,
-});
-
-/**
  * Output schema for RAG query
  */
 export const ragQueryOutputSchema = z.object({
@@ -86,10 +77,17 @@ export const ragQueryOutputSchema = z.object({
       fragmentsUsed: z.number(),
     })
     .optional(),
-  evaluation: ragEvaluationSchema.optional(),
 });
 
-export type RagQueryOutput = z.infer<typeof ragQueryOutputSchema>;
+/**
+ * RAG query output type, extended with optional evaluation result.
+ * Evaluation is typed as a plain interface (not Zod) because it's produced
+ * by the evaluator service after response generation, not part of the
+ * core RAG schema validated on output.
+ */
+export type RagQueryOutput = z.infer<typeof ragQueryOutputSchema> & {
+  evaluation?: RagEvaluationResult;
+};
 
 /**
  * Vector search function type

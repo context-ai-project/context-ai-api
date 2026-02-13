@@ -18,6 +18,7 @@ This document describes the architecture principles, patterns, and system design
   - [🤖 RAG Architecture](#-rag-architecture)
     - [Document Ingestion Pipeline](#document-ingestion-pipeline)
     - [RAG Query Flow](#rag-query-flow)
+    - [RAG Evaluation (LLM-as-Judge)](#rag-evaluation-llm-as-judge)
     - [Conversation Context](#conversation-context)
     - [AI Configuration](#ai-configuration)
     - [Prompt Engineering](#prompt-engineering)
@@ -131,7 +132,7 @@ src/modules/
 | Module | Responsibility | Key Components |
 |--------|---------------|----------------|
 | **knowledge** | Document ingestion, chunking, embedding, vector storage | `IngestDocumentUseCase`, `DeleteSourceUseCase`, `ChunkingService`, `EmbeddingService`, `PineconeVectorStoreService` |
-| **interaction** | Chat interface, conversation management, RAG queries | `QueryAssistantUseCase`, `Conversation`, `Message`, `RagQueryFlow` |
+| **interaction** | Chat interface, conversation management, RAG queries, response evaluation | `QueryAssistantUseCase`, `Conversation`, `Message`, `RagQueryFlow`, `RagEvaluatorService` |
 | **auth** | JWT validation, RBAC, token revocation, role/permission management | `JwtAuthGuard`, `RBACGuard`, `PermissionService`, `TokenRevocationService`, `RbacSeederService` |
 | **users** | User CRUD, Auth0 user sync on first login | `UserService`, `UserController` |
 | **audit** | Security event logging, compliance tracking | `AuditService`, `AuditLog` (13 event types) |
@@ -182,11 +183,11 @@ PDF/Markdown Upload → DocumentParserService → ChunkingService → EmbeddingS
 ### RAG Query Flow
 
 ```
-User Query → Embedding → Vector Search → Context Building → LLM Generation → Response
-     │            │             │                │                  │              │
-  Validate   gemini-        Pinecone         Build prompt     Gemini 2.5      Return with
-  input     embedding-001   similarity       with fragments     Flash         cited sources
-                            search
+User Query → Embedding → Vector Search → Context Building → LLM Generation → Evaluation → Response
+     │            │             │                │                  │              │            │
+  Validate   gemini-        Pinecone         Build prompt     Gemini 2.5    LLM-as-judge  Return with
+  input     embedding-001   similarity       with fragments     Flash      (Faithfulness  sources +
+                            search                                         + Relevancy)   eval scores
 ```
 
 **Step by step** (implemented in `rag-query.flow.ts`):
@@ -195,7 +196,38 @@ User Query → Embedding → Vector Search → Context Building → LLM Generati
 3. **Filter**: Apply minimum similarity threshold (default: 0.7)
 4. **Build prompt**: Combine system prompt + documentation context + user question
 5. **Generate**: Call Gemini 2.5 Flash with RAG-optimized config (temperature: 0.3)
-6. **Return**: Structured response with cited source fragments and metadata
+6. **Evaluate**: Run `RagEvaluatorService` (LLM-as-judge) to score Faithfulness + Relevancy in parallel
+7. **Return**: Structured response with cited source fragments, metadata, and evaluation scores
+
+### RAG Evaluation (LLM-as-Judge)
+
+The `RagEvaluatorService` evaluates every RAG response on two dimensions:
+
+| Evaluator | What It Measures | Pass Threshold |
+|-----------|-----------------|----------------|
+| **Faithfulness** | Is the response grounded in the retrieved context? | ≥ 0.6 |
+| **Relevancy** | Does the response address the user's question? | ≥ 0.6 |
+
+**Architecture**:
+- Uses the same Gemini 2.5 Flash model (temperature: 0.1 for evaluation consistency)
+- Both evaluations run **in parallel** (`Promise.all`) for performance
+- Response validated with **Zod schema** (`evaluationScoreSchema`): `score` (0-1), `status` (PASS/FAIL/UNKNOWN), `reasoning`
+- **Graceful degradation**: If evaluation fails, returns `status: UNKNOWN` without blocking the main RAG response
+- Scores stored in `message.metadata.evaluation` and exposed in `QueryAssistantResponseDto.evaluation`
+
+```typescript
+// evaluation.types.ts
+export interface EvaluationScore {
+  score: number;       // 0.0 - 1.0
+  status: 'PASS' | 'FAIL' | 'UNKNOWN';
+  reasoning: string;   // Brief explanation from the LLM judge
+}
+
+export interface RagEvaluationResult {
+  faithfulness: EvaluationScore;
+  relevancy: EvaluationScore;
+}
+```
 
 ### Conversation Context
 
@@ -331,6 +363,10 @@ The `src/shared/` directory contains cross-cutting utilities:
 shared/
 ├── genkit/              # Google Genkit configuration
 │   ├── genkit.config.ts # Genkit instance + GENKIT_CONFIG constants
+│   ├── evaluators/      # RAG response quality evaluation
+│   │   ├── evaluation.types.ts        # Zod schemas, types, thresholds
+│   │   ├── rag-evaluator.service.ts   # LLM-as-judge (Faithfulness + Relevancy)
+│   │   └── index.ts
 │   └── flows/           # RAG query flow
 │       └── rag-query.flow.ts
 ├── prompts/             # Prompt engineering
@@ -357,6 +393,7 @@ shared/
 | `EMBEDDING_DIMENSIONS` | `3072` | Vector dimensions for Pinecone index |
 | `GENERATION_DEFAULTS` | temp: 0.7, tokens: 2048 | Creative generation config |
 | `RAG_GENERATION_CONFIG` | temp: 0.3, tokens: 1024 | Conservative/factual RAG config |
+| `EVALUATION_CONFIG` | temp: 0.1, tokens: 512 | LLM-as-judge evaluator config |
 
 📚 See [src/shared/genkit/README.md](../src/shared/genkit/README.md) for Genkit-specific details.
 
@@ -562,10 +599,11 @@ HTTP POST (query) → InteractionController
     3. Filter by similarity threshold (≥ 0.7)
     4. Build prompt with context fragments
     5. Generate response → Genkit (Gemini 2.5 Flash)
+    6. Evaluate response → RagEvaluatorService (Faithfulness + Relevancy in parallel)
     ↓
-  Save Messages → ConversationRepository (user + assistant messages)
+  Save Messages → ConversationRepository (user + assistant messages with eval metadata)
     ↓
-  Response: { response, conversationId, sources[], timestamp }
+  Response: { response, conversationId, sources[], timestamp, evaluation? }
 ```
 
 ---

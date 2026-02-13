@@ -509,27 +509,29 @@ describe('QueryAssistantUseCase', () => {
         query: testQuery,
       });
 
-      expect(mockConversationRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          messages: expect.arrayContaining([
-            expect.objectContaining({
-              role: 'assistant',
-              metadata: expect.objectContaining({
-                evaluation: expect.objectContaining({
-                  faithfulness: expect.objectContaining({
-                    score: 0.75,
-                    status: 'PASS',
-                  }),
-                  relevancy: expect.objectContaining({
-                    score: 0.8,
-                    status: 'PASS',
-                  }),
-                }),
-              }),
-            }),
-          ]),
-        }),
+      // Extract the conversation that was saved
+      const savedConversation = mockConversationRepository.save.mock
+        .calls[0][0] as Conversation;
+      const assistantMsg = savedConversation.messages.find(
+        (m) => m.role === 'assistant',
       );
+
+      expect(assistantMsg).toBeDefined();
+      expect(assistantMsg?.metadata).toBeDefined();
+
+      const evalMeta = assistantMsg?.metadata?.evaluation as Record<
+        string,
+        unknown
+      >;
+      expect(evalMeta).toBeDefined();
+
+      const faithfulness = evalMeta.faithfulness as Record<string, unknown>;
+      expect(faithfulness.score).toBe(0.75);
+      expect(faithfulness.status).toBe('PASS');
+
+      const relevancy = evalMeta.relevancy as Record<string, unknown>;
+      expect(relevancy.score).toBe(0.8);
+      expect(relevancy.status).toBe('PASS');
     });
 
     it('should not include evaluation when RAG flow returns without it', async () => {

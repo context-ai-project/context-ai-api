@@ -112,6 +112,47 @@ Evaluate the relevancy and respond with a JSON object containing:
 }
 
 /**
+ * Extract JSON object from LLM response text.
+ * Handles cases where the LLM wraps JSON in markdown code fences
+ * or includes surrounding text.
+ */
+function extractJsonFromText(text: string): string {
+  const trimmed = text.trim();
+
+  // Try to extract content between markdown code fences using indexOf
+  const fenceStart = trimmed.indexOf('```');
+  if (fenceStart !== -1) {
+    // Find end of the first fence line (skip ```json or ```)
+    const contentStart = trimmed.indexOf('\n', fenceStart);
+    if (contentStart !== -1) {
+      const fenceEnd = trimmed.indexOf('```', contentStart);
+      if (fenceEnd !== -1) {
+        return trimmed.substring(contentStart + 1, fenceEnd).trim();
+      }
+    }
+  }
+
+  // Try to find a raw JSON object by matching first { to last }
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.substring(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+}
+
+/**
+ * Parse evaluation response text into a validated EvaluationScore.
+ * Handles JSON extraction, parsing, and Zod validation.
+ */
+function parseEvaluationResponse(text: string): EvaluationScore {
+  const jsonText = extractJsonFromText(text);
+  const parsed: unknown = JSON.parse(jsonText);
+  return evaluationScoreSchema.parse(parsed);
+}
+
+/**
  * Default score returned when evaluation fails
  */
 function createErrorScore(error: string): EvaluationScore {
@@ -139,22 +180,16 @@ async function evaluateFaithfulness(
     const result = await ai.generate({
       model: GENKIT_CONFIG.LLM_MODEL,
       prompt,
-      output: {
-        schema: evaluationScoreSchema,
-      },
       config: {
         temperature: EVALUATION_CONFIG.EVALUATOR_TEMPERATURE,
         maxOutputTokens: EVALUATION_CONFIG.EVALUATOR_MAX_TOKENS,
       },
     });
 
-    // Validate output through Zod for type safety (result.output is typed as any)
-    const rawOutput: unknown = result.output;
-    if (!rawOutput) {
-      return createErrorScore('No structured output returned');
-    }
-
-    return evaluationScoreSchema.parse(rawOutput);
+    // Parse JSON from response text and validate with Zod schema
+    // Note: We don't use Genkit's `output: { schema }` because the project
+    // uses Zod 4 while Genkit internally uses Zod 3 (incompatible types).
+    return parseEvaluationResponse(result.text);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Unknown evaluation error';
@@ -179,22 +214,14 @@ async function evaluateRelevancy(
     const result = await ai.generate({
       model: GENKIT_CONFIG.LLM_MODEL,
       prompt,
-      output: {
-        schema: evaluationScoreSchema,
-      },
       config: {
         temperature: EVALUATION_CONFIG.EVALUATOR_TEMPERATURE,
         maxOutputTokens: EVALUATION_CONFIG.EVALUATOR_MAX_TOKENS,
       },
     });
 
-    // Validate output through Zod for type safety (result.output is typed as any)
-    const rawOutput: unknown = result.output;
-    if (!rawOutput) {
-      return createErrorScore('No structured output returned');
-    }
-
-    return evaluationScoreSchema.parse(rawOutput);
+    // Parse JSON from response text and validate with Zod schema
+    return parseEvaluationResponse(result.text);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Unknown evaluation error';

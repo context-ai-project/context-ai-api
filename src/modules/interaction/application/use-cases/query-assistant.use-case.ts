@@ -21,8 +21,9 @@ const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
 
 /**
  * Safely execute RAG query and validate result using Zod schema.
- * Uses ragQueryOutputSchema.parse() for type-safe validation instead of
- * manual property-by-property checks.
+ * Uses ragQueryOutputSchema.parse() for type-safe validation of the core fields,
+ * then preserves the evaluation data which is added by the evaluator service
+ * after response generation.
  */
 async function safeExecuteRagQuery(
   ragQueryFn: RagQueryFlowFunction,
@@ -30,8 +31,17 @@ async function safeExecuteRagQuery(
 ): Promise<RagQueryOutput> {
   const result: unknown = await ragQueryFn(input);
 
-  // Validate result structure using Zod schema (single source of truth)
-  return ragQueryOutputSchema.parse(result);
+  // Validate core result structure using Zod schema
+  const validated = ragQueryOutputSchema.parse(result);
+
+  // Preserve evaluation data (added by evaluator service, not part of core schema)
+  const rawResult = result as Record<string, unknown>;
+  const evaluation =
+    rawResult.evaluation !== undefined && rawResult.evaluation !== null
+      ? (rawResult.evaluation as RagQueryOutput['evaluation'])
+      : undefined;
+
+  return { ...validated, evaluation };
 }
 
 /**

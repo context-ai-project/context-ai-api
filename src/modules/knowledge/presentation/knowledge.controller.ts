@@ -1,9 +1,11 @@
 import {
   Controller,
+  Get,
   Post,
   Delete,
   Param,
   Query,
+  Inject,
   UseInterceptors,
   UploadedFile,
   Body,
@@ -28,6 +30,7 @@ import {
 } from '@nestjs/swagger';
 import { IngestDocumentUseCase } from '../application/use-cases/ingest-document.use-case';
 import { DeleteSourceUseCase } from '../application/use-cases/delete-source.use-case';
+import type { IKnowledgeRepository } from '../domain/repositories/knowledge.repository.interface';
 import type {
   IngestDocumentDto,
   IngestDocumentResult,
@@ -37,6 +40,10 @@ import {
   UploadDocumentDto,
   IngestDocumentResponseDto,
   ErrorResponseDto,
+} from './dtos/knowledge.dto';
+import type {
+  KnowledgeSourceDto,
+  KnowledgeSourceDetailDto,
 } from './dtos/knowledge.dto';
 import { SourceType } from '@shared/types';
 import { isValidUUID } from '@shared/validators';
@@ -65,11 +72,23 @@ const MAX_TITLE_LENGTH = 255;
 const MIME_PDF = 'application/pdf';
 const MIME_MARKDOWN = 'text/markdown';
 const MIME_TEXT = 'text/plain';
+const MIME_OCTET_STREAM = 'application/octet-stream';
 const ALLOWED_MIME_TYPES = [MIME_PDF, MIME_MARKDOWN, MIME_TEXT];
+
+// File extensions accepted when MIME type is generic (e.g. application/octet-stream)
+const EXTENSION_MIME_MAP: Record<string, string[]> = {
+  '.pdf': [MIME_PDF],
+  '.md': [MIME_MARKDOWN, MIME_OCTET_STREAM, MIME_TEXT],
+  '.txt': [MIME_TEXT, MIME_OCTET_STREAM],
+};
 
 // Example UUIDs for documentation
 const EXAMPLE_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const EXAMPLE_DOCUMENT_TITLE = 'Employee Handbook 2024';
+
+// API description constants (avoid duplication)
+const API_AUTH_REQUIRED_DESC =
+  'Authentication required - Missing or invalid JWT token';
 
 // API descriptions
 const DESC_DOCUMENT_TITLE = 'Document title';
@@ -95,7 +114,157 @@ export class KnowledgeController {
   constructor(
     private readonly ingestDocumentUseCase: IngestDocumentUseCase,
     private readonly deleteSourceUseCase: DeleteSourceUseCase,
+    @Inject('IKnowledgeRepository')
+    private readonly knowledgeRepository: IKnowledgeRepository,
   ) {}
+
+  /**
+   * List all knowledge sources (documents)
+   *
+   * Returns all non-deleted knowledge sources with metadata.
+   * Optionally filter by sectorId.
+   *
+   * @param sectorId - Optional sector filter
+   * @returns Array of knowledge source DTOs
+   */
+  @Get('documents')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['knowledge:read'])
+  @ApiOperation({
+    summary: 'List all knowledge sources',
+    description:
+      'Returns all active knowledge sources with metadata. ' +
+      'Optionally filter by sectorId. ' +
+      '\n\n**Required Permission:** knowledge:read',
+  })
+  @ApiQuery({
+    name: 'sectorId',
+    description: 'Filter by sector UUID',
+    example: EXAMPLE_UUID,
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of knowledge sources',
+  })
+  @ApiUnauthorizedResponse({
+    description: API_AUTH_REQUIRED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied - Requires knowledge:read permission',
+  })
+  async listDocuments(
+    @Query('sectorId') sectorId?: string,
+  ): Promise<KnowledgeSourceDto[]> {
+    const sectorInfo = sectorId ? ' (sector: ' + sectorId + ')' : '';
+    this.logger.log('List documents request' + sectorInfo);
+
+    try {
+      const sources = sectorId
+        ? await this.knowledgeRepository.findSourcesBySector(sectorId)
+        : await this.knowledgeRepository.findAllSources();
+
+      return sources.map((source) => ({
+        id: source.id ?? '',
+        title: source.title,
+        sectorId: source.sectorId,
+        sourceType: source.sourceType,
+        status: source.status,
+        metadata: source.metadata ?? null,
+        createdAt: source.createdAt.toISOString(),
+        updatedAt: source.updatedAt.toISOString(),
+      }));
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to list documents: ${extractErrorMessage(error)}`,
+        { sectorId, error: extractErrorStack(error) },
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get a knowledge source detail by ID
+   *
+   * Returns the document metadata, original content, and fragment count.
+   *
+   * @param sourceId - The knowledge source ID
+   * @returns Knowledge source detail with content
+   */
+  @Get('documents/:sourceId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['knowledge:read'])
+  @ApiOperation({
+    summary: 'Get a knowledge source detail',
+    description:
+      'Returns the full detail of a knowledge source including content and fragment count. ' +
+      '\n\n**Required Permission:** knowledge:read',
+  })
+  @ApiParam({
+    name: 'sourceId',
+    description: 'Knowledge source UUID',
+    example: EXAMPLE_UUID,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Knowledge source detail',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Knowledge source not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: API_AUTH_REQUIRED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied - Requires knowledge:read permission',
+  })
+  async getDocumentDetail(
+    @Param('sourceId') sourceId: string,
+  ): Promise<KnowledgeSourceDetailDto> {
+    this.logger.log('Get document detail: ' + sourceId);
+
+    if (!isValidUUID(sourceId)) {
+      throw new BadRequestException('sourceId must be a valid UUID');
+    }
+
+    try {
+      const source = await this.knowledgeRepository.findSourceById(sourceId);
+
+      if (!source) {
+        throw new NotFoundException('Knowledge source not found: ' + sourceId);
+      }
+
+      const fragmentCount =
+        await this.knowledgeRepository.countFragmentsBySource(sourceId);
+
+      return {
+        id: source.id ?? '',
+        title: source.title,
+        sectorId: source.sectorId,
+        sourceType: source.sourceType,
+        status: source.status,
+        metadata: source.metadata ?? null,
+        content: source.content,
+        fragmentCount,
+        createdAt: source.createdAt.toISOString(),
+        updatedAt: source.updatedAt.toISOString(),
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      this.logger.error(
+        'Failed to get document detail: ' + extractErrorMessage(error),
+        { sourceId, error: extractErrorStack(error) },
+      );
+      throw error;
+    }
+  }
 
   /**
    * Upload and ingest a document into the knowledge base
@@ -168,7 +337,7 @@ export class KnowledgeController {
     type: ErrorResponseDto,
   })
   @ApiUnauthorizedResponse({
-    description: 'Authentication required - Missing or invalid JWT token',
+    description: API_AUTH_REQUIRED_DESC,
   })
   @ApiForbiddenResponse({
     description: 'Access denied - Requires knowledge:create permission',
@@ -204,12 +373,11 @@ export class KnowledgeController {
       );
     }
 
-    // Validate MIME type
+    // Validate MIME type (with extension-based fallback for browsers that send generic MIME)
     const fileMimeType = String(uploadedFile.mimetype);
-    const allowedTypes: string[] = ALLOWED_MIME_TYPES;
-    if (!allowedTypes.includes(fileMimeType)) {
+    if (!this.isAllowedFileType(fileMimeType, uploadedFile.originalname)) {
       throw new BadRequestException(
-        `Invalid file type. Allowed types: ${allowedTypes.join(', ')}`,
+        `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
       );
     }
 
@@ -299,7 +467,7 @@ export class KnowledgeController {
     type: ErrorResponseDto,
   })
   @ApiUnauthorizedResponse({
-    description: 'Authentication required - Missing or invalid JWT token',
+    description: API_AUTH_REQUIRED_DESC,
   })
   @ApiForbiddenResponse({
     description: 'Access denied - Requires knowledge:delete permission',
@@ -364,6 +532,37 @@ export class KnowledgeController {
    *
    * Security: Input validation to prevent injection and malformed data
    */
+  /**
+   * Check if a file type is allowed based on MIME type or file extension
+   *
+   * Browsers often send .md files as application/octet-stream,
+   * so we fall back to extension-based validation when the MIME type
+   * is generic or unrecognized.
+   *
+   * @param mimeType - The detected MIME type
+   * @param filename - The original filename
+   * @returns true if the file type is allowed
+   */
+  private isAllowedFileType(mimeType: string, filename: string): boolean {
+    // Direct MIME type match
+    if (ALLOWED_MIME_TYPES.includes(mimeType)) {
+      return true;
+    }
+
+    // Extension-based fallback for generic MIME types (e.g. application/octet-stream)
+    const extensionMatch = /\.[^.]+$/.exec(filename.toLowerCase());
+    const extension = extensionMatch?.[0] ?? '';
+    const acceptedMimes = EXTENSION_MIME_MAP[extension];
+    if (acceptedMimes && acceptedMimes.includes(mimeType)) {
+      this.logger.log(
+        `File accepted by extension fallback: ${filename} (mime: ${mimeType}, ext: ${extension})`,
+      );
+      return true;
+    }
+
+    return false;
+  }
+
   private validateUploadDto(dto: UploadDocumentDto): void {
     // Validate title
     if (!dto.title || dto.title.trim().length === 0) {

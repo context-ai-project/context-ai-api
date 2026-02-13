@@ -8,7 +8,7 @@ import {
   MinLength,
   MaxLength,
 } from 'class-validator';
-import type { SourceType } from '@shared/types';
+import type { SourceType, SourceStatus } from '@shared/types';
 
 // Constants for validation
 const MAX_TITLE_LENGTH = 255;
@@ -103,6 +103,28 @@ export class IngestDocumentResponseDto {
     example: null,
   })
   errorMessage?: string;
+}
+
+/**
+ * DTO for knowledge source list item
+ */
+export interface KnowledgeSourceDto {
+  id: string;
+  title: string;
+  sectorId: string;
+  sourceType: SourceType;
+  status: SourceStatus;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * DTO for a knowledge source detail (with content and fragment count)
+ */
+export interface KnowledgeSourceDetailDto extends KnowledgeSourceDto {
+  content: string;
+  fragmentCount: number;
 }
 
 /**

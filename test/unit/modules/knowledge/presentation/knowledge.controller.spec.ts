@@ -29,6 +29,23 @@ describe('KnowledgeController', () => {
   let mockIngestUseCase: jest.Mocked<IngestDocumentUseCase>;
   let mockDeleteUseCase: jest.Mocked<DeleteSourceUseCase>;
 
+  const mockKnowledgeRepository = {
+    findAllSources: jest.fn(),
+    findSourcesBySector: jest.fn(),
+    findSourceById: jest.fn(),
+    findSourcesByStatus: jest.fn(),
+    saveSource: jest.fn(),
+    softDeleteSource: jest.fn(),
+    deleteSource: jest.fn(),
+    countSourcesBySector: jest.fn(),
+    saveFragments: jest.fn(),
+    findFragmentById: jest.fn(),
+    findFragmentsBySource: jest.fn(),
+    deleteFragmentsBySource: jest.fn(),
+    countFragmentsBySource: jest.fn(),
+    transaction: jest.fn(),
+  };
+
   beforeEach(async () => {
     // Mock IngestDocumentUseCase
     mockIngestUseCase = {
@@ -50,6 +67,10 @@ describe('KnowledgeController', () => {
         {
           provide: DeleteSourceUseCase,
           useValue: mockDeleteUseCase,
+        },
+        {
+          provide: 'IKnowledgeRepository',
+          useValue: mockKnowledgeRepository,
         },
         {
           provide: Reflector,
@@ -119,6 +140,50 @@ describe('KnowledgeController', () => {
       path: '',
     } as Express.Multer.File;
   };
+
+  describe('getDocumentDetail', () => {
+    const validSourceId = '550e8400-e29b-41d4-a716-446655440000';
+
+    it('should return document detail with content and fragment count', async () => {
+      const mockSource = {
+        id: validSourceId,
+        title: 'Test Document',
+        sectorId: '660e8400-e29b-41d4-a716-446655440001',
+        sourceType: SourceType.PDF,
+        status: 'COMPLETED',
+        content: 'Full document content here...',
+        metadata: { author: 'Test' },
+        createdAt: new Date('2025-01-01'),
+        updatedAt: new Date('2025-01-01'),
+      };
+
+      mockKnowledgeRepository.findSourceById.mockResolvedValue(mockSource);
+      mockKnowledgeRepository.countFragmentsBySource.mockResolvedValue(5);
+
+      const result = await controller.getDocumentDetail(validSourceId);
+
+      expect(result.id).toBe(validSourceId);
+      expect(result.title).toBe('Test Document');
+      expect(result.content).toBe('Full document content here...');
+      expect(result.fragmentCount).toBe(5);
+      expect(mockKnowledgeRepository.findSourceById).toHaveBeenCalledWith(validSourceId);
+      expect(mockKnowledgeRepository.countFragmentsBySource).toHaveBeenCalledWith(validSourceId);
+    });
+
+    it('should throw BadRequestException for invalid UUID', async () => {
+      await expect(
+        controller.getDocumentDetail('not-a-uuid'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when source not found', async () => {
+      mockKnowledgeRepository.findSourceById.mockResolvedValue(null);
+
+      await expect(
+        controller.getDocumentDetail(validSourceId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 
   describe('uploadDocument', () => {
     it('should successfully upload and ingest a PDF document', async () => {

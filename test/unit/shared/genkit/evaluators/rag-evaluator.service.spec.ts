@@ -146,27 +146,24 @@ describe('RagEvaluatorService', () => {
       );
     });
 
-    it('should use structured output schema for reliable parsing', async () => {
+    it('should parse JSON from response text with Zod validation', async () => {
       mockGenerate.mockResolvedValue({
         text: JSON.stringify(sampleFaithfulScore),
-        output: sampleFaithfulScore,
+        output: null,
       });
 
-      await evaluator.evaluate({
+      const result = await evaluator.evaluate({
         query: 'Test query',
         response: 'Test response',
         context: ['Test context'],
       });
 
-      const firstCallArgs = mockGenerate.mock.calls[0][0] as Record<
-        string,
-        unknown
-      >;
-
-      expect(firstCallArgs.output).toBeDefined();
-      expect(
-        (firstCallArgs.output as Record<string, unknown>).schema,
-      ).toBeDefined();
+      // Validates that the response text is parsed correctly
+      expect(result.faithfulness.score).toBe(sampleFaithfulScore.score);
+      expect(result.faithfulness.status).toBe(sampleFaithfulScore.status);
+      expect(result.faithfulness.reasoning).toBe(
+        sampleFaithfulScore.reasoning,
+      );
     });
   });
 
@@ -232,7 +229,7 @@ describe('RagEvaluatorService', () => {
       expect(result.relevancy.status).toBe('UNKNOWN');
     });
 
-    it('should handle null output gracefully', async () => {
+    it('should handle empty text response gracefully', async () => {
       mockGenerate.mockResolvedValue({
         text: '',
         output: null,
@@ -244,10 +241,9 @@ describe('RagEvaluatorService', () => {
         context: ['Test context'],
       });
 
+      // Empty text can't be parsed as JSON, so it should return UNKNOWN
       expect(result.faithfulness.status).toBe('UNKNOWN');
-      expect(result.faithfulness.reasoning).toContain(
-        'No structured output returned',
-      );
+      expect(result.faithfulness.reasoning).toContain('Evaluation failed');
     });
 
     it('should handle non-Error exceptions gracefully', async () => {

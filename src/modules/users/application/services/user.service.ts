@@ -14,6 +14,7 @@ export interface UserResponseDto {
   email: string;
   name: string;
   isActive: boolean;
+  roles: string[];
   createdAt: Date;
   lastLoginAt: Date | null;
 }
@@ -65,7 +66,11 @@ export class UserService {
       });
     }
 
-    return this.mapToDto(user);
+    // Load roles for the response
+    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
+    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
+
+    return this.mapToDto(user, roles);
   }
 
   /**
@@ -76,7 +81,10 @@ export class UserService {
     auth0UserId: string,
   ): Promise<UserResponseDto | null> {
     const user = await this.userRepository.findByAuth0UserId(auth0UserId);
-    return user ? this.mapToDto(user) : null;
+    if (!user) return null;
+    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
+    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
+    return this.mapToDto(user, roles);
   }
 
   /**
@@ -84,19 +92,23 @@ export class UserService {
    */
   async getUserById(id: string): Promise<UserResponseDto | null> {
     const user = await this.userRepository.findById(id);
-    return user ? this.mapToDto(user) : null;
+    if (!user) return null;
+    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
+    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
+    return this.mapToDto(user, roles);
   }
 
   /**
    * Map domain entity to DTO
    */
-  private mapToDto(user: User): UserResponseDto {
+  private mapToDto(user: User, roles: string[] = []): UserResponseDto {
     return {
       id: user.id,
       auth0UserId: user.auth0UserId,
       email: user.email,
       name: user.name,
       isActive: user.isActive,
+      roles,
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
     };

@@ -41,6 +41,12 @@ export interface IKnowledgeRepository {
   ): Promise<KnowledgeSource[]>;
 
   /**
+   * Finds all knowledge sources (excluding soft-deleted)
+   * @returns Array of all active knowledge sources
+   */
+  findAllSources(): Promise<KnowledgeSource[]>;
+
+  /**
    * Finds knowledge sources by status
    * @param status - The status to filter by
    * @returns Array of knowledge sources with the given status
