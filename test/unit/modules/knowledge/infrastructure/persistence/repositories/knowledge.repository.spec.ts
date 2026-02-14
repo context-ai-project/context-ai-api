@@ -35,6 +35,7 @@ describe('KnowledgeRepository', () => {
     find: jest.fn(),
     count: jest.fn(),
     delete: jest.fn(),
+    softDelete: jest.fn(),
     create: jest.fn(),
   };
 
@@ -247,6 +248,45 @@ describe('KnowledgeRepository', () => {
           where: { sectorId },
           withDeleted: true,
         });
+      });
+    });
+
+    describe('findAllSources', () => {
+      it('should return all non-deleted sources ordered by createdAt DESC', async () => {
+        const models = [
+          createMockSourceModel('source-1', 'sector-1'),
+          createMockSourceModel('source-2', 'sector-2'),
+        ];
+
+        mockSourceRepository.find.mockResolvedValue(models);
+
+        const result = await repository.findAllSources();
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toBeInstanceOf(KnowledgeSource);
+        expect(mockSourceRepository.find).toHaveBeenCalledWith({
+          where: { deletedAt: IsNull() },
+          order: { createdAt: 'DESC' },
+        });
+      });
+
+      it('should return empty array when no sources exist', async () => {
+        mockSourceRepository.find.mockResolvedValue([]);
+
+        const result = await repository.findAllSources();
+
+        expect(result).toEqual([]);
+      });
+    });
+
+    describe('softDeleteSource', () => {
+      it('should soft delete a source', async () => {
+        const sourceId = 'source-123';
+        mockSourceRepository.softDelete.mockResolvedValue({ affected: 1, raw: [] });
+
+        await repository.softDeleteSource(sourceId);
+
+        expect(mockSourceRepository.softDelete).toHaveBeenCalledWith(sourceId);
       });
     });
 

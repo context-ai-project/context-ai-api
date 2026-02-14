@@ -252,6 +252,8 @@ const mockRepository: jest.Mocked<IKnowledgeRepository> = {
   saveSource: jest.fn(),
   findSourceById: jest.fn(),
   findSourcesBySector: jest.fn(),
+  findAllSources: jest.fn(),
+  countFragmentsBySource: jest.fn(),
   softDeleteSource: jest.fn(),
   saveFragments: jest.fn(),
   deleteFragmentsBySource: jest.fn(),
@@ -359,14 +361,12 @@ export function createTestIngestDto(
 **Configuration** (in `package.json` → `jest` section):
 ```json
 {
-  "coverage": {
-    "thresholds": {
-      "global": {
-        "functions": 85,
-        "lines": 80,
-        "branches": 80,
-        "statements": 80
-      }
+  "coverageThreshold": {
+    "global": {
+      "functions": 85,
+      "lines": 80,
+      "branches": 80,
+      "statements": 80
     }
   }
 }

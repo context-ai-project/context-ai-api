@@ -156,6 +156,10 @@ export class KnowledgeController {
   async listDocuments(
     @Query('sectorId') sectorId?: string,
   ): Promise<KnowledgeSourceDto[]> {
+    if (sectorId && !isValidUUID(sectorId)) {
+      throw new BadRequestException('sectorId must be a valid UUID');
+    }
+
     const sectorInfo = sectorId ? ' (sector: ' + sectorId + ')' : '';
     this.logger.log('List documents request' + sectorInfo);
 

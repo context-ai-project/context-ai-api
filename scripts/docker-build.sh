@@ -16,18 +16,18 @@ TAG="${1:-latest}"
 IMAGE="context-ai-api"
 FULL_IMAGE="${IMAGE}:${TAG}"
 
-# Build context must be the monorepo root (one level up from context-ai-api)
+# Build context is the repository root (one level up from scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 echo "🐳  Building ${FULL_IMAGE}"
 echo "    Build context: ${REPO_ROOT}"
-echo "    Dockerfile:    context-ai-api/Dockerfile"
+echo "    Dockerfile:    Dockerfile"
 echo ""
 
 docker build \
   -t "${FULL_IMAGE}" \
-  -f "${REPO_ROOT}/context-ai-api/Dockerfile" \
+  -f "${REPO_ROOT}/Dockerfile" \
   "${REPO_ROOT}"
 
 echo ""

@@ -8,7 +8,7 @@ import {
   MinLength,
   MaxLength,
 } from 'class-validator';
-import type { SourceType, SourceStatus } from '@shared/types';
+import { SourceType, type SourceStatus } from '@shared/types';
 
 // Constants for validation
 const MAX_TITLE_LENGTH = 255;
@@ -46,10 +46,10 @@ export class UploadDocumentDto {
 
   @ApiProperty({
     description: 'Source type',
-    enum: ['PDF', 'MARKDOWN', 'URL'],
+    enum: SourceType,
     example: 'PDF',
   })
-  @IsEnum(['PDF', 'MARKDOWN', 'URL'])
+  @IsEnum(SourceType)
   sourceType!: SourceType;
 
   @ApiProperty({

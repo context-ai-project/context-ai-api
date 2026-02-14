@@ -86,7 +86,9 @@ export class DocumentParserService {
       const content = this.normalizeContent(data.text);
 
       // Extract metadata using Map to avoid bracket-notation security warnings
-      const info: Record<string, unknown> = data.info;
+      // Guard against missing data.info (some PDFs omit metadata)
+      const info: Record<string, unknown> =
+        data.info && typeof data.info === 'object' ? data.info : {};
 
       const metadataKeys = new Set([
         'Title',

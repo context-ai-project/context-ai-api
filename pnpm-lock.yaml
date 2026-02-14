@@ -4,16 +4,13 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@context-ai/shared': link:../context-ai-shared
-
 importers:
 
   .:
     dependencies:
-      '@context-ai/shared':
-        specifier: link:../context-ai-shared
-        version: link:../context-ai-shared
+      '@context-ai-project/shared':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@genkit-ai/ai':
         specifier: ^1.28.0
         version: 1.28.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.6.1)(genkit@1.28.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.6.1))
@@ -398,6 +395,9 @@ packages:
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
     engines: {node: '>=0.1.90'}
+
+  '@context-ai-project/shared@0.1.0':
+    resolution: {integrity: sha512-S7GwL/X9UDxrhKBuJe5C/mTdTqqSJZ7qm6+yAYrm0tQzYQ7i/U5Kg4bbn6BrFjgceVwbNV9kpjv7sajBKCHn1g==, tarball: https://npm.pkg.github.com/download/@context-ai-project/shared/0.1.0/c238a400cd5ff92fd68e9d8b2a4ca05b721c9850}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -5103,6 +5103,11 @@ snapshots:
 
   '@colors/colors@1.6.0':
     optional: true
+
+  '@context-ai-project/shared@0.1.0':
+    dependencies:
+      class-transformer: 0.5.1
+      class-validator: 0.14.3
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:

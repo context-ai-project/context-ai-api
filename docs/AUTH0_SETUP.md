@@ -185,7 +185,7 @@ curl --request POST \
 curl -X POST http://localhost:3001/api/v1/interaction/query \
   -H "Authorization: Bearer {TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"query": "Hello", "sectorId": "test-sector"}'
+  -d '{"query": "Hello", "sectorId": "660e8400-e29b-41d4-a716-446655440001"}'
 ```
 
 **Expected Response**:

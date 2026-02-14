@@ -24,7 +24,7 @@ Se ejecuta en cada push y pull request a `main` y `develop`:
 - ✅ Ejecuta todos los tests unitarios
 - ✅ Genera reporte de cobertura
 - ✅ Sube resultados a Codecov (opcional)
-- ✅ Requiere cobertura mínima del 80%
+- ✅ Requiere cobertura mínima del 85% (funciones), 80% (líneas, ramas, sentencias)
 
 ### 3. **Build Job**
 - ✅ Compila el proyecto TypeScript

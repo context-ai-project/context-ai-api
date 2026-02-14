@@ -1,8 +1,8 @@
 # Context.ai API
 
-[![CI](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/ci.yml/badge.svg)](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/codeql.yml)
-[![Snyk Security](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/snyk.yml/badge.svg)](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/snyk.yml)
+[![CI](https://github.com/context-ai-project/context-ai-api/actions/workflows/ci.yml/badge.svg)](https://github.com/context-ai-project/context-ai-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/context-ai-project/context-ai-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/context-ai-project/context-ai-api/actions/workflows/codeql.yml)
+[![Snyk Security](https://github.com/context-ai-project/context-ai-api/actions/workflows/snyk.yml/badge.svg)](https://github.com/context-ai-project/context-ai-api/actions/workflows/snyk.yml)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.7-blue)](https://www.typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -81,7 +81,7 @@ Este proyecto sigue **Clean Architecture** con 4 capas:
 
 | Categoría | Tecnología | Detalles |
 |-----------|-----------|---------|
-| **Shared** | @context-ai/shared | Tipos e interfaces compartidas con el frontend |
+| **Shared** | @context-ai-project/shared | Tipos e interfaces compartidas con el frontend (GitHub Packages) |
 
 ## 🌿 Branching Strategy
 
@@ -101,20 +101,38 @@ Este proyecto sigue una estrategia de branching por fases del MVP con ramas `mai
 
 ## 🛠️ Setup Local
 
-### 1. Instalar dependencias
+### 1. Configurar acceso a GitHub Packages
+
+Este proyecto usa el paquete `@context-ai-project/shared` publicado en [GitHub Packages](https://github.com/orgs/context-ai-project/packages). GitHub Packages requiere autenticación incluso para paquetes públicos.
+
+1. Crea un **Personal Access Token (Classic)** en GitHub con el scope `read:packages`:
+   - Ve a https://github.com/settings/tokens/new
+   - Marca ✅ `read:packages`
+   - Genera y copia el token
+
+2. Añade la configuración a tu `~/.npmrc` global:
+
+```bash
+echo "//npm.pkg.github.com/:_authToken=ghp_TU_TOKEN_AQUI" >> ~/.npmrc
+echo "@context-ai-project:registry=https://npm.pkg.github.com/" >> ~/.npmrc
+```
+
+> **Nota**: Esto se configura una sola vez por máquina.
+
+### 2. Instalar dependencias
 
 ```bash
 pnpm install
 ```
 
-### 2. Configurar variables de entorno
+### 3. Configurar variables de entorno
 
 ```bash
 cp .env.example .env
 # Editar .env con tus credenciales
 ```
 
-### 3. Iniciar base de datos
+### 4. Iniciar base de datos
 
 ```bash
 docker-compose up -d
@@ -122,7 +140,7 @@ docker-compose up -d
 
 **Nota**: El contenedor usa el puerto `5433` (mapeado a `5432` interno) para evitar conflictos con instalaciones locales de PostgreSQL.
 
-### 4. Verificar el setup
+### 5. Verificar el setup
 
 ```bash
 ./scripts/verify-setup.sh
@@ -130,24 +148,30 @@ docker-compose up -d
 
 Este script verifica que Docker, PostgreSQL, el servidor y Swagger estén funcionando correctamente.
 
-### 5. Vincular paquete compartido (desarrollo local)
+### 6. Desarrollo local del paquete compartido (opcional)
+
+Si necesitas modificar `@context-ai-project/shared` y probar cambios localmente sin publicar una nueva versión:
 
 ```bash
-# En context-ai-shared
-cd ../context-ai-shared
-pnpm link --global
+# Clonar el repo shared (si aún no lo tienes)
+git clone https://github.com/context-ai-project/context-ai-shared.git ../context-ai-shared
 
-# En context-ai-api
-pnpm link --global @context-ai/shared
+# Vincular localmente (sobreescribe la versión publicada)
+cd context-ai-api
+pnpm link ../context-ai-shared
+
+# Cuando termines, restaurar la versión publicada
+pnpm unlink @context-ai-project/shared
+pnpm install
 ```
 
-### 6. Ejecutar migraciones
+### 7. Ejecutar migraciones
 
 ```bash
 pnpm migration:run
 ```
 
-### 7. Sembrar datos de RBAC (Roles y Permisos)
+### 8. Sembrar datos de RBAC (Roles y Permisos)
 
 ⚠️ **IMPORTANTE**: Después de ejecutar las migraciones, debes sembrar los datos iniciales de RBAC:
 
@@ -168,7 +192,7 @@ Este comando crea:
 
 📚 Ver [docs/RBAC_SEEDING_STRATEGY.md](./docs/RBAC_SEEDING_STRATEGY.md) para detalles sobre la estrategia por environment.
 
-### 8. Iniciar servidor en modo desarrollo
+### 9. Iniciar servidor en modo desarrollo
 
 ```bash
 pnpm start:dev
@@ -294,7 +318,7 @@ src/
 | `zod` | Validación de schemas (flujo RAG) |
 | `pdf-parse` | Parsing de documentos PDF |
 | `helmet` | Seguridad de headers HTTP |
-| `@context-ai/shared` | Tipos compartidos con el frontend |
+| `@context-ai-project/shared` | Tipos compartidos con el frontend |
 
 ### Desarrollo
 

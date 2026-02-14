@@ -141,6 +141,104 @@ describe('KnowledgeController', () => {
     } as Express.Multer.File;
   };
 
+  describe('listDocuments', () => {
+    const mockSources = [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Document 1',
+        sectorId: '660e8400-e29b-41d4-a716-446655440001',
+        sourceType: SourceType.PDF,
+        status: 'COMPLETED',
+        metadata: { author: 'Test' },
+        createdAt: new Date('2025-01-01'),
+        updatedAt: new Date('2025-01-02'),
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440099',
+        title: 'Document 2',
+        sectorId: '660e8400-e29b-41d4-a716-446655440001',
+        sourceType: SourceType.MARKDOWN,
+        status: 'PROCESSING',
+        metadata: null,
+        createdAt: new Date('2025-02-01'),
+        updatedAt: new Date('2025-02-02'),
+      },
+    ];
+
+    it('should return all documents when no sectorId provided', async () => {
+      mockKnowledgeRepository.findAllSources.mockResolvedValue(mockSources);
+
+      const result = await controller.listDocuments();
+
+      expect(result).toHaveLength(2);
+      expect(result[0].title).toBe('Document 1');
+      expect(result[1].title).toBe('Document 2');
+      expect(mockKnowledgeRepository.findAllSources).toHaveBeenCalled();
+      expect(mockKnowledgeRepository.findSourcesBySector).not.toHaveBeenCalled();
+    });
+
+    it('should filter by sectorId when provided', async () => {
+      const sectorId = '660e8400-e29b-41d4-a716-446655440001';
+      mockKnowledgeRepository.findSourcesBySector.mockResolvedValue([mockSources[0]]);
+
+      const result = await controller.listDocuments(sectorId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Document 1');
+      expect(mockKnowledgeRepository.findSourcesBySector).toHaveBeenCalledWith(sectorId);
+      expect(mockKnowledgeRepository.findAllSources).not.toHaveBeenCalled();
+    });
+
+    it('should return empty array when no documents exist', async () => {
+      mockKnowledgeRepository.findAllSources.mockResolvedValue([]);
+
+      const result = await controller.listDocuments();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should map source entities to DTOs with ISO date strings', async () => {
+      mockKnowledgeRepository.findAllSources.mockResolvedValue([mockSources[0]]);
+
+      const result = await controller.listDocuments();
+
+      expect(result[0]).toEqual({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Document 1',
+        sectorId: '660e8400-e29b-41d4-a716-446655440001',
+        sourceType: SourceType.PDF,
+        status: 'COMPLETED',
+        metadata: { author: 'Test' },
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-02T00:00:00.000Z',
+      });
+    });
+
+    it('should handle null metadata', async () => {
+      mockKnowledgeRepository.findAllSources.mockResolvedValue([mockSources[1]]);
+
+      const result = await controller.listDocuments();
+
+      expect(result[0].metadata).toBeNull();
+    });
+
+    it('should throw BadRequestException when sectorId is not a valid UUID', async () => {
+      await expect(controller.listDocuments('invalid-uuid')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockKnowledgeRepository.findAllSources).not.toHaveBeenCalled();
+      expect(mockKnowledgeRepository.findSourcesBySector).not.toHaveBeenCalled();
+    });
+
+    it('should rethrow repository errors', async () => {
+      mockKnowledgeRepository.findAllSources.mockRejectedValue(
+        new Error('Database error'),
+      );
+
+      await expect(controller.listDocuments()).rejects.toThrow('Database error');
+    });
+  });
+
   describe('getDocumentDetail', () => {
     const validSourceId = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -182,6 +280,16 @@ describe('KnowledgeController', () => {
       await expect(
         controller.getDocumentDetail(validSourceId),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should rethrow unexpected repository errors', async () => {
+      mockKnowledgeRepository.findSourceById.mockRejectedValue(
+        new Error('Unexpected DB failure'),
+      );
+
+      await expect(
+        controller.getDocumentDetail(validSourceId),
+      ).rejects.toThrow('Unexpected DB failure');
     });
   });
 
@@ -571,6 +679,16 @@ describe('KnowledgeController', () => {
       await expect(
         controller.deleteDocument(validSourceId, validSectorId),
       ).rejects.toThrow('Knowledge source is already deleted');
+    });
+
+    it('should rethrow unexpected errors from delete use case', async () => {
+      mockDeleteUseCase.execute.mockRejectedValue(
+        new Error('Unexpected internal error'),
+      );
+
+      await expect(
+        controller.deleteDocument(validSourceId, validSectorId),
+      ).rejects.toThrow('Unexpected internal error');
     });
   });
 });

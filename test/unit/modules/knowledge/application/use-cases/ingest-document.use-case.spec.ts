@@ -489,10 +489,11 @@ describe('IngestDocumentUseCase', () => {
         'API rate limit exceeded',
       );
 
-      // Verify source was saved with PROCESSING status initially
-      const savedSource = (mockRepository.saveSource as jest.Mock).mock
+      // Verify source was saved initially with PROCESSING, then marked FAILED on error
+      const firstSave = (mockRepository.saveSource as jest.Mock).mock
         .calls[0][0] as KnowledgeSource;
-      expect(savedSource.status).toBe(SourceStatus.PROCESSING);
+      // After error, the source should be marked as FAILED
+      expect(firstSave.status).toBe(SourceStatus.FAILED);
     });
 
     it('should handle vector store upsert errors', async () => {

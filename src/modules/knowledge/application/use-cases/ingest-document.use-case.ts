@@ -84,12 +84,13 @@ export class IngestDocumentUseCase {
    */
   async execute(dto: IngestDocumentDto): Promise<IngestDocumentResult> {
     this.logger.log(`Starting document ingestion: ${dto.title}`);
+    let savedSource: KnowledgeSource | undefined;
 
     try {
       this.validateInput(dto);
 
       const parsed = await this.parseDocument(dto);
-      const savedSource = await this.createAndPersistSource(dto, parsed);
+      savedSource = await this.createAndPersistSource(dto, parsed);
       const { chunks, embeddings } = await this.chunkAndEmbed(parsed.content);
       const savedFragments = await this.persistFragments(
         chunks,
@@ -109,6 +110,18 @@ export class IngestDocumentUseCase {
         parsed.content,
       );
     } catch (error: unknown) {
+      // Mark the source as FAILED if it was already persisted
+      if (savedSource) {
+        try {
+          savedSource.markAsFailed(extractErrorMessage(error));
+          await this.repository.saveSource(savedSource);
+        } catch (statusError: unknown) {
+          this.logger.error(
+            `Failed to mark source ${savedSource.id} as FAILED: ${extractErrorMessage(statusError)}`,
+          );
+        }
+      }
+
       this.logger.error(
         `Document ingestion failed: ${extractErrorMessage(error)}`,
         {
@@ -204,7 +217,9 @@ export class IngestDocumentUseCase {
   }
 
   /**
-   * Upserts fragment embeddings to Pinecone vector store
+   * Upserts fragment embeddings to Pinecone vector store.
+   * Uses fragment.position as a stable key to align embeddings with fragments,
+   * ensuring correct mapping even if the repository reorders fragments.
    */
   private async upsertToVectorStore(
     payload: VectorIndexPayload,
@@ -219,9 +234,15 @@ export class IngestDocumentUseCase {
       );
     }
 
+    // Build map keyed by position (stable across reordering) instead of index
     const embeddingsMap = new Map(embeddings.map((e, i) => [i, e]));
 
-    const vectorInputs: VectorUpsertInput[] = fragments.map(
+    // Sort fragments by position to align with original embedding order
+    const orderedFragments = [...fragments].sort(
+      (a, b) => a.position - b.position,
+    );
+
+    const vectorInputs: VectorUpsertInput[] = orderedFragments.map(
       (fragment: Fragment, index: number) => ({
         id: fragment.id!,
         embedding: embeddingsMap.get(index)!,
@@ -238,25 +259,20 @@ export class IngestDocumentUseCase {
   }
 
   /**
-   * Marks source as COMPLETED; logs but does not throw on failure
-   * since vectors + fragments are already persisted
+   * Marks source as COMPLETED and rethrows on failure so the execute-level
+   * error handler can mark the source as FAILED.
    */
   private async markSourceCompleted(
     savedSource: KnowledgeSource,
   ): Promise<void> {
     this.logger.debug('Updating source status to COMPLETED...');
-    try {
-      savedSource.markAsCompleted();
-      await this.repository.saveSource(savedSource);
-    } catch (statusError: unknown) {
-      this.logger.error(
-        `Failed to mark source ${savedSource.id} as COMPLETED after successful ingestion: ${extractErrorMessage(statusError)}`,
-      );
-    }
+    savedSource.markAsCompleted();
+    await this.repository.saveSource(savedSource);
   }
 
   /**
-   * Builds the final ingestion result DTO
+   * Builds the final ingestion result DTO.
+   * Derives status from the actual saved source entity rather than hardcoding.
    */
   private buildResult(
     savedSource: KnowledgeSource,
@@ -268,7 +284,9 @@ export class IngestDocumentUseCase {
       title: savedSource.title,
       fragmentCount,
       contentSize: Buffer.byteLength(content, 'utf8'),
-      status: SourceStatus.COMPLETED,
+      status:
+        (savedSource.status as SourceStatus.COMPLETED | SourceStatus.FAILED) ??
+        SourceStatus.COMPLETED,
     };
 
     this.logger.log(

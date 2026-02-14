@@ -138,6 +138,8 @@ export class InteractionDtoMapper {
       return content;
     }
 
-    return content.substring(0, InteractionDtoMapper.MAX_TITLE_LENGTH) + '...';
+    return (
+      content.substring(0, InteractionDtoMapper.MAX_TITLE_LENGTH - 3) + '...'
+    );
   }
 }

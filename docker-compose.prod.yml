@@ -27,9 +27,9 @@ services:
       PORT: 3000
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-context_ai_db}
-      DB_USER: ${DB_USER:-context_ai_user}
-      DB_PASSWORD: ${DB_PASSWORD:-context_ai_pass}
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     depends_on:
       postgres:
@@ -49,9 +49,9 @@ services:
     container_name: context-ai-postgres-prod
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-context_ai_db}
-      POSTGRES_USER: ${DB_USER:-context_ai_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-context_ai_pass}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     ports:
       - '${DB_PORT:-5433}:5432'
     volumes:

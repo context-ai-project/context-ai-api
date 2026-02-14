@@ -7,7 +7,7 @@ This document describes all environment variables used by the Context.ai API.
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `NODE_ENV` | Application environment (development, production, test) | `development` | No |
-| `PORT` | Server port | `3001` | No |
+| `PORT` | Server port | `3001` (host) / `3000` (Docker) | No |
 | `API_PREFIX` | API route prefix | `api/v1` | No |
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:3000` | No |
 | `ALLOWED_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:3000` | No |
@@ -113,8 +113,8 @@ FRONTEND_URL=http://localhost:3000
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 
 # Rate Limiting
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_TTL=60
+RATE_LIMIT_MAX=100
 
 # Observability
 SENTRY_DSN=

@@ -45,7 +45,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@context-ai/shared": "link:../context-ai-shared",
+    "@context-ai-project/shared": "^0.1.0",
     "@genkit-ai/ai": "^1.28.0",
     "@genkit-ai/core": "^1.28.0",
     "@genkit-ai/google-genai": "^1.28.0",
@@ -158,7 +158,7 @@
     },
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@context-ai/shared$": "<rootDir>/../context-ai-shared/src",
+      "^@context-ai-project/shared$": "<rootDir>/../context-ai-shared/src",
       "^@modules/(.*)$": "<rootDir>/src/modules/$1",
       "^@shared/(.*)$": "<rootDir>/src/shared/$1",
       "^@config/(.*)$": "<rootDir>/src/config/$1",
