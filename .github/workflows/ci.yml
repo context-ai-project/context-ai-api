@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   lint:
     name: Lint
@@ -41,6 +45,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Run ESLint
         run: pnpm lint
@@ -54,7 +60,7 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: postgres:16
         env:
           POSTGRES_DB: contextai_test
           POSTGRES_USER: contextai_user
@@ -97,6 +103,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Run unit tests
         run: pnpm test
@@ -107,6 +115,8 @@ jobs:
           DATABASE_PASSWORD: test_password
           DATABASE_NAME: contextai_test
           NODE_ENV: test
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_INDEX: ${{ secrets.PINECONE_INDEX }}
 
       - name: Run tests with coverage
         run: pnpm test:cov
@@ -117,6 +127,8 @@ jobs:
           DATABASE_PASSWORD: test_password
           DATABASE_NAME: contextai_test
           NODE_ENV: test
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_INDEX: ${{ secrets.PINECONE_INDEX }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -162,6 +174,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Build application
         run: pnpm build

@@ -45,5 +45,7 @@ lerna-debug.log*
 /temp
 /tmp
 
-
-AGENTS.md
+# Genkit runtime files
+.genkit/
+# Backup files
+*.backup

@@ -5,5 +5,21 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "testTimeout": 30000,
+  "setupFilesAfterEnv": ["<rootDir>/e2e/jest-setup.ts"],
+  "moduleNameMapper": {
+    "^@modules/(.*)$": "<rootDir>/../src/modules/$1",
+    "^@shared/(.*)$": "<rootDir>/../src/shared/$1",
+    "^@config/(.*)$": "<rootDir>/../src/config/$1",
+    "^@common/(.*)$": "<rootDir>/../src/common/$1",
+    "^@context-ai-project/shared$": "<rootDir>/../../context-ai-shared/src/index.ts"
+  },
+  "collectCoverageFrom": [
+    "../src/**/*.ts",
+    "!../src/main.ts",
+    "!../src/**/*.interface.ts",
+    "!../src/**/*.module.ts"
+  ],
+  "coverageDirectory": "../coverage/e2e"
 }
