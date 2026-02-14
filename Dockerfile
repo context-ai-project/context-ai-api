@@ -51,8 +51,8 @@ ARG NODE_AUTH_TOKEN
 # Copy dependency manifests and .npmrc
 COPY package.json pnpm-lock.yaml .npmrc ./
 
-# Install production dependencies only
-RUN NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} pnpm install --prod --frozen-lockfile && \
+# Install production dependencies only (--ignore-scripts skips husky/prepare)
+RUN NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} pnpm install --prod --frozen-lockfile --ignore-scripts && \
     pnpm store prune
 
 # Remove .npmrc after install (don't ship auth tokens in final image)
