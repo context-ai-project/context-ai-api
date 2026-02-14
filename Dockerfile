@@ -13,24 +13,19 @@ WORKDIR /app
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy shared package first (required by link dependency)
-COPY context-ai-shared/ /shared/
-WORKDIR /shared
-RUN pnpm install --frozen-lockfile && pnpm build
+# Build arg for GitHub Packages authentication
+# Pass at build time: --build-arg NODE_AUTH_TOKEN=ghp_xxx
+ARG NODE_AUTH_TOKEN
 
-WORKDIR /app
-
-# Copy dependency manifests
-COPY context-ai-api/package.json context-ai-api/pnpm-lock.yaml ./
-
-# Rewrite the link dependency to point to /shared
-RUN sed -i 's|"link:../context-ai-shared"|"file:/shared"|' package.json
+# Copy dependency manifests and .npmrc (registry config)
+COPY package.json pnpm-lock.yaml .npmrc ./
 
 # Install ALL dependencies (needed for build)
-RUN pnpm install --frozen-lockfile
+# NODE_AUTH_TOKEN is used by .npmrc to authenticate with GitHub Packages
+RUN NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} pnpm install --frozen-lockfile
 
 # Copy source code
-COPY context-ai-api/ .
+COPY . .
 
 # Build application
 RUN pnpm build
@@ -50,25 +45,24 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
-# Copy shared package (production build only)
-COPY --from=builder /shared/dist /shared/dist
-COPY --from=builder /shared/package.json /shared/package.json
+# Build arg for GitHub Packages authentication (needed for prod install)
+ARG NODE_AUTH_TOKEN
 
-# Copy dependency manifests
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml ./
-
-# Rewrite link → file for production
-RUN sed -i 's|"link:../context-ai-shared"|"file:/shared"|' package.json
+# Copy dependency manifests and .npmrc
+COPY package.json pnpm-lock.yaml .npmrc ./
 
 # Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile && \
+RUN NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} pnpm install --prod --frozen-lockfile && \
     pnpm store prune
 
-# Copy built application
+# Remove .npmrc after install (don't ship auth tokens in final image)
+RUN rm -f .npmrc
+
+# Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
 # Copy health-check helper
-COPY context-ai-api/scripts/docker-healthcheck.js ./scripts/docker-healthcheck.js
+COPY scripts/docker-healthcheck.js ./scripts/docker-healthcheck.js
 
 # Set ownership
 RUN chown -R nestjs:nodejs /app
@@ -76,17 +70,16 @@ RUN chown -R nestjs:nodejs /app
 # Switch to non-root user
 USER nestjs
 
-# Expose port
-EXPOSE 3000
+# Cloud Run uses PORT env var (default 3001)
+EXPOSE 3001
 
 # Environment defaults
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3001
 
-# Health check
+# Health check (for local Docker; Cloud Run uses its own probes)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node scripts/docker-healthcheck.js
 
 # Start application
 CMD ["node", "dist/main.js"]
-
