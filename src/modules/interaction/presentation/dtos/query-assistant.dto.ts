@@ -8,8 +8,16 @@ import {
   Min,
   Max,
   MinLength,
-  IsBoolean,
 } from 'class-validator';
+
+// Re-export split DTOs so existing imports keep working
+export { MessageDto } from './message.dto';
+export {
+  ConversationSummaryDto,
+  ConversationsListDto,
+  ConversationDetailDto,
+} from './conversation.dto';
+export { GetConversationsDto } from './get-conversations.dto';
 
 // Constants for validation
 const MIN_QUERY_LENGTH = 1;
@@ -17,21 +25,10 @@ const MIN_RESULTS = 1;
 const MAX_RESULTS = 20;
 const MIN_SIMILARITY = 0;
 const MAX_SIMILARITY = 1;
-const MIN_PAGE_LIMIT = 1;
-const MAX_PAGE_LIMIT = 100;
-const DEFAULT_PAGE_LIMIT = 10;
 
 // Example UUIDs for documentation
-const EXAMPLE_USER_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const EXAMPLE_SECTOR_UUID = '660e8400-e29b-41d4-a716-446655440001';
 const EXAMPLE_CONVERSATION_UUID = '770e8400-e29b-41d4-a716-446655440002';
-
-// Descriptions for API documentation
-const DESC_USER_ID = 'User ID';
-const DESC_SECTOR_ID = 'Sector ID';
-const DESC_CONVERSATION_ID = 'Conversation ID';
-const DESC_IS_ACTIVE = 'Conversation is active';
-const DESC_OPTIONAL_METADATA = 'Optional metadata';
 
 // Example timestamps
 const EXAMPLE_TIMESTAMP = '2024-01-15T10:30:00Z';
@@ -40,9 +37,10 @@ const EXAMPLE_TIMESTAMP = '2024-01-15T10:30:00Z';
  * DTO for Query Assistant Request
  *
  * Represents the input for querying the RAG assistant.
+ * Note: userId is extracted from the JWT session via @CurrentUser('userId')
+ * and is NOT part of the request body.
  *
  * Validation:
- * - userId: Required UUID
  * - sectorId: Required UUID
  * - query: Required, non-empty string
  * - conversationId: Optional UUID
@@ -50,14 +48,8 @@ const EXAMPLE_TIMESTAMP = '2024-01-15T10:30:00Z';
  * - minSimilarity: Optional, 0-1
  */
 export class QueryAssistantDto {
-  @ApiProperty({
-    description: 'User ID requesting the query',
-    example: EXAMPLE_USER_UUID,
-    required: true,
-  })
-  @IsUUID()
-  @IsNotEmpty()
-  userId!: string;
+  // userId is extracted from the JWT session via @CurrentUser('userId')
+  // and is NOT accepted from the request body for security reasons
 
   @ApiProperty({
     description: 'Sector ID for knowledge context',
@@ -156,6 +148,56 @@ export class SourceFragmentDto {
 }
 
 /**
+ * DTO for a single evaluation score
+ */
+export class EvaluationScoreDto {
+  @ApiProperty({
+    description: 'Evaluation score from 0.0 to 1.0',
+    example: 0.85,
+    minimum: 0,
+    maximum: 1,
+  })
+  score!: number;
+
+  @ApiProperty({
+    description: 'Evaluation status',
+    example: 'PASS',
+    enum: ['PASS', 'FAIL', 'UNKNOWN'],
+  })
+  status!: string;
+
+  @ApiProperty({
+    description: 'Brief reasoning for the score',
+    example:
+      'The response accurately reflects the vacation policy documented in the context.',
+  })
+  reasoning!: string;
+}
+
+/**
+ * DTO for RAG evaluation results
+ *
+ * Contains Faithfulness and Relevancy scores for each RAG response.
+ * - Faithfulness: Is the response grounded in the retrieved context?
+ * - Relevancy: Is the response relevant to the user question?
+ */
+export class EvaluationResultDto {
+  @ApiProperty({
+    description:
+      'Faithfulness score — measures if the response is grounded in the context',
+    type: EvaluationScoreDto,
+  })
+  faithfulness!: EvaluationScoreDto;
+
+  @ApiProperty({
+    description:
+      'Relevancy score — measures if the response addresses the question',
+    type: EvaluationScoreDto,
+  })
+  relevancy!: EvaluationScoreDto;
+}
+
+/**
  * DTO for Query Assistant Response
  *
  * Represents the output from the RAG assistant.
@@ -186,248 +228,12 @@ export class QueryAssistantResponseDto {
     example: EXAMPLE_TIMESTAMP,
   })
   timestamp!: Date;
-}
-
-/**
- * DTO for Get Conversations Request (Query Parameters)
- *
- * Used to list conversations for a user with pagination.
- */
-export class GetConversationsDto {
-  @ApiProperty({
-    description: 'User ID to filter conversations',
-    example: EXAMPLE_USER_UUID,
-    required: true,
-  })
-  @IsUUID()
-  @IsNotEmpty()
-  userId!: string;
 
   @ApiProperty({
-    description: 'Number of conversations to return',
-    example: DEFAULT_PAGE_LIMIT,
-    minimum: MIN_PAGE_LIMIT,
-    maximum: MAX_PAGE_LIMIT,
-    required: false,
-    default: DEFAULT_PAGE_LIMIT,
-  })
-  @IsNumber()
-  @Min(MIN_PAGE_LIMIT)
-  @Max(MAX_PAGE_LIMIT)
-  @IsOptional()
-  limit?: number;
-
-  @ApiProperty({
-    description: 'Number of conversations to skip (for pagination)',
-    example: 0,
-    minimum: 0,
-    required: false,
-    default: 0,
-  })
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  offset?: number;
-
-  @ApiProperty({
-    description: 'Include inactive conversations',
-    example: false,
-    required: false,
-    default: false,
-  })
-  @IsBoolean()
-  @IsOptional()
-  includeInactive?: boolean;
-}
-
-/**
- * DTO for Message in Conversation Response
- */
-export class MessageDto {
-  @ApiProperty({
-    description: 'Message ID',
-    example: 'aa0e8400-e29b-41d4-a716-446655440005',
-  })
-  id!: string;
-
-  @ApiProperty({
-    description: 'Message role',
-    example: 'USER',
-    enum: ['USER', 'ASSISTANT', 'SYSTEM'],
-  })
-  role!: string;
-
-  @ApiProperty({
-    description: 'Message content',
-    example: 'How do I request vacation?',
-  })
-  content!: string;
-
-  @ApiProperty({
-    description: 'Message timestamp',
-    example: EXAMPLE_TIMESTAMP,
-  })
-  timestamp!: Date;
-
-  @ApiProperty({
-    description: DESC_OPTIONAL_METADATA,
-    example: { sources: [] },
+    description:
+      'RAG evaluation scores (faithfulness and relevancy). May be absent if evaluation was skipped or failed.',
+    type: EvaluationResultDto,
     required: false,
   })
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * DTO for Conversation Summary (List view)
- */
-export class ConversationSummaryDto {
-  @ApiProperty({
-    description: DESC_CONVERSATION_ID,
-    example: EXAMPLE_CONVERSATION_UUID,
-  })
-  id!: string;
-
-  @ApiProperty({
-    description: DESC_USER_ID,
-    example: EXAMPLE_USER_UUID,
-  })
-  userId!: string;
-
-  @ApiProperty({
-    description: DESC_SECTOR_ID,
-    example: EXAMPLE_SECTOR_UUID,
-  })
-  sectorId!: string;
-
-  @ApiProperty({
-    description: 'Conversation title (optional)',
-    example: 'Vacation Policy Questions',
-    required: false,
-  })
-  title?: string;
-
-  @ApiProperty({
-    description: DESC_IS_ACTIVE,
-    example: true,
-  })
-  isActive!: boolean;
-
-  @ApiProperty({
-    description: 'Number of messages in conversation',
-    example: 5,
-  })
-  messageCount!: number;
-
-  @ApiProperty({
-    description: 'Last message preview',
-    example: 'To request vacation, you need to...',
-    required: false,
-  })
-  lastMessagePreview?: string;
-
-  @ApiProperty({
-    description: 'Conversation created timestamp',
-    example: '2024-01-15T10:00:00Z',
-  })
-  createdAt!: Date;
-
-  @ApiProperty({
-    description: 'Conversation last updated timestamp',
-    example: EXAMPLE_TIMESTAMP,
-  })
-  updatedAt!: Date;
-}
-
-/**
- * DTO for Conversations List Response
- */
-export class ConversationsListDto {
-  @ApiProperty({
-    description: 'Array of conversations',
-    type: [ConversationSummaryDto],
-    isArray: true,
-  })
-  conversations!: ConversationSummaryDto[];
-
-  @ApiProperty({
-    description: 'Total number of conversations',
-    example: 42,
-  })
-  total!: number;
-
-  @ApiProperty({
-    description: 'Number of conversations returned',
-    example: 10,
-  })
-  count!: number;
-
-  @ApiProperty({
-    description: 'Current offset',
-    example: 0,
-  })
-  offset!: number;
-
-  @ApiProperty({
-    description: 'Has more conversations',
-    example: true,
-  })
-  hasMore!: boolean;
-}
-
-/**
- * DTO for Full Conversation with Messages Response
- */
-export class ConversationDetailDto {
-  @ApiProperty({
-    description: DESC_CONVERSATION_ID,
-    example: EXAMPLE_CONVERSATION_UUID,
-  })
-  id!: string;
-
-  @ApiProperty({
-    description: DESC_USER_ID,
-    example: EXAMPLE_USER_UUID,
-  })
-  userId!: string;
-
-  @ApiProperty({
-    description: DESC_SECTOR_ID,
-    example: EXAMPLE_SECTOR_UUID,
-  })
-  sectorId!: string;
-
-  @ApiProperty({
-    description: 'Conversation title (optional)',
-    example: 'Vacation Policy Questions',
-    required: false,
-  })
-  title?: string;
-
-  @ApiProperty({
-    description: DESC_IS_ACTIVE,
-    example: true,
-  })
-  isActive!: boolean;
-
-  @ApiProperty({
-    description: 'Array of messages',
-    type: [MessageDto],
-    isArray: true,
-  })
-  messages!: MessageDto[];
-
-  @ApiProperty({
-    description: 'Conversation created timestamp',
-    example: '2024-01-15T10:00:00Z',
-  })
-  createdAt!: Date;
-
-  @ApiProperty({
-    description: 'Conversation last updated timestamp',
-    example: EXAMPLE_TIMESTAMP,
-  })
-  updatedAt!: Date;
-
-  // Removed metadata property - Conversation entity doesn't have metadata
-  // Message entities have metadata, which is included in MessageDto
+  evaluation?: EvaluationResultDto;
 }

@@ -44,11 +44,11 @@ describe('AuditService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('logLogin', () => {
+  describe('logEvent', () => {
     it('should log a successful login event', async () => {
       const userId = 'user-uuid-123';
 
-      await service.logLogin(userId, mockContext);
+      await service.logEvent(AuditEventType.LOGIN, userId, mockContext);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -64,7 +64,7 @@ describe('AuditService', () => {
       const userId = 'user-uuid-123';
       const metadata = { provider: 'auth0', method: 'oauth' };
 
-      await service.logLogin(userId, mockContext, metadata);
+      await service.logEvent(AuditEventType.LOGIN, userId, mockContext, metadata);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -74,13 +74,11 @@ describe('AuditService', () => {
         }),
       );
     });
-  });
 
-  describe('logLogout', () => {
     it('should log a logout event', async () => {
       const userId = 'user-uuid-123';
 
-      await service.logLogout(userId, mockContext);
+      await service.logEvent(AuditEventType.LOGOUT, userId, mockContext);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -89,13 +87,11 @@ describe('AuditService', () => {
         }),
       );
     });
-  });
 
-  describe('logLoginFailed', () => {
     it('should log a failed login attempt without userId', async () => {
       const metadata = { error: 'Invalid token' };
 
-      await service.logLoginFailed(mockContext, metadata);
+      await service.logEvent(AuditEventType.LOGIN_FAILED, null, mockContext, metadata);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -105,14 +101,12 @@ describe('AuditService', () => {
         }),
       );
     });
-  });
 
-  describe('logAccessDenied', () => {
     it('should log an access denied event with userId', async () => {
       const userId = 'user-uuid-123';
       const metadata = { resource: '/admin/users', requiredPermission: 'users:manage' };
 
-      await service.logAccessDenied(userId, mockContext, metadata);
+      await service.logEvent(AuditEventType.ACCESS_DENIED, userId, mockContext, metadata);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -126,7 +120,7 @@ describe('AuditService', () => {
     it('should log an access denied event without userId (unauthenticated)', async () => {
       const metadata = { resource: '/admin/users' };
 
-      await service.logAccessDenied(null, mockContext, metadata);
+      await service.logEvent(AuditEventType.ACCESS_DENIED, null, mockContext, metadata);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -136,9 +130,7 @@ describe('AuditService', () => {
         }),
       );
     });
-  });
 
-  describe('logRoleChanged', () => {
     it('should log a role change event', async () => {
       const userId = 'user-uuid-123';
       const metadata = {
@@ -147,7 +139,7 @@ describe('AuditService', () => {
         changedBy: 'admin-uuid-456',
       };
 
-      await service.logRoleChanged(userId, mockContext, metadata);
+      await service.logEvent(AuditEventType.ROLE_CHANGED, userId, mockContext, metadata);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -157,14 +149,12 @@ describe('AuditService', () => {
         }),
       );
     });
-  });
 
-  describe('logTokenRevoked', () => {
     it('should log a token revocation event', async () => {
       const userId = 'user-uuid-123';
       const metadata = { jti: 'token-jti-123' };
 
-      await service.logTokenRevoked(userId, mockContext, metadata);
+      await service.logEvent(AuditEventType.TOKEN_REVOKED, userId, mockContext, metadata);
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -181,7 +171,7 @@ describe('AuditService', () => {
       repository.save.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.logLogin('user-uuid-123', mockContext),
+        service.logEvent(AuditEventType.LOGIN, 'user-uuid-123', mockContext),
       ).resolves.not.toThrow();
     });
 
@@ -189,7 +179,7 @@ describe('AuditService', () => {
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: { error: jest.Mock } }).logger, 'error');
       repository.save.mockRejectedValue(new Error('Database error'));
 
-      await service.logLogin('user-uuid-123', mockContext);
+      await service.logEvent(AuditEventType.LOGIN, 'user-uuid-123', mockContext);
 
       expect(loggerErrorSpy).toHaveBeenCalled();
     });
@@ -244,4 +234,3 @@ describe('AuditService', () => {
     });
   });
 });
-

@@ -3,7 +3,7 @@ import {
   SourceMetadata,
 } from '@modules/knowledge/domain/entities/knowledge-source.entity';
 import { KnowledgeSourceModel } from '@modules/knowledge/infrastructure/persistence/models/knowledge-source.model';
-import { SourceStatus, SourceType } from '@shared/types';
+import { SourceType } from '@shared/types';
 
 /**
  * Knowledge Source Mapper
@@ -72,7 +72,7 @@ export class KnowledgeSourceMapper {
     model.sectorId = entity.sectorId;
     model.sourceType = entity.sourceType;
     model.content = entity.content;
-    model.status = entity.status as SourceStatus;
+    model.status = entity.status;
     model.errorMessage = null;
     model.metadata = entity.metadata
       ? (entity.metadata as Record<string, unknown>)

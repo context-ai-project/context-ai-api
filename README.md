@@ -1,44 +1,93 @@
 # Context.ai API
 
-[![CI](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/ci.yml/badge.svg)](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/codeql.yml)
-[![Snyk Security](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/snyk.yml/badge.svg)](https://github.com/gromeroalfonso/context-ai-api/actions/workflows/snyk.yml)
+[![CI](https://github.com/context-ai-project/context-ai-api/actions/workflows/ci.yml/badge.svg)](https://github.com/context-ai-project/context-ai-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/context-ai-project/context-ai-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/context-ai-project/context-ai-api/actions/workflows/codeql.yml)
+[![Snyk Security](https://github.com/context-ai-project/context-ai-api/actions/workflows/snyk.yml/badge.svg)](https://github.com/context-ai-project/context-ai-api/actions/workflows/snyk.yml)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.7-blue)](https://www.typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Backend API para el sistema RAG de Context.ai.
+Backend API para **Context.ai**, un sistema de gestión de conocimiento basado en **RAG (Retrieval-Augmented Generation)** que permite a las organizaciones crear bases de conocimiento sectoriales, procesarlas con inteligencia artificial y consultar información a través de un asistente conversacional.
+
+## 🎯 Funcionalidades Principales
+
+- **Gestión de Conocimiento**: Ingesta de documentos (PDF, texto), fragmentación automática con chunking inteligente y generación de embeddings vectoriales
+- **Asistente RAG Conversacional**: Consultas en lenguaje natural con respuestas contextualizadas basadas en la base de conocimiento, con citas a fuentes originales
+- **Historial de Conversaciones**: Persistencia de conversaciones y mensajes con soporte de contexto conversacional multi-turno
+- **Multi-tenancy por Sectores**: Aislamiento completo de conocimiento por sector organizacional
+- **Autenticación con Auth0**: Validación de JWT vía JWKS (RS256) con soporte OAuth2
+- **Autorización RBAC**: Sistema interno de roles (`admin`, `manager`, `user`) y permisos granulares verificados contra base de datos
+- **Revocación de Tokens**: Mecanismo de invalidación inmediata de JWTs comprometidos
+- **Auditoría**: Registro automático de eventos de seguridad y acciones de usuario
+- **Rate Limiting**: Protección contra abuso y DDoS por endpoint con `@nestjs/throttler`
+- **Documentación API**: Swagger UI interactiva con autenticación JWT integrada
 
 ## 🏗️ Arquitectura
 
 Este proyecto sigue **Clean Architecture** con 4 capas:
 
-- **Presentation**: Controllers y DTOs
-- **Application**: Use Cases y lógica de aplicación
-- **Domain**: Entidades, Value Objects y lógica de negocio
-- **Infrastructure**: Implementación de repositorios, servicios externos
+- **Presentation**: Controllers y DTOs (validación de entrada)
+- **Application**: Use Cases (orquestación de lógica de negocio)
+- **Domain**: Entidades, Value Objects, interfaces de repositorio y lógica de negocio pura
+- **Infrastructure**: Implementación de repositorios, servicios externos (Pinecone, Auth0, Genkit)
+
+📚 Ver [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) para la documentación completa de la arquitectura.
+
+## 🚀 Stack Tecnológico
+
+### Core
+
+| Categoría | Tecnología | Versión |
+|-----------|-----------|---------|
+| **Lenguaje** | TypeScript | 5.7 |
+| **Runtime** | Node.js | 22+ |
+| **Framework** | NestJS | 11 |
+| **Package Manager** | pnpm | 8+ |
+
+### Datos y AI
+
+| Categoría | Tecnología | Detalles |
+|-----------|-----------|---------|
+| **Base de datos** | PostgreSQL | 16 (relacional) |
+| **Vector Store** | Pinecone | Búsqueda semántica de embeddings |
+| **ORM** | TypeORM | Migraciones y mapeo objeto-relacional |
+| **LLM** | Google Genkit + Gemini 2.5 Flash | Chat y respuestas RAG |
+| **Embeddings** | gemini-embedding-001 | Vectores de 3072 dimensiones |
+| **Validación schemas** | Zod | Validación de entrada/salida del flujo RAG |
+
+### Seguridad y Autenticación
+
+| Categoría | Tecnología | Detalles |
+|-----------|-----------|---------|
+| **Autenticación** | Auth0 | OAuth2 + JWT (RS256 via JWKS) |
+| **Autorización** | RBAC interno | Roles y permisos en BD |
+| **Headers** | Helmet | Seguridad HTTP |
+| **Rate Limiting** | @nestjs/throttler | Protección por endpoint |
+
+### Calidad y DevOps
+
+| Categoría | Tecnología | Detalles |
+|-----------|-----------|---------|
+| **Testing** | Jest | Unit, Integration, E2E (TDD) |
+| **Linting** | ESLint 9 + SonarJS | Análisis estático de código |
+| **Formato** | Prettier | Formato consistente |
+| **Git Hooks** | Husky + lint-staged | Pre-commit y pre-push |
+| **CI/CD** | GitHub Actions | Lint, test, build, security |
+| **Seguridad deps** | Snyk + CodeQL | Escaneo de vulnerabilidades |
+| **API Docs** | Swagger (OpenAPI) | Documentación interactiva |
+| **Contenedores** | Docker + Docker Compose | Base de datos local |
+
+### Librería Compartida
+
+| Categoría | Tecnología | Detalles |
+|-----------|-----------|---------|
+| **Shared** | @context-ai-project/shared | Tipos e interfaces compartidas con el frontend (GitHub Packages) |
 
 ## 🌿 Branching Strategy
 
-Este proyecto sigue una estrategia de branching por fases del MVP:
+Este proyecto sigue una estrategia de branching por fases del MVP con ramas `main`, `develop` y `feature/*`.
 
-- `main` - Branch principal (protegido, requiere PR)
-- `feature/phase-3-knowledge-context` - 🚧 **En desarrollo**
-- `feature/phase-4-rag-interaction` - Próximo
-- `feature/phase-6-auth-authorization` - Próximo
-- `feature/phase-7-testing-validation` - Próximo
-
-Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para más detalles.
-
-## 🚀 Tecnologías
-
-- **Framework**: NestJS 11
-- **Database**: PostgreSQL 16 + Pinecone (vector search)
-- **ORM**: TypeORM
-- **IA**: Google Genkit + Gemini 2.5 Flash
-- **Auth**: Auth0 (OAuth2 + JWT)
-- **Testing**: Jest (TDD)
-- **Validation**: class-validator
+📚 Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para detalles completos.
 
 ## 📋 Requisitos
 
@@ -46,24 +95,44 @@ Ver [docs/BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) para más detalle
 - pnpm 8+
 - Docker & Docker Compose
 - PostgreSQL 16
-- Cuenta de Pinecone (para vector embeddings)
+- Cuenta de [Pinecone](https://www.pinecone.io/) (vector store para embeddings)
+- Cuenta de [Auth0](https://auth0.com/) (autenticación OAuth2/JWT) — ver [docs/AUTH0_SETUP.md](./docs/AUTH0_SETUP.md)
+- Google API Key (para Genkit / Gemini 2.5 Flash) — ver [docs/ENVIRONMENT_VARIABLES.md](./docs/ENVIRONMENT_VARIABLES.md)
 
 ## 🛠️ Setup Local
 
-### 1. Instalar dependencias
+### 1. Configurar acceso a GitHub Packages
+
+Este proyecto usa el paquete `@context-ai-project/shared` publicado en [GitHub Packages](https://github.com/orgs/context-ai-project/packages). GitHub Packages requiere autenticación incluso para paquetes públicos.
+
+1. Crea un **Personal Access Token (Classic)** en GitHub con el scope `read:packages`:
+   - Ve a https://github.com/settings/tokens/new
+   - Marca ✅ `read:packages`
+   - Genera y copia el token
+
+2. Añade la configuración a tu `~/.npmrc` global:
+
+```bash
+echo "//npm.pkg.github.com/:_authToken=ghp_TU_TOKEN_AQUI" >> ~/.npmrc
+echo "@context-ai-project:registry=https://npm.pkg.github.com/" >> ~/.npmrc
+```
+
+> **Nota**: Esto se configura una sola vez por máquina.
+
+### 2. Instalar dependencias
 
 ```bash
 pnpm install
 ```
 
-### 2. Configurar variables de entorno
+### 3. Configurar variables de entorno
 
 ```bash
 cp .env.example .env
 # Editar .env con tus credenciales
 ```
 
-### 3. Iniciar base de datos
+### 4. Iniciar base de datos
 
 ```bash
 docker-compose up -d
@@ -71,7 +140,7 @@ docker-compose up -d
 
 **Nota**: El contenedor usa el puerto `5433` (mapeado a `5432` interno) para evitar conflictos con instalaciones locales de PostgreSQL.
 
-### 4. Verificar el setup
+### 5. Verificar el setup
 
 ```bash
 ./scripts/verify-setup.sh
@@ -79,24 +148,30 @@ docker-compose up -d
 
 Este script verifica que Docker, PostgreSQL, el servidor y Swagger estén funcionando correctamente.
 
-### 5. Vincular paquete compartido (desarrollo local)
+### 6. Desarrollo local del paquete compartido (opcional)
+
+Si necesitas modificar `@context-ai-project/shared` y probar cambios localmente sin publicar una nueva versión:
 
 ```bash
-# En context-ai-shared
-cd ../context-ai-shared
-pnpm link --global
+# Clonar el repo shared (si aún no lo tienes)
+git clone https://github.com/context-ai-project/context-ai-shared.git ../context-ai-shared
 
-# En context-ai-api
-pnpm link --global @context-ai/shared
+# Vincular localmente (sobreescribe la versión publicada)
+cd context-ai-api
+pnpm link ../context-ai-shared
+
+# Cuando termines, restaurar la versión publicada
+pnpm unlink @context-ai-project/shared
+pnpm install
 ```
 
-### 6. Ejecutar migraciones
+### 7. Ejecutar migraciones
 
 ```bash
 pnpm migration:run
 ```
 
-### 7. Sembrar datos de RBAC (Roles y Permisos)
+### 8. Sembrar datos de RBAC (Roles y Permisos)
 
 ⚠️ **IMPORTANTE**: Después de ejecutar las migraciones, debes sembrar los datos iniciales de RBAC:
 
@@ -117,7 +192,7 @@ Este comando crea:
 
 📚 Ver [docs/RBAC_SEEDING_STRATEGY.md](./docs/RBAC_SEEDING_STRATEGY.md) para detalles sobre la estrategia por environment.
 
-### 8. Iniciar servidor en modo desarrollo
+### 9. Iniciar servidor en modo desarrollo
 
 ```bash
 pnpm start:dev
@@ -143,159 +218,80 @@ pnpm test:e2e
 
 ## 🪝 Git Hooks (Husky)
 
-El proyecto utiliza Husky para garantizar la calidad del código antes de hacer commits y pushes:
+El proyecto utiliza Husky y lint-staged para garantizar la calidad del código con hooks de pre-commit y pre-push automáticos.
 
-### Pre-commit Hook
-- ✅ **Ejecuta lint-staged** en archivos modificados
-- ✅ **Corrige automáticamente** errores de formato
-- ✅ **Bloquea el commit** si hay errores de ESLint
-
-### Pre-push Hook
-- ✅ **Ejecuta todos los tests** unitarios
-- ✅ **Ejecuta el linter** en todo el código
-- ✅ **Bloquea el push** si algún test falla
-
-### Configuración
-
-Los hooks se instalan automáticamente al ejecutar `pnpm install` gracias al script `prepare`.
-
-```bash
-# Saltar hooks temporalmente (no recomendado)
-git commit --no-verify -m "mensaje"
-git push --no-verify
-```
+📚 Ver [docs/GIT_HOOKS.md](./docs/GIT_HOOKS.md) para configuración y detalles.
 
 ## 🔄 CI/CD con GitHub Actions
 
-El proyecto tiene configurados varios workflows automáticos que se ejecutan en GitHub Actions:
+El proyecto tiene configurados workflows automáticos de CI (lint, test, build, security), CodeQL, Snyk y Release que se ejecutan en GitHub Actions.
 
-### **CI Workflow** (`ci.yml`)
+📚 Ver [docs/CI_CD.md](./docs/CI_CD.md) para detalles de todos los workflows.
 
-Se ejecuta en cada push y pull request a `main` y `develop`:
+## 📚 Documentación API (Swagger)
 
-#### 1. **Lint Job**
-- ✅ Ejecuta ESLint en todo el código
-- ✅ Verifica el formato con Prettier
-- ✅ Usa cache de pnpm para optimizar velocidad
+**URL**: http://localhost:3001/api/docs — Documentación interactiva con exploración de endpoints, pruebas en vivo y autenticación JWT.
 
-#### 2. **Test Job**
-- ✅ Levanta PostgreSQL 16 como servicio
-- ✅ Ejecuta todos los tests unitarios
-- ✅ Genera reporte de cobertura
-- ✅ Sube resultados a Codecov (opcional)
-- ✅ Requiere cobertura mínima del 80%
-
-#### 3. **Build Job**
-- ✅ Compila el proyecto TypeScript
-- ✅ Verifica que el output `dist/` sea válido
-- ✅ Solo se ejecuta si lint y tests pasan
-
-#### 4. **Security Job**
-- ✅ Ejecuta `pnpm audit` para detectar vulnerabilidades
-- ✅ Reporta dependencias con problemas de seguridad
-
-### **CodeQL Workflow** (`codeql.yml`)
-
-Análisis de seguridad automático de GitHub:
-- 🔍 Analiza el código en busca de vulnerabilidades
-- 🔍 Se ejecuta en push, PR y semanalmente (lunes a las 00:00 UTC)
-- 🔍 Usa queries extendidas de seguridad y calidad
-
-### **Snyk Security Workflow** (`snyk.yml`)
-
-Escaneo de vulnerabilidades con Snyk:
-
-#### 1. **Snyk Test**
-- 🔒 Escanea dependencias npm en busca de vulnerabilidades
-- 🔒 Reporta solo severidades High y Critical
-- 🔒 Sube resultados a GitHub Security tab
-- 🔒 Se ejecuta en push, PR y diariamente
-
-#### 2. **Snyk Monitor**
-- 📊 Monitorea el proyecto continuamente en Snyk dashboard
-- 📊 Solo se ejecuta en push a main
-- 📊 Envía alertas cuando aparecen nuevas vulnerabilidades
-
-#### 3. **Snyk Docker**
-- 🐳 Escanea imágenes Docker (si existe Dockerfile)
-- 🐳 Detecta vulnerabilidades en base image y layers
-
-**Configuración**: Ver [docs/SNYK-SETUP.md](./docs/SNYK-SETUP.md) para instrucciones detalladas
-
-### **Release Workflow** (`release.yml`)
-
-Se ejecuta cuando creas un tag (ej: `v1.0.0`):
-- 📦 Ejecuta build y tests
-- 📦 Genera changelog automático
-- 📦 Crea un GitHub Release con notas
-
-### **Cómo Crear un Release**
-
-```bash
-# Crear tag localmente
-git tag -a v1.0.0 -m "Release v1.0.0"
-
-# Empujar tag a GitHub (esto dispara el workflow)
-git push origin v1.0.0
-```
-
-### **Badges de Estado**
-
-Los badges en el README muestran el estado actual de:
-- ✅ CI (tests, lint, build)
-- ✅ CodeQL (análisis de seguridad estático)
-- ✅ Snyk (escaneo de vulnerabilidades en dependencias)
-- ✅ Versión de Node.js requerida
-- ✅ Versión de TypeScript
-- ✅ Licencia del proyecto
-
-## 📚 Documentación API
-
-### Swagger UI
-
-**URL**: http://localhost:3001/api/docs
-
-La documentación interactiva de la API está disponible a través de Swagger UI, que incluye:
-
-- ✅ **Exploración completa** de todos los endpoints
-- ✅ **Pruebas en vivo** directamente desde el navegador
-- ✅ **Autenticación JWT** con Auth0
-- ✅ **Schemas de DTOs** con validaciones
-- ✅ **Respuestas de ejemplo** para cada endpoint
-- ✅ **Filtros y búsqueda** de endpoints
-- ✅ **Persistencia de autorización** entre recargas
-
-### Tags Organizados
-
-- `auth` - Autenticación y gestión de usuarios
-- `knowledge` - Gestión de fuentes de conocimiento y documentos
-- `interaction` - Chat y consultas RAG
-- `authorization` - Gestión de roles y permisos
-
-📚 **[Ver guía completa de Swagger](./docs/SWAGGER.md)** - Aprende a documentar endpoints correctamente
+📚 Ver [docs/SWAGGER.md](./docs/SWAGGER.md) para la guía completa de Swagger.
 
 ## 🏗️ Estructura del Proyecto
 
 ```
 src/
-├── config/                 # Configuración (database, auth, etc.)
+├── config/                    # Configuración centralizada
+│   ├── app.config.ts          #   Configuración general de la app
+│   ├── auth.config.ts         #   Configuración de Auth0
+│   ├── database.config.ts     #   Configuración de PostgreSQL
+│   ├── throttle.config.ts     #   Configuración de rate limiting
+│   └── typeorm.config.ts      #   Configuración de TypeORM y migraciones
 ├── modules/
-│   ├── auth/              # Autenticación (Auth0)
-│   ├── authorization/     # Autorización interna (RBAC)
-│   ├── knowledge/         # Context: Gestión de conocimiento
-│   │   ├── domain/        # Entidades y lógica de negocio
-│   │   ├── application/   # Use cases
-│   │   ├── infrastructure/# Repositorios, servicios
-│   │   └── presentation/  # Controllers
-│   └── interaction/       # Context: Chat y RAG
-├── shared/                # Código compartido
-│   ├── decorators/
-│   ├── guards/
-│   ├── interceptors/
-│   ├── filters/
-│   └── genkit/           # Configuración de Genkit
-└── main.ts
+│   ├── audit/                 # 📊 Auditoría y logging de eventos
+│   │   ├── domain/            #   Entidad AuditLog
+│   │   ├── application/       #   AuditService
+│   │   └── infrastructure/    #   Repositorio y modelo TypeORM
+│   ├── auth/                  # 🔐 Autenticación (Auth0) + Autorización (RBAC)
+│   │   ├── domain/            #   Entidades Role, Permission
+│   │   ├── application/       #   PermissionService, TokenRevocation, RBACSeeder
+│   │   ├── infrastructure/    #   Repositorios y modelos TypeORM
+│   │   ├── guards/            #   JwtAuthGuard, RBACGuard, InternalApiKeyGuard
+│   │   ├── decorators/        #   @CurrentUser, @Public, @RequirePermissions, @RequireRoles
+│   │   ├── strategies/        #   JwtStrategy (JWKS validation)
+│   │   └── types/             #   JwtPayload type
+│   ├── knowledge/             # 📚 Gestión de conocimiento (Clean Architecture)
+│   │   ├── domain/            #   Entidades, Value Objects, interfaces
+│   │   ├── application/       #   Use Cases (IngestDocument, DeleteSource)
+│   │   ├── infrastructure/    #   Repositorios, Pinecone, Chunking, Parser, Embeddings
+│   │   └── presentation/      #   Controller y DTOs
+│   ├── interaction/           # 💬 Chat RAG y conversaciones (Clean Architecture)
+│   │   ├── domain/            #   Entidades (Conversation, Message), Value Objects
+│   │   ├── application/       #   Use Case (QueryAssistant)
+│   │   ├── infrastructure/    #   Repositorios y mappers
+│   │   └── presentation/      #   Controller y DTOs
+│   └── users/                 # 👤 Gestión de usuarios
+│       ├── domain/            #   Entidad User
+│       ├── application/       #   UserService
+│       ├── infrastructure/    #   Repositorio y modelo TypeORM
+│       └── api/               #   Controller
+├── shared/                    # 🔧 Código compartido
+│   ├── genkit/                #   Configuración de Google Genkit (LLM + Embeddings)
+│   │   └── flows/             #   RAG Query Flow
+│   ├── prompts/               #   Servicio de plantillas de prompts
+│   ├── constants/             #   Constantes (tokenización, etc.)
+│   ├── types/                 #   Tipos compartidos y enums
+│   ├── utils/                 #   Utilidades (manejo de errores)
+│   ├── validators/            #   Validadores personalizados
+│   ├── decorators/            #   Decoradores compartidos
+│   ├── guards/                #   Guards compartidos
+│   ├── interceptors/          #   Interceptores
+│   └── filters/               #   Filtros de excepciones
+├── migrations/                # 🗄️ Migraciones de base de datos (TypeORM)
+├── scripts/                   # ⚙️ Scripts de utilidad (seed RBAC)
+├── swagger.ts                 # 📄 Configuración de Swagger/OpenAPI
+├── app.module.ts              # 🏠 Módulo raíz (imports, guards globales)
+└── main.ts                    # 🚀 Entry point
 ```
+
+> Cada módulo de negocio (`knowledge/`, `interaction/`) sigue **Clean Architecture** con las 4 capas. Los módulos de soporte (`auth/`, `users/`, `audit/`) siguen una estructura simplificada adaptada a sus necesidades.
 
 ## 🔐 Autenticación y Autorización
 
@@ -306,18 +302,62 @@ src/
 
 ## 📦 Dependencias Principales
 
-- `@nestjs/typeorm` - ORM integration
-- `pg` - PostgreSQL driver
-- `@pinecone-database/pinecone` - Pinecone vector database SDK
-- `@nestjs/passport` + `passport-jwt` - Autenticación JWT
-- `class-validator` - Validación de DTOs
-- `helmet` - Security headers
-- `express-rate-limit` - Rate limiting
+### Producción
+
+| Paquete | Propósito |
+|---------|-----------|
+| `@nestjs/core` + `@nestjs/common` | Framework NestJS |
+| `@nestjs/typeorm` + `pg` | ORM y driver PostgreSQL |
+| `@pinecone-database/pinecone` | SDK de Pinecone (vector store) |
+| `genkit` + `@genkit-ai/google-genai` | Google Genkit para LLM y embeddings |
+| `@nestjs/passport` + `passport-jwt` + `jwks-rsa` | Autenticación JWT con JWKS (Auth0) |
+| `@nestjs/throttler` | Rate limiting por endpoint |
+| `@nestjs/swagger` | Documentación API (OpenAPI/Swagger) |
+| `@nestjs/config` | Gestión de variables de entorno |
+| `class-validator` + `class-transformer` | Validación y transformación de DTOs |
+| `zod` | Validación de schemas (flujo RAG) |
+| `pdf-parse` | Parsing de documentos PDF |
+| `helmet` | Seguridad de headers HTTP |
+| `@context-ai-project/shared` | Tipos compartidos con el frontend |
+
+### Desarrollo
+
+| Paquete | Propósito |
+|---------|-----------|
+| `jest` + `ts-jest` | Framework de testing |
+| `supertest` | Testing HTTP (E2E) |
+| `eslint` + `eslint-plugin-sonarjs` + `eslint-plugin-security` | Análisis estático |
+| `prettier` | Formato de código |
+| `husky` + `lint-staged` | Git hooks automáticos |
+| `typescript` | Compilador TypeScript |
+
+## 📚 Documentación Adicional
+
+| Documento | Descripción |
+|-----------|-------------|
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Arquitectura completa del sistema |
+| [AUTH0_SETUP.md](./docs/AUTH0_SETUP.md) | Guía de configuración de Auth0 |
+| [BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) | Estrategia de branching por fases |
+| [CI_CD.md](./docs/CI_CD.md) | CI/CD con GitHub Actions (workflows y badges) |
+| [DATABASE_SETUP.md](./docs/DATABASE_SETUP.md) | Setup de PostgreSQL y Pinecone |
+| [ENVIRONMENT_VARIABLES.md](./docs/ENVIRONMENT_VARIABLES.md) | Variables de entorno requeridas |
+| [GIT_HOOKS.md](./docs/GIT_HOOKS.md) | Git Hooks con Husky y lint-staged |
+| [RATE_LIMITING.md](./docs/RATE_LIMITING.md) | Configuración de rate limiting |
+| [RBAC_SEEDING_STRATEGY.md](./docs/RBAC_SEEDING_STRATEGY.md) | Estrategia de seeding de roles y permisos |
+| [SECURITY_GUIDELINES.md](./docs/SECURITY_GUIDELINES.md) | Directrices de seguridad y OWASP |
+| [SNYK-SETUP.md](./docs/SNYK-SETUP.md) | Configuración de Snyk para seguridad |
+| [SWAGGER.md](./docs/SWAGGER.md) | Guía de documentación de API (Swagger) |
+| [TESTING_GUIDELINES.md](./docs/TESTING_GUIDELINES.md) | Estándares de testing (AAA, cobertura) |
+| [TOKEN_REVOCATION.md](./docs/TOKEN_REVOCATION.md) | Sistema de revocación de tokens |
 
 ## 🚢 Deployment
 
 Ver guía de deployment en la documentación del proyecto.
 
-## 📄 Licencia
+---
 
-MIT
+## 🤝 Contribución
+
+Este proyecto es parte del TFM de la Maestría en IA.
+
+Para más información, consulta la documentación en `/Context.ai/documentation/`.

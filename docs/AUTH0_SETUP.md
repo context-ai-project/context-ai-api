@@ -53,16 +53,20 @@ This represents your backend API.
 
 ### Define Permissions (Scopes)
 
-Under the **Permissions** tab, add:
+Under the **Permissions** tab, add (Auth0 uses `action:resource` format; our backend normalizes to `resource:action`):
 
-| Permission | Description |
-|-----------|-------------|
-| `read:knowledge` | View knowledge base documents |
-| `write:knowledge` | Upload/manage documents |
-| `read:conversations` | View chat history |
-| `write:conversations` | Create conversations |
-| `admin:sectors` | Manage sectors (admin only) |
-| `admin:users` | Manage users (admin only) |
+| Permission (Auth0) | Internal RBAC | Description |
+|-----------|-------------|-------------|
+| `read:chat` | `chat:read` | Interact with AI assistant |
+| `read:knowledge` | `knowledge:read` | View knowledge base documents |
+| `create:knowledge` | `knowledge:create` | Upload documents |
+| `update:knowledge` | `knowledge:update` | Edit documents |
+| `delete:knowledge` | `knowledge:delete` | Delete documents |
+| `read:profile` | `profile:read` | View own profile |
+| `update:profile` | `profile:update` | Update own profile |
+| `read:users` | `users:read` | View user information |
+| `manage:users` | `users:manage` | Manage users (admin only) |
+| `admin:system` | `system:admin` | Full system administration |
 
 ---
 
@@ -87,6 +91,9 @@ For backend-to-backend communication or testing:
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.contextai.com
 AUTH0_ISSUER=https://your-tenant.auth0.com/
+
+# Internal API Key (for server-to-server communication, e.g., NextAuth → /users/sync)
+INTERNAL_API_KEY=your-secure-random-key
 ```
 
 ### Variable Descriptions
@@ -96,6 +103,7 @@ AUTH0_ISSUER=https://your-tenant.auth0.com/
 | `AUTH0_DOMAIN` | Your Auth0 tenant domain | `contextai-dev.auth0.com` |
 | `AUTH0_AUDIENCE` | API identifier from Step 2 | `https://api.contextai.com` |
 | `AUTH0_ISSUER` | Issuer URL (domain + trailing slash) | `https://contextai-dev.auth0.com/` |
+| `INTERNAL_API_KEY` | Shared key for frontend server → backend communication (user sync) | `openssl rand -hex 32` |
 
 ### How to Get These Values
 
@@ -173,8 +181,11 @@ curl --request POST \
 
 ```bash
 # Replace {TOKEN} with your access_token
-curl -X GET http://localhost:3001/api/v1/knowledge/sources \
-  -H "Authorization: Bearer {TOKEN}"
+# Test the interaction endpoint (requires chat:read permission)
+curl -X POST http://localhost:3001/api/v1/interaction/query \
+  -H "Authorization: Bearer {TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello", "sectorId": "660e8400-e29b-41d4-a716-446655440001"}'
 ```
 
 **Expected Response**:
@@ -253,9 +264,10 @@ The backend logs authentication events via Audit Logging (Issue 6.15):
 
 ```typescript
 // Example log entries
-[AUTH] JWT validation successful for user auth0|123456
+[AUTH] JWT validation initiated { provider: 'auth0', hasEmail: true }
+[AUTH] User authenticated { userId: '12345678...', provider: 'auth0' }
 [AUTH] JWT validation failed: Token expired
-[AUTH] Permission check failed: User lacks 'write:knowledge'
+[AUTH] Permission check failed: User lacks 'knowledge:create'
 ```
 
 ---

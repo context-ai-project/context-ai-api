@@ -26,9 +26,10 @@ describe('Chat API Contract – DTO Validation', () => {
   // QueryAssistantDto
   // ====================================================================
   describe('QueryAssistantDto', () => {
+    // Note: userId is no longer in QueryAssistantDto — it comes from JWT session via @CurrentUser('userId')
+
     it('should pass validation with all required fields', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'How do I request vacation?',
       });
@@ -39,7 +40,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should pass validation with all fields (including optional)', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'How do I request vacation?',
         conversationId: VALID_CONVERSATION_UUID,
@@ -51,24 +51,8 @@ describe('Chat API Contract – DTO Validation', () => {
       expect(errors).toHaveLength(0);
     });
 
-    it('should reject invalid userId (not UUID)', async () => {
-      const dto = plainToInstance(QueryAssistantDto, {
-        userId: 'not-a-uuid',
-        sectorId: VALID_SECTOR_UUID,
-        query: 'Some question?',
-      });
-
-      const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-
-      const userIdError = errors.find((e) => e.property === 'userId');
-      expect(userIdError).toBeDefined();
-      expect(userIdError!.constraints).toHaveProperty('isUuid');
-    });
-
     it('should reject empty query', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: '',
       });
@@ -80,22 +64,8 @@ describe('Chat API Contract – DTO Validation', () => {
       expect(queryError).toBeDefined();
     });
 
-    it('should reject missing userId', async () => {
-      const dto = plainToInstance(QueryAssistantDto, {
-        sectorId: VALID_SECTOR_UUID,
-        query: 'Some question?',
-      });
-
-      const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-
-      const userIdError = errors.find((e) => e.property === 'userId');
-      expect(userIdError).toBeDefined();
-    });
-
     it('should reject missing sectorId', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         query: 'Some question?',
       });
 
@@ -108,7 +78,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should reject maxResults below minimum (1)', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'Question?',
         maxResults: 0,
@@ -124,7 +93,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should reject maxResults above maximum (20)', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'Question?',
         maxResults: 50,
@@ -140,7 +108,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should reject minSimilarity below 0', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'Question?',
         minSimilarity: -0.5,
@@ -155,7 +122,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should reject minSimilarity above 1', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'Question?',
         minSimilarity: 1.5,
@@ -170,7 +136,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should reject invalid conversationId (not UUID)', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'Question?',
         conversationId: 'not-uuid',
@@ -185,7 +150,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should accept edge-case valid values', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'Q', // minimum 1 character
         maxResults: 1,
@@ -198,7 +162,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should accept maximum valid values', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_USER_UUID,
         sectorId: VALID_SECTOR_UUID,
         query: 'A very long question that should still be valid?',
         maxResults: 20,
@@ -214,10 +177,10 @@ describe('Chat API Contract – DTO Validation', () => {
   // GetConversationsDto
   // ====================================================================
   describe('GetConversationsDto', () => {
-    it('should pass with only required fields', async () => {
-      const dto = plainToInstance(GetConversationsDto, {
-        userId: VALID_USER_UUID,
-      });
+    // Note: userId is no longer in GetConversationsDto — it comes from JWT session via @CurrentUser('userId')
+
+    it('should pass with no fields (all optional — userId from JWT)', async () => {
+      const dto = plainToInstance(GetConversationsDto, {});
 
       const errors = await validate(dto);
       expect(errors).toHaveLength(0);
@@ -225,7 +188,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should pass with all optional fields', async () => {
       const dto = plainToInstance(GetConversationsDto, {
-        userId: VALID_USER_UUID,
         limit: 25,
         offset: 10,
         includeInactive: true,
@@ -235,18 +197,8 @@ describe('Chat API Contract – DTO Validation', () => {
       expect(errors).toHaveLength(0);
     });
 
-    it('should reject invalid userId', async () => {
-      const dto = plainToInstance(GetConversationsDto, {
-        userId: 'bad',
-      });
-
-      const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-    });
-
     it('should reject limit above maximum (100)', async () => {
       const dto = plainToInstance(GetConversationsDto, {
-        userId: VALID_USER_UUID,
         limit: 200,
       });
 
@@ -259,7 +211,6 @@ describe('Chat API Contract – DTO Validation', () => {
 
     it('should reject negative offset', async () => {
       const dto = plainToInstance(GetConversationsDto, {
-        userId: VALID_USER_UUID,
         offset: -1,
       });
 

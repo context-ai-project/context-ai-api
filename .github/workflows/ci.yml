@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   lint:
     name: Lint
@@ -41,6 +45,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Run ESLint
         run: pnpm lint
@@ -97,6 +103,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Run unit tests
         run: pnpm test
@@ -166,6 +174,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Build application
         run: pnpm build

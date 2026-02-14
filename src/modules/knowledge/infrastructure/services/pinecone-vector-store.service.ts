@@ -10,12 +10,12 @@ import type {
   VectorSearchResult,
   VectorMetadata,
 } from '../../domain/services/vector-store.interface';
+import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 
 // Constants (OWASP: Magic Numbers)
 const BATCH_SIZE = 100;
 const DEFAULT_SEARCH_LIMIT = 5;
 const DEFAULT_MIN_SCORE = 0.7;
-const UNKNOWN_ERROR_MESSAGE = 'Unknown error';
 
 /**
  * Type for Pinecone match result from query
@@ -142,11 +142,10 @@ export class PineconeVectorStore implements IVectorStore {
         `Successfully upserted ${inputs.length} vectors to namespace ${sectorId}`,
       );
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : UNKNOWN_ERROR_MESSAGE;
+      const errorMessage = extractErrorMessage(error);
       this.logger.error(
         `Failed to upsert vectors: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
+        extractErrorStack(error),
       );
       throw new Error(`Failed to upsert vectors to Pinecone: ${errorMessage}`);
     }
@@ -201,11 +200,10 @@ export class PineconeVectorStore implements IVectorStore {
 
       return results;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : UNKNOWN_ERROR_MESSAGE;
+      const errorMessage = extractErrorMessage(error);
       this.logger.error(
         `Failed to search vectors: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
+        extractErrorStack(error),
       );
       throw new Error(`Failed to search vectors in Pinecone: ${errorMessage}`);
     }
@@ -231,11 +229,10 @@ export class PineconeVectorStore implements IVectorStore {
         `Deleted vectors for sourceId ${sourceId} from namespace ${sectorId}`,
       );
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : UNKNOWN_ERROR_MESSAGE;
+      const errorMessage = extractErrorMessage(error);
       this.logger.error(
         `Failed to delete vectors: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
+        extractErrorStack(error),
       );
       throw new Error(
         `Failed to delete vectors from Pinecone: ${errorMessage}`,
@@ -254,9 +251,9 @@ export class PineconeVectorStore implements IVectorStore {
       await this.index.describeIndexStats();
       return true;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : UNKNOWN_ERROR_MESSAGE;
-      this.logger.error(`Pinecone health check failed: ${errorMessage}`);
+      this.logger.error(
+        `Pinecone health check failed: ${extractErrorMessage(error)}`,
+      );
       return false;
     }
   }

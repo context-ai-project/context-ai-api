@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SourceType } from '@shared/types';
+import { extractErrorMessage } from '@shared/utils';
 import pdf from 'pdf-parse';
 
 // Type definition for pdf-parse result (based on @types/pdf-parse)
@@ -12,6 +13,29 @@ interface PdfParseResult {
 // Constants for buffer validation and parsing
 const PDF_SIGNATURE_LENGTH = 4;
 const PDF_SIGNATURE = '%PDF';
+
+/**
+ * Named regex patterns for Markdown syntax stripping.
+ * Each pattern handles a specific Markdown syntax element.
+ * Extracted as constants for readability, testability, and maintainability.
+ */
+const MARKDOWN_PATTERNS: ReadonlyArray<{
+  pattern: RegExp;
+  replacement: string;
+}> = [
+  { pattern: /^#{1,6}\s+/gm, replacement: '' }, // headers
+  { pattern: /(\*\*|__)(.*?)\1/g, replacement: '$2' }, // bold
+  { pattern: /[*_]([^*_]+)[*_]/g, replacement: '$1' }, // italic
+  { pattern: /~~([^~]+)~~/g, replacement: '$1' }, // strikethrough
+  { pattern: /!\[([^\]]{0,200})\]\(([^)]{1,500})\)/g, replacement: '$1' }, // images
+  { pattern: /\[([^\]]{1,500})\]\(([^)]{1,500})\)/g, replacement: '$1 ($2)' }, // links
+  { pattern: /```[a-z]{0,20}\n?([^`]{1,10000})```/g, replacement: '$1' }, // code blocks
+  { pattern: /`([^`]+)`/g, replacement: '$1' }, // inline code
+  { pattern: /^(\*{3,}|-{3,}|_{3,})$/gm, replacement: '' }, // horizontal rules
+  { pattern: /^>\s+/gm, replacement: '' }, // blockquotes
+  { pattern: /^\s{0,10}[-*+]\s+/gm, replacement: '' }, // unordered lists
+  { pattern: /^\s{0,10}\d+\.\s+/gm, replacement: '' }, // ordered lists
+];
 
 /**
  * Document Parser Service
@@ -61,11 +85,12 @@ export class DocumentParserService {
       // Normalize the extracted text
       const content = this.normalizeContent(data.text);
 
-      // Extract metadata
-      const pdfInfo: Record<string, string> = {};
-      const info: Record<string, unknown> = data.info;
+      // Extract metadata using Map to avoid bracket-notation security warnings
+      // Guard against missing data.info (some PDFs omit metadata)
+      const info: Record<string, unknown> =
+        data.info && typeof data.info === 'object' ? data.info : {};
 
-      const metadataKeys = [
+      const metadataKeys = new Set([
         'Title',
         'Author',
         'Subject',
@@ -74,22 +99,21 @@ export class DocumentParserService {
         'Producer',
         'CreationDate',
         'ModDate',
-      ];
+      ]);
 
-      for (const key of metadataKeys) {
-        // eslint-disable-next-line security/detect-object-injection -- Safe: key is from predefined array of known PDF metadata keys
-        const value: unknown = info[key];
-        if (typeof value === 'string') {
-          // eslint-disable-next-line security/detect-object-injection -- Safe: key is from predefined array of known PDF metadata keys
-          pdfInfo[key] = value;
+      const pdfInfoEntries: Array<[string, string]> = [];
+      for (const [key, value] of Object.entries(info)) {
+        if (metadataKeys.has(key) && typeof value === 'string') {
+          pdfInfoEntries.push([key, value]);
         }
       }
+      const pdfInfo: Record<string, string> =
+        Object.fromEntries(pdfInfoEntries);
 
-      const pdfType: SourceType = 'PDF' as SourceType;
       const pages: number = data.numpages;
 
       const parsedMetadata: ParsedDocument['metadata'] = {
-        sourceType: pdfType,
+        sourceType: SourceType.PDF,
         parsedAt: new Date().toISOString(),
         originalSize: buffer.length,
         pages,
@@ -101,9 +125,7 @@ export class DocumentParserService {
         metadata: parsedMetadata,
       };
     } catch (error) {
-      throw new Error(
-        `Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      throw new Error(`Failed to parse PDF: ${extractErrorMessage(error)}`);
     }
   }
 
@@ -121,9 +143,8 @@ export class DocumentParserService {
 
       const content = this.normalizeContent(plainText);
 
-      const markdownType: SourceType = 'MARKDOWN' as SourceType;
       const parsedMetadata: ParsedDocument['metadata'] = {
-        sourceType: markdownType,
+        sourceType: SourceType.MARKDOWN,
         parsedAt: new Date().toISOString(),
         originalSize: buffer.length,
       };
@@ -134,9 +155,7 @@ export class DocumentParserService {
       });
     } catch (error) {
       return Promise.reject(
-        new Error(
-          `Failed to parse Markdown: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        ),
+        new Error(`Failed to parse Markdown: ${extractErrorMessage(error)}`),
       );
     }
   }
@@ -178,48 +197,11 @@ export class DocumentParserService {
    * @returns Plain text without Markdown syntax
    */
   private stripMarkdownSyntax(markdown: string): string {
-    return (
-      markdown
-        // Remove headers (# Header)
-        .replace(/^#{1,6}\s+/gm, '')
-        // Remove bold (**text** or __text__)
-        .replace(/(\*\*|__)(.*?)\1/g, '$2')
-        // Remove italic (*text* or _text_) - Using character class instead of alternation
-        .replace(/[*_]([^*_]+)[*_]/g, '$1')
-        // Remove strikethrough (~~text~~)
-        .replace(/~~([^~]+)~~/g, '$1')
-        // Remove links [text](url) - Using non-greedy with atomic grouping
-        .replace(/\[([^\]]{1,500})\]\(([^)]{1,500})\)/g, '$1 ($2)')
-        // Remove images ![alt](url) - Using limited length to prevent backtracking
-        .replace(/!\[([^\]]{0,200})\]\(([^)]{1,500})\)/g, '$1')
-        // Remove code blocks ```language\ncode\n``` - Limit language identifier and use atomic match
-        .replace(/```[a-z]{0,20}\n?([^`]{1,10000})```/g, '$1')
-        // Remove inline code `code`
-        .replace(/`([^`]+)`/g, '$1')
-        // Remove horizontal rules (---, ***, ___)
-        .replace(/^(\*{3,}|-{3,}|_{3,})$/gm, '')
-        // Remove blockquotes (> text)
-        .replace(/^>\s+/gm, '')
-        // Remove list markers (-, *, +, 1.) - Limited whitespace to prevent ReDoS
-        .replace(/^\s{0,10}[-*+]\s+/gm, '')
-        .replace(/^\s{0,10}\d+\.\s+/gm, '')
-    );
-  }
-
-  /**
-   * Strips HTML tags from a string
-   * @param html - The HTML string
-   * @returns Plain text without HTML tags
-   */
-  private stripHtmlTags(html: string): string {
-    return html
-      .replace(/<[^>]{1,200}>/g, ' ') // Remove HTML tags - Limited length to prevent ReDoS
-      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-      .replace(/&lt;/g, '<') // Decode HTML entities
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&amp;/g, '&'); // Decode &amp; last to prevent double-unescaping
+    let result = markdown;
+    for (const { pattern, replacement } of MARKDOWN_PATTERNS) {
+      result = result.replace(pattern, replacement);
+    }
+    return result;
   }
 
   /**

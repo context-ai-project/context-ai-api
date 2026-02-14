@@ -236,6 +236,7 @@ describe('UserService', () => {
         email: 'test@example.com',
         name: 'Test User',
         isActive: true,
+        roles: [],
         createdAt: mockDate,
         lastLoginAt: mockDate,
       });

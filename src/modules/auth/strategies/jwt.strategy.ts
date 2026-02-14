@@ -11,6 +11,21 @@ import { JwtPayload, ValidatedUser } from '../types/jwt-payload.type';
 import { UserService } from '../../users/application/services/user.service';
 
 /**
+ * Known RBAC actions used for permission normalization.
+ * Defined at module level to avoid re-creating the Set on every request.
+ */
+const KNOWN_ACTIONS = new Set([
+  'read',
+  'write',
+  'create',
+  'update',
+  'delete',
+  'manage',
+  'list',
+  'upload',
+]);
+
+/**
  * JWT Strategy
  *
  * Validates JWT tokens from Auth0 using JWKS (JSON Web Key Set).
@@ -204,20 +219,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return permission; // Not a colon-separated pair, return as-is
     }
 
-    const knownActions = new Set([
-      'read',
-      'write',
-      'create',
-      'update',
-      'delete',
-      'manage',
-      'list',
-      'upload',
-    ]);
-
     const [first, second] = parts;
     // If the first part is a known action, it's action:resource → flip
-    if (knownActions.has(first) && !knownActions.has(second)) {
+    if (KNOWN_ACTIONS.has(first) && !KNOWN_ACTIONS.has(second)) {
       return `${second}:${first}`;
     }
 

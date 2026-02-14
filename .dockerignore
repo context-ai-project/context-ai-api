@@ -1,0 +1,56 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output
+dist
+
+# Test files
+test
+coverage
+*.spec.ts
+jest.config.*
+jest-*.json
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (secrets must be injected at runtime)
+.env
+.env.*
+!.env.example
+!**/env*.example
+
+# Documentation
+docs
+*.md
+!README.md
+LICENSE
+
+# Docker files (prevent recursive copy)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Husky hooks
+.husky
+
+# CI/CD
+.github
+
+# Temporary / debug
+*.log
+npm-debug.log*
+pnpm-debug.log*
+

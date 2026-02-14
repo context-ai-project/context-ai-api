@@ -136,6 +136,114 @@ describe('Conversation Entity', () => {
     });
   });
 
+  describe('Last Message Queries', () => {
+    it('should return last user message', () => {
+      const conversation = new Conversation(validProps);
+
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'user',
+          content: 'First user message',
+        }),
+      );
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: 'Assistant reply',
+        }),
+      );
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'user',
+          content: 'Second user message',
+        }),
+      );
+
+      const lastUserMsg = conversation.getLastUserMessage();
+
+      expect(lastUserMsg).toBeDefined();
+      expect(lastUserMsg!.content).toBe('Second user message');
+      expect(lastUserMsg!.isFromUser()).toBe(true);
+    });
+
+    it('should return last assistant message', () => {
+      const conversation = new Conversation(validProps);
+
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'user',
+          content: 'User question',
+        }),
+      );
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: 'First assistant reply',
+        }),
+      );
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'user',
+          content: 'Follow-up',
+        }),
+      );
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: 'Second assistant reply',
+        }),
+      );
+
+      const lastAssistantMsg = conversation.getLastAssistantMessage();
+
+      expect(lastAssistantMsg).toBeDefined();
+      expect(lastAssistantMsg!.content).toBe('Second assistant reply');
+      expect(lastAssistantMsg!.isFromAssistant()).toBe(true);
+    });
+
+    it('should return undefined when no user messages exist', () => {
+      const conversation = new Conversation(validProps);
+
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: 'Only assistant here',
+        }),
+      );
+
+      expect(conversation.getLastUserMessage()).toBeUndefined();
+    });
+
+    it('should return undefined when no assistant messages exist', () => {
+      const conversation = new Conversation(validProps);
+
+      conversation.addMessage(
+        new Message({
+          conversationId: conversation.id,
+          role: 'user',
+          content: 'Only user here',
+        }),
+      );
+
+      expect(conversation.getLastAssistantMessage()).toBeUndefined();
+    });
+
+    it('should return undefined for empty conversation', () => {
+      const conversation = new Conversation(validProps);
+
+      expect(conversation.getLastUserMessage()).toBeUndefined();
+      expect(conversation.getLastAssistantMessage()).toBeUndefined();
+    });
+  });
+
   describe('Conversation Context', () => {
     it('should get conversation context for RAG', () => {
       const conversation = new Conversation(validProps);

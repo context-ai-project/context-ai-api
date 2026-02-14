@@ -8,6 +8,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  HttpException,
   Logger,
   NotFoundException,
   Inject,
@@ -35,13 +36,12 @@ import type { IConversationRepository } from '../domain/repositories/conversatio
 import {
   QueryAssistantDto,
   QueryAssistantResponseDto,
-  SourceFragmentDto,
   ConversationsListDto,
-  ConversationSummaryDto,
   ConversationDetailDto,
-  MessageDto,
 } from './dtos/query-assistant.dto';
+import { InteractionDtoMapper } from './mappers/interaction-dto.mapper';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 
 /**
  * Interaction Controller
@@ -79,6 +79,17 @@ import { RequirePermissions } from '../../auth/decorators/require-permissions.de
 const ERROR_NOT_FOUND = 'Conversation not found';
 const ERROR_UNKNOWN = 'Unknown error';
 
+// Constants for pagination defaults
+const DEFAULT_PAGE_LIMIT = 10;
+const DEFAULT_PAGE_OFFSET = 0;
+
+// Rate limit constants (CS-17: extracted from inline magic numbers)
+const RATE_LIMIT_TTL_MS = 60_000;
+const RATE_LIMIT_QUERY = 30;
+const RATE_LIMIT_LIST = 50;
+const RATE_LIMIT_GET = 60;
+const RATE_LIMIT_DELETE = 20;
+
 // Constants for API documentation
 const API_UNAUTHORIZED_DESC =
   'Authentication required - Missing or invalid JWT token';
@@ -99,6 +110,22 @@ export class InteractionController {
   ) {}
 
   /**
+   * Centralized error handler for controller methods.
+   * Re-throws HTTP exceptions as-is, wraps unknown errors, logs, and throws.
+   *
+   * @param err - The caught error (unknown)
+   * @param context - Description of the failed operation for logging
+   */
+  private handleControllerError(err: unknown, context: string): never {
+    if (err instanceof HttpException) {
+      throw err;
+    }
+    const error = err instanceof Error ? err : new Error(ERROR_UNKNOWN);
+    this.logger.error(`${context}: ${error.message}`, error.stack);
+    throw error;
+  }
+
+  /**
    * Query the assistant
    *
    * POST /interaction/query
@@ -114,7 +141,7 @@ export class InteractionController {
   @Post('query')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(['chat:read'])
-  @Throttle({ medium: { limit: 30, ttl: 60000 } }) // 30 queries per minute
+  @Throttle({ medium: { limit: RATE_LIMIT_QUERY, ttl: RATE_LIMIT_TTL_MS } })
   @ApiOperation({
     summary: 'Query the assistant',
     description:
@@ -139,7 +166,7 @@ export class InteractionController {
         message: {
           type: 'array',
           items: { type: 'string' },
-          example: ['userId must be a UUID', 'query should not be empty'],
+          example: ['sectorId must be a UUID', 'query should not be empty'],
         },
         error: { type: 'string', example: 'Bad Request' },
       },
@@ -178,38 +205,26 @@ export class InteractionController {
   })
   async query(
     @Body() dto: QueryAssistantDto,
+    @CurrentUser('userId') userId: string,
   ): Promise<QueryAssistantResponseDto> {
     const LOG_QUERY_MAX_LENGTH = 50;
     this.logger.log(
-      `Query from user ${dto.userId} in sector ${dto.sectorId}: "${dto.query.substring(0, LOG_QUERY_MAX_LENGTH)}..."`,
+      `Query from user ${userId} in sector ${dto.sectorId}: "${dto.query.substring(0, LOG_QUERY_MAX_LENGTH)}..."`,
     );
 
     try {
-      // Execute use case
+      // Execute use case — userId comes from JWT session, not from body
       const result = await this.queryAssistantUseCase.execute({
-        userId: dto.userId,
-        sectorId: dto.sectorId,
+        userContext: { userId, sectorId: dto.sectorId },
         query: dto.query,
         conversationId: dto.conversationId,
-        maxResults: dto.maxResults,
-        minSimilarity: dto.minSimilarity,
+        searchOptions: {
+          maxResults: dto.maxResults,
+          minSimilarity: dto.minSimilarity,
+        },
       });
 
-      // Map to DTO
-      const response: QueryAssistantResponseDto = {
-        response: result.response,
-        conversationId: result.conversationId,
-        sources: result.sources.map(
-          (source): SourceFragmentDto => ({
-            id: source.id,
-            content: source.content,
-            sourceId: source.sourceId,
-            similarity: source.similarity,
-            metadata: source.metadata,
-          }),
-        ),
-        timestamp: result.timestamp,
-      };
+      const response = InteractionDtoMapper.toQueryResponse(result);
 
       this.logger.log(
         `Query completed: conversation ${response.conversationId}, ${response.sources.length} sources`,
@@ -217,9 +232,7 @@ export class InteractionController {
 
       return response;
     } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(ERROR_UNKNOWN);
-      this.logger.error(`Query failed: ${error.message}`, error.stack);
-      throw error;
+      this.handleControllerError(err, 'Query failed');
     }
   }
 
@@ -232,7 +245,7 @@ export class InteractionController {
    *
    * **Rate Limit**: 50 requests per minute
    *
-   * @param userId - User ID
+   * @param userId - User ID (from JWT session)
    * @param limit - Maximum number of conversations to return (default: 10)
    * @param offset - Number of conversations to skip (default: 0)
    * @param includeInactive - Include inactive conversations (default: false)
@@ -241,7 +254,7 @@ export class InteractionController {
   @Get('conversations')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(['chat:read'])
-  @Throttle({ medium: { limit: 50, ttl: 60000 } }) // 50 requests per minute
+  @Throttle({ medium: { limit: RATE_LIMIT_LIST, ttl: RATE_LIMIT_TTL_MS } })
   @ApiOperation({
     summary: 'Get conversations for a user',
     description:
@@ -251,12 +264,6 @@ export class InteractionController {
       '\n\n**Rate Limit**: 50 requests per minute' +
       '\n\n' +
       API_REQUIRED_PERMISSION_CHAT_READ,
-  })
-  @ApiQuery({
-    name: 'userId',
-    description: 'User ID to filter conversations',
-    required: true,
-    type: String,
   })
   @ApiQuery({
     name: 'limit',
@@ -297,74 +304,40 @@ export class InteractionController {
     description: 'Too many requests. Rate limit: 50 requests per minute',
   })
   async getConversations(
-    @Query('userId') userId: string,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @CurrentUser('userId') userId: string,
+    @Query('limit', new DefaultValuePipe(DEFAULT_PAGE_LIMIT), ParseIntPipe)
+    limit: number,
+    @Query('offset', new DefaultValuePipe(DEFAULT_PAGE_OFFSET), ParseIntPipe)
+    offset: number,
     @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe)
     includeInactive: boolean,
   ): Promise<ConversationsListDto> {
-    // Note: userId validation should be done against authenticated user in production
-    const effectiveLimit = limit;
-    const effectiveOffset = offset;
-    const effectiveIncludeInactive = includeInactive;
-
     this.logger.log(
-      `Getting conversations for user ${userId} (limit: ${effectiveLimit}, offset: ${effectiveOffset})`,
+      `Getting conversations for user ${userId} (limit: ${limit}, offset: ${offset})`,
     );
 
     try {
       // Fetch conversations and total count
       const [conversations, total] = await Promise.all([
         this.conversationRepository.findByUserId(userId, {
-          limit: effectiveLimit,
-          offset: effectiveOffset,
-          includeInactive: effectiveIncludeInactive,
+          limit,
+          offset,
+          includeInactive,
         }),
         this.conversationRepository.countByUserId(userId),
       ]);
 
-      // Map to DTOs
-      const conversationDtos: ConversationSummaryDto[] = [];
-      for (const conv of conversations) {
-        const lastMessage =
-          conv.messages.length > 0
-            ? conv.messages[conv.messages.length - 1]
-            : undefined;
-
-        const dto: ConversationSummaryDto = {
-          id: conv.id,
-          userId: conv.userId,
-          sectorId: conv.sectorId,
-          title: undefined,
-          isActive: conv.isActive(),
-          messageCount: conv.messages.length,
-          lastMessagePreview: lastMessage?.content,
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
-        };
-        conversationDtos.push(dto);
-      }
-
-      const response: ConversationsListDto = {
-        conversations: conversationDtos,
+      const response = InteractionDtoMapper.toConversationsList(
+        conversations,
         total,
-        count: conversationDtos.length,
-        offset: effectiveOffset,
-        hasMore: effectiveOffset + conversationDtos.length < total,
-      };
-
-      this.logger.log(
-        `Retrieved ${conversationDtos.length} of ${total} conversations`,
+        offset,
       );
+
+      this.logger.log(`Retrieved ${response.count} of ${total} conversations`);
 
       return response;
     } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(ERROR_UNKNOWN);
-      this.logger.error(
-        `Failed to get conversations: ${error.message}`,
-        error.stack,
-      );
-      throw error;
+      this.handleControllerError(err, 'Failed to get conversations');
     }
   }
 
@@ -378,13 +351,13 @@ export class InteractionController {
    * **Rate Limit**: 60 requests per minute
    *
    * @param id - Conversation ID
-   * @param userId - User ID (for authorization)
+   * @param userId - User ID (from JWT session)
    * @returns Full conversation with messages
    */
   @Get('conversations/:id')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(['chat:read'])
-  @Throttle({ medium: { limit: 60, ttl: 60000 } }) // 60 requests per minute
+  @Throttle({ medium: { limit: RATE_LIMIT_GET, ttl: RATE_LIMIT_TTL_MS } })
   @ApiOperation({
     summary: 'Get conversation by ID',
     description:
@@ -397,12 +370,6 @@ export class InteractionController {
   @ApiParam({
     name: 'id',
     description: 'Conversation ID',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'userId',
-    description: 'User ID for authorization',
-    required: true,
     type: String,
   })
   @ApiResponse({
@@ -424,7 +391,7 @@ export class InteractionController {
   })
   async getConversationById(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @CurrentUser('userId') userId: string,
   ): Promise<ConversationDetailDto> {
     this.logger.log(`Getting conversation ${id} for user ${userId}`);
 
@@ -435,47 +402,15 @@ export class InteractionController {
         throw new NotFoundException(ERROR_NOT_FOUND);
       }
 
-      // Map to DTO
-      const messageDtos: MessageDto[] = [];
-      for (const msg of conversation.messages) {
-        const dto: MessageDto = {
-          id: msg.id ?? '',
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.createdAt,
-          metadata: msg.metadata, // Map message metadata
-        };
-        messageDtos.push(dto);
-      }
-
-      const response: ConversationDetailDto = {
-        id: conversation.id,
-        userId: conversation.userId,
-        sectorId: conversation.sectorId,
-        title: undefined,
-        isActive: conversation.isActive(),
-        messages: messageDtos,
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-        // Removed metadata - Conversation entity doesn't have metadata
-      };
+      const response = InteractionDtoMapper.toConversationDetail(conversation);
 
       this.logger.log(
-        `Retrieved conversation ${id} with ${messageDtos.length} messages`,
+        `Retrieved conversation ${id} with ${response.messages.length} messages`,
       );
 
       return response;
     } catch (err: unknown) {
-      if (err instanceof NotFoundException) {
-        throw err;
-      }
-
-      const error = err instanceof Error ? err : new Error(ERROR_UNKNOWN);
-      this.logger.error(
-        `Failed to get conversation: ${error.message}`,
-        error.stack,
-      );
-      throw error;
+      this.handleControllerError(err, 'Failed to get conversation');
     }
   }
 
@@ -489,12 +424,12 @@ export class InteractionController {
    * **Rate Limit**: 20 deletes per minute
    *
    * @param id - Conversation ID
-   * @param userId - User ID (for authorization)
+   * @param userId - User ID (from JWT session)
    */
   @Delete('conversations/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions(['chat:read'])
-  @Throttle({ medium: { limit: 20, ttl: 60000 } }) // 20 deletes per minute
+  @Throttle({ medium: { limit: RATE_LIMIT_DELETE, ttl: RATE_LIMIT_TTL_MS } })
   @ApiOperation({
     summary: 'Delete conversation',
     description:
@@ -507,12 +442,6 @@ export class InteractionController {
   @ApiParam({
     name: 'id',
     description: 'Conversation ID',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'userId',
-    description: 'User ID for authorization',
-    required: true,
     type: String,
   })
   @ApiResponse({
@@ -533,7 +462,7 @@ export class InteractionController {
   })
   async deleteConversation(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @CurrentUser('userId') userId: string,
   ): Promise<void> {
     this.logger.log(`Deleting conversation ${id} for user ${userId}`);
 
@@ -550,16 +479,7 @@ export class InteractionController {
 
       this.logger.log(`Successfully deleted conversation ${id}`);
     } catch (err: unknown) {
-      if (err instanceof NotFoundException) {
-        throw err;
-      }
-
-      const error = err instanceof Error ? err : new Error(ERROR_UNKNOWN);
-      this.logger.error(
-        `Failed to delete conversation: ${error.message}`,
-        error.stack,
-      );
-      throw error;
+      this.handleControllerError(err, 'Failed to delete conversation');
     }
   }
 }

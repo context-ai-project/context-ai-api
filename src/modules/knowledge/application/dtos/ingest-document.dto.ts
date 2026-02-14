@@ -1,4 +1,4 @@
-import { SourceType } from '@shared/types';
+import { SourceType, SourceStatus } from '@shared/types';
 
 /**
  * DTO for document ingestion request
@@ -65,7 +65,7 @@ export interface IngestDocumentResult {
   /**
    * Processing status
    */
-  status: 'COMPLETED' | 'FAILED';
+  status: SourceStatus.COMPLETED | SourceStatus.FAILED;
 
   /**
    * Optional error message if processing failed

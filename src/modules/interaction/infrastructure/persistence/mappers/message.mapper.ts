@@ -3,7 +3,10 @@ import {
   MessageProps,
 } from '@modules/interaction/domain/entities/message.entity';
 import { MessageModel } from '../models/message.model';
-import { MessageRole } from '@modules/interaction/domain/value-objects/message-role.vo';
+import {
+  MessageRole,
+  isValidMessageRole,
+} from '@modules/interaction/domain/value-objects/message-role.vo';
 
 /**
  * Message Mapper
@@ -24,7 +27,14 @@ export class MessageMapper {
    * @returns Domain entity
    */
   static toDomain(model: MessageModel): Message {
-    const role: MessageRole = model.role as MessageRole;
+    // Widen to string for runtime validation — DB could have corrupt data
+    const rawRole: string = String(model.role);
+    if (!isValidMessageRole(rawRole)) {
+      throw new Error(
+        `Invalid message role in database: "${rawRole}". Expected: user, assistant, or system`,
+      );
+    }
+    const role: MessageRole = rawRole;
     const metadata: Record<string, unknown> | undefined = model.metadata
       ? model.metadata
       : undefined;

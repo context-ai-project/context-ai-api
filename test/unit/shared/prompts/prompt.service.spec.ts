@@ -3,7 +3,8 @@ import {
   PromptService,
   PromptType,
   PromptContext,
-} from '@shared/prompts/prompt.service';
+  defaultPromptService,
+} from '@shared/prompts';
 
 describe('PromptService', () => {
   let promptService: PromptService;
@@ -339,6 +340,69 @@ describe('PromptService', () => {
       );
 
       expect(prompt).toContain('Content');
+    });
+  });
+
+  describe('getSystemPrompt', () => {
+    it('should return the system prompt for a valid type', () => {
+      const prompt = promptService.getSystemPrompt(PromptType.ONBOARDING);
+
+      expect(prompt).toContain('onboarding assistant');
+      expect(prompt).toContain('IMPORTANT INSTRUCTIONS');
+    });
+
+    it('should return different prompts for each type', () => {
+      const onboarding = promptService.getSystemPrompt(PromptType.ONBOARDING);
+      const policy = promptService.getSystemPrompt(PromptType.POLICY);
+      const procedure = promptService.getSystemPrompt(PromptType.PROCEDURE);
+      const general = promptService.getSystemPrompt(PromptType.GENERAL);
+
+      expect(onboarding).not.toBe(policy);
+      expect(policy).not.toBe(procedure);
+      expect(procedure).not.toBe(general);
+    });
+
+    it('should throw for an unknown prompt type', () => {
+      expect(() =>
+        promptService.getSystemPrompt('unknown' as PromptType),
+      ).toThrow('Unknown prompt type: unknown');
+    });
+  });
+
+  describe('getAvailableTypes', () => {
+    it('should return all prompt types', () => {
+      const types = promptService.getAvailableTypes();
+
+      expect(types).toContain(PromptType.ONBOARDING);
+      expect(types).toContain(PromptType.POLICY);
+      expect(types).toContain(PromptType.PROCEDURE);
+      expect(types).toContain(PromptType.GENERAL);
+      expect(types).toHaveLength(4);
+    });
+  });
+
+  describe('buildPrompt error handling', () => {
+    it('should throw for an unknown prompt type', () => {
+      const context: PromptContext = {
+        query: 'Test',
+        fragments: [],
+      };
+
+      expect(() =>
+        promptService.buildPrompt('invalid' as PromptType, context),
+      ).toThrow('Unknown prompt type: invalid');
+    });
+  });
+
+  describe('defaultPromptService', () => {
+    it('should be a PromptService instance', () => {
+      expect(defaultPromptService).toBeInstanceOf(PromptService);
+    });
+
+    it('should be functional', () => {
+      const types = defaultPromptService.getAvailableTypes();
+
+      expect(types).toHaveLength(4);
     });
   });
 });

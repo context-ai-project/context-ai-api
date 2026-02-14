@@ -14,33 +14,18 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { QueryAssistantDto } from '../../src/modules/interaction/presentation/dtos/query-assistant.dto';
 
-const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const VALID_SECTOR = '660e8400-e29b-41d4-a716-446655440001';
+
+// Note: userId is no longer in QueryAssistantDto — it comes from JWT session via @CurrentUser('userId').
+// UUID fields tested here are sectorId and conversationId (the only UUID fields in the body).
 
 describe('Security: Input Validation (Phase 7.14)', () => {
   // ====================================================================
   // SQL Injection
   // ====================================================================
   describe('SQL Injection Protection', () => {
-    it('should reject SQL injection in userId field', async () => {
-      const dto = plainToInstance(QueryAssistantDto, {
-        userId: "'; DROP TABLE users; --",
-        sectorId: VALID_SECTOR,
-        query: 'Normal question here',
-      });
-
-      const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-
-      const userIdError = errors.find((e) => e.property === 'userId');
-      expect(userIdError).toBeDefined();
-      // userId must be a UUID — SQL injection attempt is rejected
-      expect(userIdError!.constraints).toHaveProperty('isUuid');
-    });
-
     it('should reject SQL injection in sectorId field', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: "1 OR 1=1; --",
         query: 'Normal question',
       });
@@ -51,9 +36,23 @@ describe('Security: Input Validation (Phase 7.14)', () => {
       expect(sectorError!.constraints).toHaveProperty('isUuid');
     });
 
+    it('should reject SQL DROP TABLE injection in sectorId field', async () => {
+      const dto = plainToInstance(QueryAssistantDto, {
+        sectorId: "'; DROP TABLE sectors; --",
+        query: 'Normal question here',
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+
+      const sectorError = errors.find((e) => e.property === 'sectorId');
+      expect(sectorError).toBeDefined();
+      // sectorId must be a UUID — SQL injection attempt is rejected
+      expect(sectorError!.constraints).toHaveProperty('isUuid');
+    });
+
     it('should reject SQL UNION injection in conversationId', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: VALID_SECTOR,
         query: 'Normal question',
         conversationId: "' UNION SELECT * FROM pg_catalog.pg_tables --",
@@ -68,7 +67,6 @@ describe('Security: Input Validation (Phase 7.14)', () => {
       // The query field is free-text; SQL content is valid user input.
       // Protection happens at the ORM layer (parameterized queries).
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: VALID_SECTOR,
         query: "SELECT * FROM users WHERE '1'='1'",
       });
@@ -84,23 +82,21 @@ describe('Security: Input Validation (Phase 7.14)', () => {
   // XSS Protection
   // ====================================================================
   describe('XSS Protection', () => {
-    it('should reject XSS payload in userId (not a valid UUID)', async () => {
+    it('should reject XSS payload in sectorId (not a valid UUID)', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: '<script>alert("XSS")</script>',
-        sectorId: VALID_SECTOR,
+        sectorId: '<script>alert("XSS")</script>',
         query: 'Normal question',
       });
 
       const errors = await validate(dto);
-      const userIdError = errors.find((e) => e.property === 'userId');
-      expect(userIdError).toBeDefined();
+      const sectorError = errors.find((e) => e.property === 'sectorId');
+      expect(sectorError).toBeDefined();
     });
 
     it('query field accepts HTML-like content (free text)', async () => {
       // Like SQL, XSS in the query field is handled by output encoding,
       // not by input validation of the search query itself.
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: VALID_SECTOR,
         query: '<img src=x onerror=alert(1)>What about vacation policy?',
       });
@@ -114,10 +110,9 @@ describe('Security: Input Validation (Phase 7.14)', () => {
   // Type Coercion / Invalid Types
   // ====================================================================
   describe('Type Coercion Protection', () => {
-    it('should reject numeric userId', async () => {
+    it('should reject numeric sectorId', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: 12345,
-        sectorId: VALID_SECTOR,
+        sectorId: 12345,
         query: 'A question',
       });
 
@@ -127,7 +122,6 @@ describe('Security: Input Validation (Phase 7.14)', () => {
 
     it('should reject boolean query', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: VALID_SECTOR,
         query: true,
       });
@@ -138,8 +132,7 @@ describe('Security: Input Validation (Phase 7.14)', () => {
 
     it('should reject array for scalar field', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: [VALID_UUID],
-        sectorId: VALID_SECTOR,
+        sectorId: [VALID_SECTOR],
         query: 'Question?',
       });
 
@@ -149,7 +142,6 @@ describe('Security: Input Validation (Phase 7.14)', () => {
 
     it('should reject negative numbers for maxResults', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: VALID_SECTOR,
         query: 'Question',
         maxResults: -5,
@@ -176,10 +168,9 @@ describe('Security: Input Validation (Phase 7.14)', () => {
     ];
 
     invalidUUIDs.forEach((badUuid) => {
-      it(`should reject "${badUuid}" as userId`, async () => {
+      it(`should reject "${badUuid}" as sectorId`, async () => {
         const dto = plainToInstance(QueryAssistantDto, {
-          userId: badUuid,
-          sectorId: VALID_SECTOR,
+          sectorId: badUuid,
           query: 'Question',
         });
 

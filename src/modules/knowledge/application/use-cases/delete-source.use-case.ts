@@ -5,6 +5,8 @@ import type {
   DeleteSourceDto,
   DeleteSourceResult,
 } from '@modules/knowledge/application/dtos/delete-source.dto';
+import { isValidUUID, requireNonEmpty } from '@shared/validators';
+import { extractErrorMessage } from '@shared/utils';
 
 /**
  * Use Case: Delete Knowledge Source
@@ -77,10 +79,8 @@ export class DeleteSourceUseCase {
         `Vectors deleted from Pinecone for source ${dto.sourceId}`,
       );
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn(
-        `Failed to delete vectors from Pinecone for source ${dto.sourceId}: ${errorMessage}. Continuing with PostgreSQL cleanup.`,
+        `Failed to delete vectors from Pinecone for source ${dto.sourceId}: ${extractErrorMessage(error)}. Continuing with PostgreSQL cleanup.`,
       );
     }
 
@@ -112,22 +112,14 @@ export class DeleteSourceUseCase {
    * @throws {Error} If validation fails
    */
   private validateInput(dto: DeleteSourceDto): void {
-    if (!dto.sourceId || dto.sourceId.trim() === '') {
-      throw new Error('SourceId cannot be empty');
-    }
+    requireNonEmpty(dto.sourceId, 'SourceId');
+    requireNonEmpty(dto.sectorId, 'SectorId');
 
-    if (!dto.sectorId || dto.sectorId.trim() === '') {
-      throw new Error('SectorId cannot be empty');
-    }
-
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidRegex.test(dto.sourceId.trim())) {
+    if (!isValidUUID(dto.sourceId)) {
       throw new Error('SourceId must be a valid UUID');
     }
 
-    if (!uuidRegex.test(dto.sectorId.trim())) {
+    if (!isValidUUID(dto.sectorId)) {
       throw new Error('SectorId must be a valid UUID');
     }
   }

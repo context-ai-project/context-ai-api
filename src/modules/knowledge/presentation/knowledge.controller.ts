@@ -1,9 +1,11 @@
 import {
   Controller,
+  Get,
   Post,
   Delete,
   Param,
   Query,
+  Inject,
   UseInterceptors,
   UploadedFile,
   Body,
@@ -13,15 +15,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  IsString,
-  IsUUID,
-  IsEnum,
-  IsOptional,
-  IsObject,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -29,7 +22,6 @@ import {
   ApiConsumes,
   ApiBody,
   ApiResponse,
-  ApiProperty,
   ApiParam,
   ApiQuery,
   ApiBearerAuth,
@@ -38,12 +30,24 @@ import {
 } from '@nestjs/swagger';
 import { IngestDocumentUseCase } from '../application/use-cases/ingest-document.use-case';
 import { DeleteSourceUseCase } from '../application/use-cases/delete-source.use-case';
+import type { IKnowledgeRepository } from '../domain/repositories/knowledge.repository.interface';
 import type {
   IngestDocumentDto,
   IngestDocumentResult,
 } from '../application/dtos/ingest-document.dto';
 import type { DeleteSourceResult } from '../application/dtos/delete-source.dto';
+import {
+  UploadDocumentDto,
+  IngestDocumentResponseDto,
+  ErrorResponseDto,
+} from './dtos/knowledge.dto';
+import type {
+  KnowledgeSourceDto,
+  KnowledgeSourceDetailDto,
+} from './dtos/knowledge.dto';
 import { SourceType } from '@shared/types';
+import { isValidUUID } from '@shared/validators';
+import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 
 /**
@@ -68,122 +72,26 @@ const MAX_TITLE_LENGTH = 255;
 const MIME_PDF = 'application/pdf';
 const MIME_MARKDOWN = 'text/markdown';
 const MIME_TEXT = 'text/plain';
+const MIME_OCTET_STREAM = 'application/octet-stream';
 const ALLOWED_MIME_TYPES = [MIME_PDF, MIME_MARKDOWN, MIME_TEXT];
+
+// File extensions accepted when MIME type is generic (e.g. application/octet-stream)
+const EXTENSION_MIME_MAP: Record<string, string[]> = {
+  '.pdf': [MIME_PDF],
+  '.md': [MIME_MARKDOWN, MIME_OCTET_STREAM, MIME_TEXT],
+  '.txt': [MIME_TEXT, MIME_OCTET_STREAM],
+};
 
 // Example UUIDs for documentation
 const EXAMPLE_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const EXAMPLE_DOCUMENT_TITLE = 'Employee Handbook 2024';
 
+// API description constants (avoid duplication)
+const API_AUTH_REQUIRED_DESC =
+  'Authentication required - Missing or invalid JWT token';
+
 // API descriptions
 const DESC_DOCUMENT_TITLE = 'Document title';
-
-/**
- * DTO for document upload request
- * Used for Swagger documentation and validation
- */
-class UploadDocumentDto {
-  @ApiProperty({
-    description: DESC_DOCUMENT_TITLE,
-    example: EXAMPLE_DOCUMENT_TITLE,
-    minLength: 1,
-    maxLength: MAX_TITLE_LENGTH,
-  })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(MAX_TITLE_LENGTH)
-  title!: string;
-
-  @ApiProperty({
-    description: 'Sector/context identifier',
-    example: EXAMPLE_UUID,
-    format: 'uuid',
-  })
-  @IsUUID()
-  sectorId!: string;
-
-  @ApiProperty({
-    description: 'Source type',
-    enum: ['PDF', 'MARKDOWN', 'URL'],
-    example: 'PDF',
-  })
-  @IsEnum(['PDF', 'MARKDOWN', 'URL'])
-  sourceType!: SourceType;
-
-  @ApiProperty({
-    description: 'Optional metadata for the document',
-    required: false,
-    example: { author: 'HR Department', version: '1.0' },
-  })
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * DTO for successful document ingestion response
- */
-class IngestDocumentResponseDto {
-  @ApiProperty({
-    description: 'Created knowledge source ID',
-    example: EXAMPLE_UUID,
-  })
-  sourceId!: string;
-
-  @ApiProperty({
-    description: DESC_DOCUMENT_TITLE,
-    example: EXAMPLE_DOCUMENT_TITLE,
-  })
-  title!: string;
-
-  @ApiProperty({
-    description: 'Number of fragments created',
-    example: 15,
-  })
-  fragmentCount!: number;
-
-  @ApiProperty({
-    description: 'Content size in bytes',
-    example: 45678,
-  })
-  contentSize!: number;
-
-  @ApiProperty({
-    description: 'Processing status',
-    example: 'COMPLETED',
-    enum: ['COMPLETED', 'FAILED'],
-  })
-  status!: string;
-
-  @ApiProperty({
-    description: 'Error message if processing failed',
-    required: false,
-    example: null,
-  })
-  errorMessage?: string;
-}
-
-/**
- * DTO for error response
- */
-class ErrorResponseDto {
-  @ApiProperty({
-    description: 'HTTP status code',
-    example: 400,
-  })
-  statusCode!: number;
-
-  @ApiProperty({
-    description: 'Error message',
-    example: 'File is required',
-  })
-  message!: string;
-
-  @ApiProperty({
-    description: 'Error type',
-    example: 'Bad Request',
-  })
-  error!: string;
-}
 
 /**
  * Knowledge Controller
@@ -206,7 +114,161 @@ export class KnowledgeController {
   constructor(
     private readonly ingestDocumentUseCase: IngestDocumentUseCase,
     private readonly deleteSourceUseCase: DeleteSourceUseCase,
+    @Inject('IKnowledgeRepository')
+    private readonly knowledgeRepository: IKnowledgeRepository,
   ) {}
+
+  /**
+   * List all knowledge sources (documents)
+   *
+   * Returns all non-deleted knowledge sources with metadata.
+   * Optionally filter by sectorId.
+   *
+   * @param sectorId - Optional sector filter
+   * @returns Array of knowledge source DTOs
+   */
+  @Get('documents')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['knowledge:read'])
+  @ApiOperation({
+    summary: 'List all knowledge sources',
+    description:
+      'Returns all active knowledge sources with metadata. ' +
+      'Optionally filter by sectorId. ' +
+      '\n\n**Required Permission:** knowledge:read',
+  })
+  @ApiQuery({
+    name: 'sectorId',
+    description: 'Filter by sector UUID',
+    example: EXAMPLE_UUID,
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of knowledge sources',
+  })
+  @ApiUnauthorizedResponse({
+    description: API_AUTH_REQUIRED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied - Requires knowledge:read permission',
+  })
+  async listDocuments(
+    @Query('sectorId') sectorId?: string,
+  ): Promise<KnowledgeSourceDto[]> {
+    if (sectorId && !isValidUUID(sectorId)) {
+      throw new BadRequestException('sectorId must be a valid UUID');
+    }
+
+    const sectorInfo = sectorId ? ' (sector: ' + sectorId + ')' : '';
+    this.logger.log('List documents request' + sectorInfo);
+
+    try {
+      const sources = sectorId
+        ? await this.knowledgeRepository.findSourcesBySector(sectorId)
+        : await this.knowledgeRepository.findAllSources();
+
+      return sources.map((source) => ({
+        id: source.id ?? '',
+        title: source.title,
+        sectorId: source.sectorId,
+        sourceType: source.sourceType,
+        status: source.status,
+        metadata: source.metadata ?? null,
+        createdAt: source.createdAt.toISOString(),
+        updatedAt: source.updatedAt.toISOString(),
+      }));
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to list documents: ${extractErrorMessage(error)}`,
+        { sectorId, error: extractErrorStack(error) },
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get a knowledge source detail by ID
+   *
+   * Returns the document metadata, original content, and fragment count.
+   *
+   * @param sourceId - The knowledge source ID
+   * @returns Knowledge source detail with content
+   */
+  @Get('documents/:sourceId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(['knowledge:read'])
+  @ApiOperation({
+    summary: 'Get a knowledge source detail',
+    description:
+      'Returns the full detail of a knowledge source including content and fragment count. ' +
+      '\n\n**Required Permission:** knowledge:read',
+  })
+  @ApiParam({
+    name: 'sourceId',
+    description: 'Knowledge source UUID',
+    example: EXAMPLE_UUID,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Knowledge source detail',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Knowledge source not found',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: API_AUTH_REQUIRED_DESC,
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied - Requires knowledge:read permission',
+  })
+  async getDocumentDetail(
+    @Param('sourceId') sourceId: string,
+  ): Promise<KnowledgeSourceDetailDto> {
+    this.logger.log('Get document detail: ' + sourceId);
+
+    if (!isValidUUID(sourceId)) {
+      throw new BadRequestException('sourceId must be a valid UUID');
+    }
+
+    try {
+      const source = await this.knowledgeRepository.findSourceById(sourceId);
+
+      if (!source) {
+        throw new NotFoundException('Knowledge source not found: ' + sourceId);
+      }
+
+      const fragmentCount =
+        await this.knowledgeRepository.countFragmentsBySource(sourceId);
+
+      return {
+        id: source.id ?? '',
+        title: source.title,
+        sectorId: source.sectorId,
+        sourceType: source.sourceType,
+        status: source.status,
+        metadata: source.metadata ?? null,
+        content: source.content,
+        fragmentCount,
+        createdAt: source.createdAt.toISOString(),
+        updatedAt: source.updatedAt.toISOString(),
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      this.logger.error(
+        'Failed to get document detail: ' + extractErrorMessage(error),
+        { sourceId, error: extractErrorStack(error) },
+      );
+      throw error;
+    }
+  }
 
   /**
    * Upload and ingest a document into the knowledge base
@@ -279,7 +341,7 @@ export class KnowledgeController {
     type: ErrorResponseDto,
   })
   @ApiUnauthorizedResponse({
-    description: 'Authentication required - Missing or invalid JWT token',
+    description: API_AUTH_REQUIRED_DESC,
   })
   @ApiForbiddenResponse({
     description: 'Access denied - Requires knowledge:create permission',
@@ -315,12 +377,11 @@ export class KnowledgeController {
       );
     }
 
-    // Validate MIME type
+    // Validate MIME type (with extension-based fallback for browsers that send generic MIME)
     const fileMimeType = String(uploadedFile.mimetype);
-    const allowedTypes: string[] = ALLOWED_MIME_TYPES;
-    if (!allowedTypes.includes(fileMimeType)) {
+    if (!this.isAllowedFileType(fileMimeType, uploadedFile.originalname)) {
       throw new BadRequestException(
-        `Invalid file type. Allowed types: ${allowedTypes.join(', ')}`,
+        `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
       );
     }
 
@@ -349,14 +410,14 @@ export class KnowledgeController {
 
       return result;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-
-      this.logger.error(`Document ingestion failed: ${errorMessage}`, {
-        title: dto.title,
-        sourceType: dto.sourceType,
-        error: error instanceof Error ? error.stack : undefined,
-      });
+      this.logger.error(
+        `Document ingestion failed: ${extractErrorMessage(error)}`,
+        {
+          title: dto.title,
+          sourceType: dto.sourceType,
+          error: extractErrorStack(error),
+        },
+      );
 
       // Re-throw to be handled by NestJS exception filters
       throw error;
@@ -410,7 +471,7 @@ export class KnowledgeController {
     type: ErrorResponseDto,
   })
   @ApiUnauthorizedResponse({
-    description: 'Authentication required - Missing or invalid JWT token',
+    description: API_AUTH_REQUIRED_DESC,
   })
   @ApiForbiddenResponse({
     description: 'Access denied - Requires knowledge:delete permission',
@@ -426,14 +487,11 @@ export class KnowledgeController {
       throw new BadRequestException('sectorId query parameter is required');
     }
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidRegex.test(sourceId.trim())) {
+    if (!isValidUUID(sourceId)) {
       throw new BadRequestException('sourceId must be a valid UUID');
     }
 
-    if (!uuidRegex.test(sectorId.trim())) {
+    if (!isValidUUID(sectorId)) {
       throw new BadRequestException('sectorId must be a valid UUID');
     }
 
@@ -449,8 +507,7 @@ export class KnowledgeController {
 
       return result;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
 
       // Map domain errors to HTTP errors
       if (errorMessage.includes('not found')) {
@@ -464,7 +521,7 @@ export class KnowledgeController {
       this.logger.error(`Source deletion failed: ${errorMessage}`, {
         sourceId,
         sectorId,
-        error: error instanceof Error ? error.stack : undefined,
+        error: extractErrorStack(error),
       });
 
       throw error;
@@ -479,6 +536,37 @@ export class KnowledgeController {
    *
    * Security: Input validation to prevent injection and malformed data
    */
+  /**
+   * Check if a file type is allowed based on MIME type or file extension
+   *
+   * Browsers often send .md files as application/octet-stream,
+   * so we fall back to extension-based validation when the MIME type
+   * is generic or unrecognized.
+   *
+   * @param mimeType - The detected MIME type
+   * @param filename - The original filename
+   * @returns true if the file type is allowed
+   */
+  private isAllowedFileType(mimeType: string, filename: string): boolean {
+    // Direct MIME type match
+    if (ALLOWED_MIME_TYPES.includes(mimeType)) {
+      return true;
+    }
+
+    // Extension-based fallback for generic MIME types (e.g. application/octet-stream)
+    const extensionMatch = /\.[^.]+$/.exec(filename.toLowerCase());
+    const extension = extensionMatch?.[0] ?? '';
+    const acceptedMimes = EXTENSION_MIME_MAP[extension];
+    if (acceptedMimes && acceptedMimes.includes(mimeType)) {
+      this.logger.log(
+        `File accepted by extension fallback: ${filename} (mime: ${mimeType}, ext: ${extension})`,
+      );
+      return true;
+    }
+
+    return false;
+  }
+
   private validateUploadDto(dto: UploadDocumentDto): void {
     // Validate title
     if (!dto.title || dto.title.trim().length === 0) {
@@ -497,14 +585,12 @@ export class KnowledgeController {
     }
 
     // Basic UUID format validation (after trimming)
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(dto.sectorId.trim())) {
+    if (!isValidUUID(dto.sectorId)) {
       throw new BadRequestException('SectorId must be a valid UUID');
     }
 
-    // Validate sourceType
-    const validSourceTypes = ['PDF', 'MARKDOWN', 'URL'];
+    // Validate sourceType using SourceType enum (single source of truth)
+    const validSourceTypes = Object.values(SourceType) as string[];
     const sourceTypeStr = String(dto.sourceType);
     if (!dto.sourceType || !validSourceTypes.includes(sourceTypeStr)) {
       throw new BadRequestException(

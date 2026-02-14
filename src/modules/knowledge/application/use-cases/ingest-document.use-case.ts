@@ -19,11 +19,24 @@ import type {
   IngestDocumentDto,
   IngestDocumentResult,
 } from '@modules/knowledge/application/dtos/ingest-document.dto';
+import { SourceStatus } from '@shared/types';
+import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 
 // Constants for validation (OWASP: Magic Numbers)
 const MIN_BUFFER_SIZE = 1;
 const MIN_TITLE_LENGTH = 1;
 const MIN_SECTOR_ID_LENGTH = 1;
+
+/**
+ * Parameter object for vector store upsert operation.
+ * Groups related parameters that always travel together.
+ */
+interface VectorIndexPayload {
+  fragments: Fragment[];
+  embeddings: number[][];
+  sourceId: string;
+  sectorId: string;
+}
 
 /**
  * Use Case: Ingest Document
@@ -71,142 +84,216 @@ export class IngestDocumentUseCase {
    */
   async execute(dto: IngestDocumentDto): Promise<IngestDocumentResult> {
     this.logger.log(`Starting document ingestion: ${dto.title}`);
+    let savedSource: KnowledgeSource | undefined;
 
     try {
-      // Step 1: Validate input
       this.validateInput(dto);
 
-      // Step 2: Parse document
-      this.logger.debug('Parsing document...');
-      const parsed = await this.parserService.parse(dto.buffer, dto.sourceType);
-
-      // Step 3: Create KnowledgeSource entity
-      this.logger.debug('Creating knowledge source entity...');
-      const source = new KnowledgeSource({
-        title: dto.title,
+      const parsed = await this.parseDocument(dto);
+      savedSource = await this.createAndPersistSource(dto, parsed);
+      const { chunks, embeddings } = await this.chunkAndEmbed(parsed.content);
+      const savedFragments = await this.persistFragments(
+        chunks,
+        savedSource.id!,
+      );
+      await this.upsertToVectorStore({
+        fragments: savedFragments,
+        embeddings,
+        sourceId: savedSource.id!,
         sectorId: dto.sectorId,
-        sourceType: dto.sourceType,
-        content: parsed.content,
-        metadata: {
-          ...dto.metadata,
-          ...parsed.metadata,
-        } as SourceMetadata,
       });
+      await this.markSourceCompleted(savedSource);
 
-      // Set status to PROCESSING
-      source.markAsProcessing();
-
-      // Step 4: Save source (initial save with PROCESSING status)
-      this.logger.debug('Saving knowledge source...');
-      const savedSource = await this.repository.saveSource(source);
-
-      if (!savedSource.id) {
-        throw new Error('Failed to save knowledge source: ID not generated');
-      }
-
-      // Step 5: Chunk content
-      this.logger.debug('Chunking content...');
-      const chunks: TextChunk[] = this.chunkingService.chunk(parsed.content);
-      this.logger.debug(`Created ${chunks.length} chunks`);
-
-      // Step 6: Generate embeddings
-      this.logger.debug('Generating embeddings...');
-      const chunkTexts: string[] = chunks.map(
-        (chunk: TextChunk) => chunk.content,
+      return this.buildResult(
+        savedSource,
+        savedFragments.length,
+        parsed.content,
       );
-      const embeddings: number[][] =
-        await this.embeddingService.generateDocumentEmbeddings(chunkTexts);
-
-      // Step 7: Create Fragment entities (without embeddings - stored in Pinecone)
-      this.logger.debug('Creating fragment entities...');
-      const fragments: Fragment[] = chunks.map(
-        (chunk: TextChunk) =>
-          new Fragment({
-            sourceId: savedSource.id!,
-            content: chunk.content,
-            position: chunk.position,
-            tokenCount: chunk.tokens,
-            metadata: {
-              startIndex: chunk.startIndex,
-              endIndex: chunk.endIndex,
-              tokens: chunk.tokens,
-            },
-          }),
-      );
-
-      // Step 8: Save fragments to PostgreSQL
-      this.logger.debug('Saving fragments to PostgreSQL...');
-      const savedFragments = await this.repository.saveFragments(fragments);
-
-      // Step 9: Upsert embeddings to Pinecone vector store
-      this.logger.debug('Upserting embeddings to Pinecone...');
-
-      // Guard: embedding and fragment arrays must be the same length
-      if (embeddings.length !== savedFragments.length) {
-        throw new Error(
-          `Embedding/fragment count mismatch: got ${embeddings.length} embeddings for ${savedFragments.length} fragments`,
-        );
-      }
-
-      const vectorInputs: VectorUpsertInput[] = savedFragments.map(
-        (fragment: Fragment, index: number) => ({
-          id: fragment.id!,
-          // Safe: index from map() is guaranteed to be valid array index within embeddings array
-          // eslint-disable-next-line security/detect-object-injection
-          embedding: embeddings[index],
-          metadata: {
-            sourceId: savedSource.id!,
-            sectorId: dto.sectorId,
-            content: fragment.content,
-            position: fragment.position,
-            tokenCount: fragment.tokenCount,
-          },
-        }),
-      );
-      await this.vectorStore.upsertVectors(vectorInputs);
-
-      // Step 10: Update source status to COMPLETED
-      this.logger.debug('Updating source status to COMPLETED...');
-      try {
-        savedSource.markAsCompleted();
-        await this.repository.saveSource(savedSource);
-      } catch (statusError: unknown) {
-        // Vectors + fragments are already persisted; log the inconsistency
-        // but do NOT re-throw — the data is usable even if status lags.
-        const msg =
-          statusError instanceof Error ? statusError.message : 'Unknown error';
-        this.logger.error(
-          `Failed to mark source ${savedSource.id} as COMPLETED after successful ingestion: ${msg}`,
-        );
-      }
-
-      // Step 11: Build result
-      const result: IngestDocumentResult = {
-        sourceId: savedSource.id,
-        title: savedSource.title,
-        fragmentCount: savedFragments.length,
-        contentSize: Buffer.byteLength(parsed.content, 'utf8'),
-        status: 'COMPLETED',
-      };
-
-      this.logger.log(
-        `Document ingestion completed: ${result.sourceId} (${result.fragmentCount} fragments)`,
-      );
-
-      return result;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      // Mark the source as FAILED if it was already persisted
+      if (savedSource) {
+        try {
+          savedSource.markAsFailed(extractErrorMessage(error));
+          await this.repository.saveSource(savedSource);
+        } catch (statusError: unknown) {
+          this.logger.error(
+            `Failed to mark source ${savedSource.id} as FAILED: ${extractErrorMessage(statusError)}`,
+          );
+        }
+      }
 
-      this.logger.error(`Document ingestion failed: ${errorMessage}`, {
-        title: dto.title,
-        sectorId: dto.sectorId,
-        error: error instanceof Error ? error.stack : undefined,
-      });
-
-      // Re-throw the error to be handled by the controller
+      this.logger.error(
+        `Document ingestion failed: ${extractErrorMessage(error)}`,
+        {
+          title: dto.title,
+          sectorId: dto.sectorId,
+          error: extractErrorStack(error),
+        },
+      );
       throw error;
     }
+  }
+
+  /**
+   * Parses the raw document buffer into structured content
+   */
+  private async parseDocument(
+    dto: IngestDocumentDto,
+  ): Promise<{ content: string; metadata: Record<string, unknown> }> {
+    this.logger.debug('Parsing document...');
+    return this.parserService.parse(dto.buffer, dto.sourceType);
+  }
+
+  /**
+   * Creates a KnowledgeSource entity and persists it with PROCESSING status
+   */
+  private async createAndPersistSource(
+    dto: IngestDocumentDto,
+    parsed: { content: string; metadata: Record<string, unknown> },
+  ): Promise<KnowledgeSource> {
+    this.logger.debug('Creating and saving knowledge source...');
+    const source = new KnowledgeSource({
+      title: dto.title,
+      sectorId: dto.sectorId,
+      sourceType: dto.sourceType,
+      content: parsed.content,
+      metadata: {
+        ...dto.metadata,
+        ...parsed.metadata,
+      } as SourceMetadata,
+    });
+    source.markAsProcessing();
+
+    const savedSource = await this.repository.saveSource(source);
+    if (!savedSource.id) {
+      throw new Error('Failed to save knowledge source: ID not generated');
+    }
+    return savedSource;
+  }
+
+  /**
+   * Chunks the content and generates embeddings in parallel-ready steps
+   */
+  private async chunkAndEmbed(
+    content: string,
+  ): Promise<{ chunks: TextChunk[]; embeddings: number[][] }> {
+    this.logger.debug('Chunking content...');
+    const chunks: TextChunk[] = this.chunkingService.chunk(content);
+    this.logger.debug(`Created ${chunks.length} chunks`);
+
+    this.logger.debug('Generating embeddings...');
+    const chunkTexts: string[] = chunks.map(
+      (chunk: TextChunk) => chunk.content,
+    );
+    const embeddings: number[][] =
+      await this.embeddingService.generateDocumentEmbeddings(chunkTexts);
+
+    return { chunks, embeddings };
+  }
+
+  /**
+   * Creates Fragment entities and saves them to PostgreSQL
+   */
+  private async persistFragments(
+    chunks: TextChunk[],
+    sourceId: string,
+  ): Promise<Fragment[]> {
+    this.logger.debug('Creating and saving fragment entities...');
+    const fragments: Fragment[] = chunks.map(
+      (chunk: TextChunk) =>
+        new Fragment({
+          sourceId,
+          content: chunk.content,
+          position: chunk.position,
+          tokenCount: chunk.tokens,
+          metadata: {
+            startIndex: chunk.startIndex,
+            endIndex: chunk.endIndex,
+            tokens: chunk.tokens,
+          },
+        }),
+    );
+    return this.repository.saveFragments(fragments);
+  }
+
+  /**
+   * Upserts fragment embeddings to Pinecone vector store.
+   * Uses fragment.position as a stable key to align embeddings with fragments,
+   * ensuring correct mapping even if the repository reorders fragments.
+   */
+  private async upsertToVectorStore(
+    payload: VectorIndexPayload,
+  ): Promise<void> {
+    this.logger.debug('Upserting embeddings to Pinecone...');
+
+    const { fragments, embeddings, sourceId, sectorId } = payload;
+
+    if (embeddings.length !== fragments.length) {
+      throw new Error(
+        `Embedding/fragment count mismatch: got ${embeddings.length} embeddings for ${fragments.length} fragments`,
+      );
+    }
+
+    // Build map keyed by position (stable across reordering) instead of index
+    const embeddingsMap = new Map(embeddings.map((e, i) => [i, e]));
+
+    // Sort fragments by position to align with original embedding order
+    const orderedFragments = [...fragments].sort(
+      (a, b) => a.position - b.position,
+    );
+
+    const vectorInputs: VectorUpsertInput[] = orderedFragments.map(
+      (fragment: Fragment, index: number) => ({
+        id: fragment.id!,
+        embedding: embeddingsMap.get(index)!,
+        metadata: {
+          sourceId,
+          sectorId,
+          content: fragment.content,
+          position: fragment.position,
+          tokenCount: fragment.tokenCount,
+        },
+      }),
+    );
+    await this.vectorStore.upsertVectors(vectorInputs);
+  }
+
+  /**
+   * Marks source as COMPLETED and rethrows on failure so the execute-level
+   * error handler can mark the source as FAILED.
+   */
+  private async markSourceCompleted(
+    savedSource: KnowledgeSource,
+  ): Promise<void> {
+    this.logger.debug('Updating source status to COMPLETED...');
+    savedSource.markAsCompleted();
+    await this.repository.saveSource(savedSource);
+  }
+
+  /**
+   * Builds the final ingestion result DTO.
+   * Derives status from the actual saved source entity rather than hardcoding.
+   */
+  private buildResult(
+    savedSource: KnowledgeSource,
+    fragmentCount: number,
+    content: string,
+  ): IngestDocumentResult {
+    const result: IngestDocumentResult = {
+      sourceId: savedSource.id!,
+      title: savedSource.title,
+      fragmentCount,
+      contentSize: Buffer.byteLength(content, 'utf8'),
+      status:
+        (savedSource.status as SourceStatus.COMPLETED | SourceStatus.FAILED) ??
+        SourceStatus.COMPLETED,
+    };
+
+    this.logger.log(
+      `Document ingestion completed: ${result.sourceId} (${result.fragmentCount} fragments)`,
+    );
+
+    return result;
   }
 
   /**

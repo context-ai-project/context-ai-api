@@ -90,6 +90,38 @@ describe('MessageMapper', () => {
       expect(entity.role).toBe('system');
       expect(entity.isSystemMessage()).toBe(true);
     });
+
+    it('should throw error for invalid role from database', () => {
+      const model: MessageModel = {
+        id: 'msg-1',
+        conversationId: testConversationId,
+        role: 'invalid_role',
+        content: 'Some message',
+        metadata: null,
+        createdAt: new Date(),
+        conversation: {} as ConversationModel,
+      };
+
+      expect(() => MessageMapper.toDomain(model)).toThrow(
+        'Invalid message role in database: "invalid_role". Expected: user, assistant, or system',
+      );
+    });
+
+    it('should throw error for empty role from database', () => {
+      const model: MessageModel = {
+        id: 'msg-1',
+        conversationId: testConversationId,
+        role: '',
+        content: 'Some message',
+        metadata: null,
+        createdAt: new Date(),
+        conversation: {} as ConversationModel,
+      };
+
+      expect(() => MessageMapper.toDomain(model)).toThrow(
+        'Invalid message role in database',
+      );
+    });
   });
 
   describe('toModel', () => {

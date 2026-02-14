@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
       security-events: write
       actions: read
 
@@ -34,6 +35,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
@@ -79,6 +82,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PKG_READ_TOKEN }}
 
       - name: Monitor with Snyk
         uses: snyk/actions/node@master

@@ -103,6 +103,7 @@ export class Message {
 
   /**
    * Get content length
+   * @planned Phase 6 — Analytics dashboard: message metrics
    */
   public getContentLength(): number {
     return this._content.length;
@@ -115,9 +116,8 @@ export class Message {
     if (!this._metadata) {
       return undefined;
     }
-    // Safe: metadata is a Record with known structure
-    // eslint-disable-next-line security/detect-object-injection
-    return this._metadata[key];
+    const metadataMap = new Map(Object.entries(this._metadata));
+    return metadataMap.get(key);
   }
 
   /**
@@ -129,6 +129,7 @@ export class Message {
 
   /**
    * Format message for display
+   * @planned Phase 6 — Conversation export / admin panel rendering
    */
   public formatForDisplay(): string {
     return `[${this._role}] ${this._content}`;

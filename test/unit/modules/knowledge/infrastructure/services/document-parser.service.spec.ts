@@ -206,6 +206,40 @@ function hello() {
       expect(result.content).toContain('example.com');
     });
 
+    it('should handle images in markdown without leaving stray characters', async () => {
+      // Arrange — image syntax ![alt](url) must be processed before link syntax [text](url)
+      const markdown = 'See this image ![Company Logo](https://example.com/logo.png) in the doc.';
+      const buffer = Buffer.from(markdown, 'utf-8');
+
+      // Act
+      const result = await service.parse(buffer, SourceType.MARKDOWN);
+
+      // Assert
+      expect(result.content).toContain('Company Logo');
+      // Should NOT contain the leftover '!' from incorrect regex ordering
+      expect(result.content).not.toContain('!');
+      // Should NOT contain the image URL in the output
+      expect(result.content).not.toContain('https://example.com/logo.png');
+    });
+
+    it('should handle mixed images and links in markdown', async () => {
+      // Arrange
+      const markdown = 'Image: ![alt text](https://img.com/pic.jpg) and link: [click here](https://example.com)';
+      const buffer = Buffer.from(markdown, 'utf-8');
+
+      // Act
+      const result = await service.parse(buffer, SourceType.MARKDOWN);
+
+      // Assert
+      expect(result.content).toContain('alt text');
+      expect(result.content).toContain('click here');
+      expect(result.content).toContain('example.com');
+      // Image URL should NOT appear in output
+      expect(result.content).not.toContain('https://img.com/pic.jpg');
+      // No stray '!' characters
+      expect(result.content).not.toContain('!');
+    });
+
     it('should throw error for empty markdown buffer', async () => {
       // Arrange
       const emptyBuffer = Buffer.alloc(0);

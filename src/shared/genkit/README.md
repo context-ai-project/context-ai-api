@@ -5,8 +5,8 @@ This directory contains the Google Genkit configuration for Context.AI API.
 ## Overview
 
 Google Genkit is our AI framework for:
-- **LLM Operations**: Gemini 1.5 Pro for chat and RAG responses
-- **Embeddings**: text-embedding-005 for vector generation (768 dimensions)
+- **LLM Operations**: Gemini 2.5 Flash for chat and RAG responses
+- **Embeddings**: gemini-embedding-001 for vector generation (3072 dimensions)
 
 ## Files
 
@@ -25,12 +25,12 @@ Optional:
 
 ### Models
 
-**LLM Model**: `googleai/gemini-1.5-pro`
+**LLM Model**: `googleai/gemini-2.5-flash`
 - Used for: Chat responses, RAG generation
 - Configuration: See `GENKIT_CONFIG.LLM_MODEL`
 
 **Embedding Model**: `googleai/gemini-embedding-001`
-- Dimensions: 768
+- Dimensions: 3072
 - Used for: Document chunking, semantic search
 - Configuration: See `GENKIT_CONFIG.EMBEDDING_MODEL`
 
@@ -114,12 +114,12 @@ For unit tests, mock the Genkit instance:
 jest.mock('@shared/genkit/genkit.config', () => ({
   genkit: jest.fn(() => ({
     generate: jest.fn().mockResolvedValue({ text: 'Mocked response' }),
-    embed: jest.fn().mockResolvedValue(new Array(768).fill(0.1)),
+    embed: jest.fn().mockResolvedValue(new Array(3072).fill(0.1)),
   })),
   GENKIT_CONFIG: {
-    LLM_MODEL: 'googleai/gemini-1.5-pro',
-    EMBEDDING_MODEL: 'googleai/text-embedding-005',
-    EMBEDDING_DIMENSIONS: 768,
+    LLM_MODEL: 'googleai/gemini-2.5-flash',
+    EMBEDDING_MODEL: 'googleai/gemini-embedding-001',
+    EMBEDDING_DIMENSIONS: 3072,
   },
 }));
 ```
@@ -148,7 +148,7 @@ Set `GENKIT_ENV=dev` to enable verbose logging.
 - **Rate limiting**: Respect Google AI rate limits
 
 ### LLM Generation
-- **Context size**: Gemini 1.5 Pro supports large context (up to 1M tokens)
+- **Context size**: Gemini 2.5 Flash supports large context (up to 1M tokens)
 - **Token efficiency**: Use RAG config for factual responses (lower temperature)
 
 ## Security
@@ -163,7 +163,7 @@ Set `GENKIT_ENV=dev` to enable verbose logging.
 - [Genkit Documentation](https://genkit.dev/docs)
 - [Google AI Studio](https://aistudio.google.com/)
 - [Gemini API Docs](https://ai.google.dev/docs)
-- [text-embedding-005](https://ai.google.dev/models/text-embedding-005)
+- [gemini-embedding-001](https://ai.google.dev/gemini-api/docs/embeddings)
 
 ## Troubleshooting
 
@@ -184,7 +184,7 @@ Set `GENKIT_ENV=dev` to enable verbose logging.
 
 ## Future Enhancements
 
-- [ ] Add support for Gemini 1.5 Flash (faster, cheaper)
+- [x] Migrated to Gemini 2.5 Flash (faster, cost-effective)
 - [ ] Implement embedding caching layer
 - [ ] Add telemetry and observability
 - [ ] Support for custom Genkit plugins

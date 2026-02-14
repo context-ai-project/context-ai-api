@@ -10,13 +10,13 @@ This guide explains how to set up and work with the PostgreSQL database for Cont
 
 ```bash
 # Start PostgreSQL
-npm run db:create
+pnpm db:create
 
 # Check if it's running
 docker ps | grep context-ai-postgres
 ```
 
-The database will be available at `localhost:5432` with:
+The database will be available at `localhost:5433` (Docker maps port `5433:5432`) with:
 - Database: `context_ai_db`
 - User: `context_ai_user`
 - Password: `context_ai_pass`
@@ -25,10 +25,10 @@ The database will be available at `localhost:5432` with:
 
 ```bash
 # Run all pending migrations
-npm run migration:run
+pnpm migration:run
 
 # Show migration status
-npm run migration:show
+pnpm migration:show
 ```
 
 ### 3. Verify Setup
@@ -54,7 +54,7 @@ docker exec -it context-ai-postgres psql -U context_ai_user -d context_ai_db
 ```bash
 # Make changes to your entities first (*.model.ts files)
 # Then generate a migration based on the changes
-npm run migration:generate -- AddNewColumn
+pnpm migration:generate -- AddNewColumn
 
 # This will create a file in src/migrations/
 ```
@@ -63,7 +63,7 @@ npm run migration:generate -- AddNewColumn
 
 ```bash
 # For complex changes, create an empty migration manually
-npm run migration:create -- CustomMigration
+pnpm migration:create -- CustomMigration
 
 # Then edit the file in src/migrations/
 ```
@@ -72,10 +72,10 @@ npm run migration:create -- CustomMigration
 
 ```bash
 # Run all pending migrations
-npm run migration:run
+pnpm migration:run
 
 # Revert the last migration
-npm run migration:revert
+pnpm migration:revert
 ```
 
 ## Database Management
@@ -84,21 +84,21 @@ npm run migration:revert
 
 ```bash
 # Stop without removing data
-npm run db:stop
+pnpm db:stop
 
 # Restart
-npm run db:create
+pnpm db:create
 ```
 
 ### Reset Database (⚠️ Destructive)
 
 ```bash
 # Drop database and volumes (all data will be lost!)
-npm run db:drop
+pnpm db:drop
 
 # Then recreate
-npm run db:create
-npm run migration:run
+pnpm db:create
+pnpm migration:run
 ```
 
 ### Access PgAdmin (Optional)
@@ -204,23 +204,23 @@ docker-compose restart postgres
 
 ```bash
 # Check migration status
-npm run migration:show
+pnpm migration:show
 
 # Revert last migration
-npm run migration:revert
+pnpm migration:revert
 
 # Fix the migration file
 # Then run again
-npm run migration:run
+pnpm migration:run
 ```
 
 ### Clear all data and start fresh
 
 ```bash
 # ⚠️ This will delete ALL data!
-npm run db:drop
-npm run db:create
-npm run migration:run
+pnpm db:drop
+pnpm db:create
+pnpm migration:run
 ```
 
 ## Production Considerations
@@ -247,7 +247,7 @@ For production deployments:
 
 3. **Run migrations as part of deployment**:
    ```bash
-   npm run migration:run
+   pnpm migration:run
    ```
 
 4. **Monitor database performance**:

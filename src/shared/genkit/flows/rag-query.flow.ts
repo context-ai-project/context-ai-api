@@ -11,6 +11,10 @@
 
 import { z } from 'zod';
 import { genkit, GENKIT_CONFIG } from '../genkit.config';
+import {
+  createRagEvaluatorService,
+  type RagEvaluationResult,
+} from '../evaluators';
 
 /**
  * Constants for RAG configuration
@@ -75,7 +79,15 @@ export const ragQueryOutputSchema = z.object({
     .optional(),
 });
 
-export type RagQueryOutput = z.infer<typeof ragQueryOutputSchema>;
+/**
+ * RAG query output type, extended with optional evaluation result.
+ * Evaluation is typed as a plain interface (not Zod) because it's produced
+ * by the evaluator service after response generation, not part of the
+ * core RAG schema validated on output.
+ */
+export type RagQueryOutput = z.infer<typeof ragQueryOutputSchema> & {
+  evaluation?: RagEvaluationResult;
+};
 
 /**
  * Vector search function type
@@ -126,10 +138,39 @@ const FALLBACK_RESPONSE =
  * This service implements the RAG (Retrieval-Augmented Generation) pattern.
  * It's designed to be used by the QueryAssistant use case.
  *
+ * Features:
+ * - Vector search for relevant fragments
+ * - Context-aware prompt building
+ * - Response generation with Gemini LLM
+ * - Automatic evaluation with Faithfulness and Relevancy metrics
+ *
  * @param vectorSearch - Function to search for relevant fragments (injected dependency)
  */
 export function createRagQueryService(vectorSearch: VectorSearchFn) {
   const ai = genkit();
+  const evaluator = createRagEvaluatorService(ai);
+
+  /**
+   * Run evaluations in parallel without blocking the main flow.
+   * Returns undefined if evaluation fails.
+   */
+  async function runEvaluations(
+    query: string,
+    response: string,
+    fragments: FragmentResult[],
+  ): Promise<RagEvaluationResult | undefined> {
+    try {
+      const contextTexts = fragments.map((f) => f.content);
+      return await evaluator.evaluate({
+        query,
+        response,
+        context: contextTexts,
+      });
+    } catch {
+      // Evaluation failure should not block the main RAG flow
+      return undefined;
+    }
+  }
 
   /**
    * Execute RAG query
@@ -193,7 +234,14 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
       config: GENKIT_CONFIG.RAG_GENERATION_CONFIG,
     });
 
-    // Step 7: Return structured output
+    // Step 7: Evaluate response quality (faithfulness + relevancy)
+    const evaluation = await runEvaluations(
+      validatedInput.query,
+      result.text,
+      relevantFragments,
+    );
+
+    // Step 8: Return structured output with evaluation scores
     return {
       response: result.text,
       sources: relevantFragments,
@@ -205,6 +253,7 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
         fragmentsRetrieved: allFragments.length,
         fragmentsUsed: relevantFragments.length,
       },
+      evaluation,
     };
   }
 

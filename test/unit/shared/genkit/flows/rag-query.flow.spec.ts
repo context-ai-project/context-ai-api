@@ -183,7 +183,7 @@ Answer:`;
       mockGenerate.mockResolvedValue(mockResponse);
 
       const result = await mockGenkit.generate({
-        model: 'googleai/gemini-1.5-pro',
+        model: 'googleai/gemini-2.5-flash',
         prompt,
         config: {
           temperature: 0.3,
@@ -248,7 +248,7 @@ Answer:`;
 
       await expect(
         mockGenkit.generate({
-          model: 'googleai/gemini-1.5-pro',
+          model: 'googleai/gemini-2.5-flash',
           prompt: 'Test prompt',
         }),
       ).rejects.toThrow('LLM service temporarily unavailable');

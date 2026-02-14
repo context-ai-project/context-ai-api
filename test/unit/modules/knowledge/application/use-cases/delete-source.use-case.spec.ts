@@ -233,7 +233,7 @@ describe('DeleteSourceUseCase', () => {
       };
 
       await expect(useCase.execute(dto)).rejects.toThrow(
-        'SourceId cannot be empty',
+        'SourceId is required',
       );
     });
 
@@ -244,7 +244,7 @@ describe('DeleteSourceUseCase', () => {
       };
 
       await expect(useCase.execute(dto)).rejects.toThrow(
-        'SectorId cannot be empty',
+        'SectorId is required',
       );
     });
   });

@@ -26,13 +26,12 @@ describe('Performance: Thresholds & Patterns (Phase 7.9)', () => {
   // ====================================================================
   // DTO Validation Speed
   // ====================================================================
+  // Note: userId is no longer in QueryAssistantDto — it comes from JWT session
   describe('DTO Validation Speed', () => {
-    const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
     const VALID_SECTOR = '660e8400-e29b-41d4-a716-446655440001';
 
     it('should validate a single DTO in < 50 ms', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: VALID_UUID,
         sectorId: VALID_SECTOR,
         query: 'How do I request vacation?',
       });
@@ -48,7 +47,6 @@ describe('Performance: Thresholds & Patterns (Phase 7.9)', () => {
     it('should validate 100 DTOs in < 500 ms', async () => {
       const dtos = Array.from({ length: 100 }, (_, i) =>
         plainToInstance(QueryAssistantDto, {
-          userId: VALID_UUID,
           sectorId: VALID_SECTOR,
           query: `Question number ${i}?`,
         }),
@@ -63,7 +61,6 @@ describe('Performance: Thresholds & Patterns (Phase 7.9)', () => {
 
     it('should reject invalid DTOs just as fast', async () => {
       const dto = plainToInstance(QueryAssistantDto, {
-        userId: 'bad',
         sectorId: 'bad',
         query: '',
       });
