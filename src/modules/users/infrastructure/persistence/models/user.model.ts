@@ -9,6 +9,7 @@ import {
   JoinTable,
 } from 'typeorm';
 import { RoleModel } from '../../../../auth/infrastructure/persistence/models/role.model';
+import { SectorModel } from '../../../../sectors/infrastructure/persistence/models/sector.model';
 
 // Column type constants
 const VARCHAR_255 = 'varchar';
@@ -73,4 +74,16 @@ export class UserModel {
     inverseJoinColumn: { name: 'role_id', referencedColumnName: 'id' },
   })
   roles!: RoleModel[];
+
+  /**
+   * Sectors assigned to this user
+   * Many-to-Many relationship through user_sectors table
+   */
+  @ManyToMany(() => SectorModel, (sector) => sector.users)
+  @JoinTable({
+    name: 'user_sectors',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'sector_id', referencedColumnName: 'id' },
+  })
+  sectors!: SectorModel[];
 }
