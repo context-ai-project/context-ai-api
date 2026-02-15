@@ -3,17 +3,17 @@ import { User } from '../../../../../../src/modules/users/domain/entities/user.e
 describe('User Entity', () => {
   const defaultDate = new Date('2024-01-01T00:00:00Z');
 
-  const createUser = (overrides: Partial<ConstructorParameters<typeof User>> = {}): User => {
-    return new User(
-      'user-uuid-123',
-      'auth0|123456',
-      'test@example.com',
-      'Test User',
-      true,
-      defaultDate,
-      defaultDate,
-      defaultDate,
-    );
+  const createUser = (): User => {
+    return new User({
+      id: 'user-uuid-123',
+      auth0UserId: 'auth0|123456',
+      email: 'test@example.com',
+      name: 'Test User',
+      isActive: true,
+      createdAt: defaultDate,
+      updatedAt: defaultDate,
+      lastLoginAt: defaultDate,
+    });
   };
 
   describe('Constructor', () => {
@@ -31,12 +31,12 @@ describe('User Entity', () => {
     });
 
     it('should use default values for optional fields', () => {
-      const user = new User(
-        'user-uuid-123',
-        'auth0|123456',
-        'test@example.com',
-        'Test User',
-      );
+      const user = new User({
+        id: 'user-uuid-123',
+        auth0UserId: 'auth0|123456',
+        email: 'test@example.com',
+        name: 'Test User',
+      });
 
       expect(user.isActive).toBe(true);
       expect(user.createdAt).toBeInstanceOf(Date);
@@ -45,16 +45,16 @@ describe('User Entity', () => {
     });
 
     it('should allow null lastLoginAt', () => {
-      const user = new User(
-        'user-uuid-123',
-        'auth0|123456',
-        'test@example.com',
-        'Test User',
-        true,
-        defaultDate,
-        defaultDate,
-        null,
-      );
+      const user = new User({
+        id: 'user-uuid-123',
+        auth0UserId: 'auth0|123456',
+        email: 'test@example.com',
+        name: 'Test User',
+        isActive: true,
+        createdAt: defaultDate,
+        updatedAt: defaultDate,
+        lastLoginAt: null,
+      });
 
       expect(user.lastLoginAt).toBeNull();
     });
@@ -123,4 +123,3 @@ describe('User Entity', () => {
     });
   });
 });
-

@@ -20,6 +20,14 @@ describe('UserRepository', () => {
     updatedAt: mockDate,
     lastLoginAt: mockDate,
     roles: [],
+    sectors: [],
+  } as UserModel;
+
+  const mockQueryBuilder = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getMany: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -28,6 +36,7 @@ describe('UserRepository', () => {
       save: jest.fn(),
       create: jest.fn(),
       count: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -194,6 +203,106 @@ describe('UserRepository', () => {
       const result = await repository.findById('user-uuid-123');
 
       expect(result?.lastLoginAt).toBeNull();
+    });
+  });
+
+  // ── New admin methods ────────────────────────────────────────────────────
+
+  describe('countAll', () => {
+    it('should return total user count', async () => {
+      mockTypeOrmRepo.count.mockResolvedValue(42);
+
+      const result = await repository.countAll();
+
+      expect(result).toBe(42);
+      expect(mockTypeOrmRepo.count).toHaveBeenCalled();
+    });
+  });
+
+  describe('countRecent', () => {
+    it('should count users created in last N days', async () => {
+      mockTypeOrmRepo.count.mockResolvedValue(5);
+
+      const result = await repository.countRecent(7);
+
+      expect(result).toBe(5);
+      expect(mockTypeOrmRepo.count).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({}) }),
+      );
+    });
+
+    it('should default to 30 days', async () => {
+      mockTypeOrmRepo.count.mockResolvedValue(10);
+
+      const result = await repository.countRecent();
+
+      expect(result).toBe(10);
+    });
+  });
+
+  describe('findAllWithRelations', () => {
+    it('should return all users with roles and sectors', async () => {
+      const users = [mockUserModel];
+      mockQueryBuilder.getMany.mockResolvedValue(users);
+
+      const result = await repository.findAllWithRelations();
+
+      expect(result).toEqual(users);
+      expect(mockTypeOrmRepo.createQueryBuilder).toHaveBeenCalledWith('user');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('user.roles', 'role');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('user.sectors', 'sector');
+    });
+
+    it('should filter by search term when provided', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await repository.findAllWithRelations('john');
+
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        '(LOWER(user.name) LIKE LOWER(:term) OR LOWER(user.email) LIKE LOWER(:term))',
+        { term: '%john%' },
+      );
+    });
+
+    it('should not filter when search is empty', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await repository.findAllWithRelations('');
+
+      expect(mockQueryBuilder.where).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findByIdWithRelations', () => {
+    it('should return user model with roles and sectors', async () => {
+      mockTypeOrmRepo.findOne.mockResolvedValue(mockUserModel);
+
+      const result = await repository.findByIdWithRelations('user-uuid-123');
+
+      expect(result).toEqual(mockUserModel);
+      expect(mockTypeOrmRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-uuid-123' },
+        relations: ['roles', 'sectors'],
+      });
+    });
+
+    it('should return null when not found', async () => {
+      mockTypeOrmRepo.findOne.mockResolvedValue(null);
+
+      const result = await repository.findByIdWithRelations('nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('saveModel', () => {
+    it('should save and return the model directly', async () => {
+      mockTypeOrmRepo.save.mockResolvedValue(mockUserModel);
+
+      const result = await repository.saveModel(mockUserModel);
+
+      expect(result).toEqual(mockUserModel);
+      expect(mockTypeOrmRepo.save).toHaveBeenCalledWith(mockUserModel);
     });
   });
 });

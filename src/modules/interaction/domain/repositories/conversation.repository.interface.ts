@@ -100,6 +100,13 @@ export interface IConversationRepository {
   countByUserId(userId: string): Promise<number>;
 
   /**
+   * Count all non-deleted conversations across all users
+   * Used by admin dashboard for global stats
+   * @returns The total number of active conversations
+   */
+  countAll(): Promise<number>;
+
+  /**
    * Find active conversations (with recent messages)
    * @param userId - The user ID
    * @param hoursThreshold - Hours since last message to consider active

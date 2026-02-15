@@ -74,6 +74,7 @@ import { InternalApiKeyGuard } from './guards/internal-api-key.guard';
     RbacSeederService, // Export for use in CLI commands
     TokenRevocationService, // Export for use in other modules (e.g., admin endpoints)
     InternalApiKeyGuard, // Export for use in other modules (e.g., users/sync)
+    RoleRepository, // Export for use in admin user management
   ],
 })
 export class AuthModule {}
