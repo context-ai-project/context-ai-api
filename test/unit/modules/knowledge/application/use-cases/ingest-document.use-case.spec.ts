@@ -392,7 +392,7 @@ describe('IngestDocumentUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(dto)).rejects.toThrow(
-        'Title cannot be empty',
+        'Title is required',
       );
     });
 
@@ -407,7 +407,7 @@ describe('IngestDocumentUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(dto)).rejects.toThrow(
-        'SectorId cannot be empty',
+        'SectorId is required',
       );
     });
 

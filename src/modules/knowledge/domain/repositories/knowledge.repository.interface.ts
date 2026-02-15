@@ -72,6 +72,20 @@ export interface IKnowledgeRepository {
    */
   countSourcesBySector(sectorId: string): Promise<number>;
 
+  /**
+   * Counts document sources per sector for a list of sector IDs (batch query).
+   * Returns a Map of sectorId → count.
+   * @param sectorIds - Array of sector IDs
+   * @returns Map of sectorId to source count
+   */
+  countSourcesBySectorIds(sectorIds: string[]): Promise<Map<string, number>>;
+
+  /**
+   * Counts all active (non-deleted) knowledge sources
+   * @returns Total count of active sources
+   */
+  countAllSources(): Promise<number>;
+
   // ==================== Fragment Operations ====================
 
   /**

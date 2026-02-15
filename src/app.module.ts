@@ -32,6 +32,8 @@ import { InteractionModule } from './modules/interaction/interaction.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { SectorsModule } from './modules/sectors/sectors.module';
+import { StatsModule } from './modules/stats/stats.module';
 
 // Auth Guards (registered globally via APP_GUARD)
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
@@ -90,6 +92,8 @@ import { RBACGuard } from './modules/auth/guards/rbac.guard';
     UsersModule, // User management and Auth0 sync
     AuthModule, // JWT validation (Phase 6)
     AuditModule, // Security audit logging (Phase 6)
+    SectorsModule, // Sector management (v1.2)
+    StatsModule, // Admin dashboard statistics (v1.2)
   ],
   controllers: [AppController],
   providers: [

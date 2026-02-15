@@ -199,37 +199,4 @@ export class PermissionService {
 
     return hasAccess;
   }
-
-  /**
-   * Check if user is an admin
-   *
-   * @param userId - Internal user UUID
-   * @returns True if user has admin role, false otherwise
-   * @planned Phase 6 — Admin panel role shortcuts
-   */
-  async isAdmin(userId: string): Promise<boolean> {
-    return this.hasRole(userId, 'admin');
-  }
-
-  /**
-   * Check if user is a manager
-   *
-   * @param userId - Internal user UUID
-   * @returns True if user has manager role, false otherwise
-   * @planned Phase 6 — Admin panel role shortcuts
-   */
-  async isManager(userId: string): Promise<boolean> {
-    return this.hasRole(userId, 'manager');
-  }
-
-  /**
-   * Check if user is a basic user
-   *
-   * @param userId - Internal user UUID
-   * @returns True if user has user role, false otherwise
-   * @planned Phase 6 — Admin panel role shortcuts
-   */
-  async isUser(userId: string): Promise<boolean> {
-    return this.hasRole(userId, 'user');
-  }
 }

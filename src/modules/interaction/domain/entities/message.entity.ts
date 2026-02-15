@@ -102,14 +102,6 @@ export class Message {
   }
 
   /**
-   * Get content length
-   * @planned Phase 6 — Analytics dashboard: message metrics
-   */
-  public getContentLength(): number {
-    return this._content.length;
-  }
-
-  /**
    * Get metadata value by key
    */
   public getMetadata(key: string): unknown {
@@ -125,14 +117,6 @@ export class Message {
    */
   public isValid(): boolean {
     return this._conversationId.trim() !== '' && this._content.trim() !== '';
-  }
-
-  /**
-   * Format message for display
-   * @planned Phase 6 — Conversation export / admin panel rendering
-   */
-  public formatForDisplay(): string {
-    return `[${this._role}] ${this._content}`;
   }
 
   /**

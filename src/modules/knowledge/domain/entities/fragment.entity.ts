@@ -122,31 +122,12 @@ export class Fragment {
   // ==================== Content Analysis ====================
 
   /**
-   * Returns the length of the content in characters
-   * @returns The number of characters in the content
-   * @planned Phase 6 — Analytics dashboard: fragment metrics
-   */
-  public getContentLength(): number {
-    return this.content.length;
-  }
-
-  /**
    * Estimates the number of tokens in the content
    * Rough estimate: 1 token ≈ 4 characters
    * @returns Estimated token count
    */
   public estimateTokenCount(): number {
     return Math.ceil(this.content.length / CHARS_PER_TOKEN_ESTIMATE);
-  }
-
-  /**
-   * Checks if the content contains a specific term (case insensitive)
-   * @param term - The term to search for
-   * @returns True if the term is found in the content
-   * @planned Phase 6 — Knowledge search / content highlighting
-   */
-  public containsTerm(term: string): boolean {
-    return this.content.toLowerCase().includes(term.toLowerCase());
   }
 
   // ==================== Metadata Management ====================
@@ -171,34 +152,5 @@ export class Fragment {
    */
   public belongsToSource(sourceId: string): boolean {
     return this.sourceId === sourceId;
-  }
-
-  /**
-   * Checks if this fragment comes before another fragment
-   * @param other - The other fragment to compare with
-   * @returns True if this fragment's position is less than the other's
-   * @planned Phase 6 — Fragment ordering / document reconstruction
-   */
-  public isBefore(other: Fragment): boolean {
-    return this.position < other.position;
-  }
-
-  /**
-   * Checks if this fragment comes after another fragment
-   * @param other - The other fragment to compare with
-   * @returns True if this fragment's position is greater than the other's
-   * @planned Phase 6 — Fragment ordering / document reconstruction
-   */
-  public isAfter(other: Fragment): boolean {
-    return this.position > other.position;
-  }
-
-  /**
-   * Checks if this is the first fragment in the document
-   * @returns True if the fragment's position is 0
-   * @planned Phase 6 — Fragment ordering / document reconstruction
-   */
-  public isFirstFragment(): boolean {
-    return this.position === 0;
   }
 }

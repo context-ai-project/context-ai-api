@@ -104,6 +104,36 @@ export class KnowledgeRepository implements IKnowledgeRepository {
     });
   }
 
+  async countSourcesBySectorIds(
+    sectorIds: string[],
+  ): Promise<Map<string, number>> {
+    if (sectorIds.length === 0) {
+      return new Map();
+    }
+
+    const results: Array<{ sector_id: string; count: string }> =
+      await this.sourceRepository
+        .createQueryBuilder('source')
+        .select('source.sector_id', 'sector_id')
+        .addSelect('COUNT(*)', 'count')
+        .where('source.sector_id IN (:...sectorIds)', { sectorIds })
+        .andWhere('source.deleted_at IS NULL')
+        .groupBy('source.sector_id')
+        .getRawMany();
+
+    const countsMap = new Map<string, number>();
+    for (const row of results) {
+      countsMap.set(row.sector_id, parseInt(row.count, 10));
+    }
+    return countsMap;
+  }
+
+  async countAllSources(): Promise<number> {
+    return this.sourceRepository.count({
+      where: { deletedAt: IsNull() },
+    });
+  }
+
   // ==================== Fragment Operations ====================
 
   async saveFragments(fragments: Fragment[]): Promise<Fragment[]> {

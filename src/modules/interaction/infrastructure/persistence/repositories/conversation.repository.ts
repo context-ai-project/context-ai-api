@@ -234,6 +234,18 @@ export class ConversationRepository implements IConversationRepository {
   }
 
   /**
+   * Count all non-deleted conversations across all users
+   * Used by admin dashboard for global stats
+   */
+  async countAll(): Promise<number> {
+    return this.conversationRepository.count({
+      where: {
+        deletedAt: IsNull(),
+      },
+    });
+  }
+
+  /**
    * Find active conversations (with recent messages)
    */
   async findActiveConversations(

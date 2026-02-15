@@ -316,6 +316,46 @@ pnpm add -D @types/pdf-parse
 
 ---
 
+## 🐛 Code Smells to Avoid
+
+### 🏗 Structural
+
+| Smell | Description | How to Avoid |
+|-------|-------------|--------------|
+| **Long Method** | Functions/methods exceeding ~50 lines | Extract into smaller private methods or dedicated use cases |
+| **Large Class** | Classes with too many responsibilities | Split by single responsibility following Clean Architecture layers |
+| **Long Parameter List** | Methods with 4+ parameters | Group into a DTO or options object |
+| **Data Clumps** | Groups of values that always appear together | Create a dedicated DTO, value object, or entity |
+
+### 🔄 Behavioral
+
+| Smell | Description | How to Avoid |
+|-------|-------------|--------------|
+| **Duplicate Code** | Repeated logic across services or controllers | Extract into shared utils, base classes, or dedicated services |
+| **Switch Statements** | Long `switch`/`if-else` chains for type-based logic | Use strategy pattern, maps, or polymorphism |
+| **Lazy Class** | A class/service that does almost nothing | Inline it or merge it with a related module |
+| **Dead Code** | Unused imports, variables, methods, or classes | Remove immediately; rely on ESLint `no-unused-vars` |
+
+### 🎯 Object-Oriented
+
+| Smell | Description | How to Avoid |
+|-------|-------------|--------------|
+| **Feature Envy** | A service accessing another module's internals excessively | Move the logic to where the data lives; use proper interfaces |
+| **Inappropriate Intimacy** | Modules tightly coupled to internal details of others | Depend on interfaces, not implementations (DIP) |
+| **Refused Bequest** | Extending a class but ignoring most of its behavior | Prefer composition over inheritance |
+| **Middle Man** | A class that only delegates to another without adding value | Remove the wrapper; inject the dependency directly |
+
+### 💾 Data
+
+| Smell | Description | How to Avoid |
+|-------|-------------|--------------|
+| **Primitive Obsession** | Using raw `string`/`number` instead of domain types | Create enums, branded types, or value objects (e.g. `SectorStatus`) |
+| **Data Class** | Classes with only data and no behavior | Add domain methods to entities or use alongside use cases |
+| **Temporary Field** | Properties only used in specific conditions | Extract into a sub-entity or conditional DTO |
+| **Magic Numbers** | Hard-coded numeric/string literals | Extract into named constants (e.g. `RECENT_USERS_DAYS_THRESHOLD`) |
+
+---
+
 ## 🚀 Quick Start for New Features
 
 ```bash
