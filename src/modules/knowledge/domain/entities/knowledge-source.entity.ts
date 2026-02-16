@@ -27,7 +27,6 @@ export class KnowledgeSource {
 
   // Business rule constants
   private static readonly MAX_TITLE_LENGTH = 255;
-  private static readonly STALE_DAYS_THRESHOLD = 30;
 
   constructor(data: {
     title: string;
@@ -188,31 +187,6 @@ export class KnowledgeSource {
       ...newMetadata,
     };
     this.updatedAt = new Date();
-  }
-
-  // ==================== Business Rules ====================
-
-  /**
-   * Checks if the source is stale (older than configured threshold)
-   * @returns True if the source was created more than STALE_DAYS_THRESHOLD days ago
-   * @planned Phase 6 — Knowledge freshness checks / re-ingestion scheduler
-   */
-  public isStale(): boolean {
-    const thresholdDate = new Date();
-    thresholdDate.setDate(
-      thresholdDate.getDate() - KnowledgeSource.STALE_DAYS_THRESHOLD,
-    );
-    return this.createdAt < thresholdDate;
-  }
-
-  /**
-   * Checks if the source belongs to a specific sector
-   * @param sectorId - The sector ID to check
-   * @returns True if the source belongs to the specified sector
-   * @planned Phase 6 — Multi-sector knowledge management
-   */
-  public belongsToSector(sectorId: string): boolean {
-    return this.sectorId === sectorId;
   }
 
   // ==================== Private Helpers ====================

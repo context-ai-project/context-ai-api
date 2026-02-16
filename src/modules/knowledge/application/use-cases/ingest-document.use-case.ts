@@ -21,11 +21,10 @@ import type {
 } from '@modules/knowledge/application/dtos/ingest-document.dto';
 import { SourceStatus } from '@shared/types';
 import { extractErrorMessage, extractErrorStack } from '@shared/utils';
+import { requireNonEmpty } from '@shared/validators';
 
 // Constants for validation (OWASP: Magic Numbers)
 const MIN_BUFFER_SIZE = 1;
-const MIN_TITLE_LENGTH = 1;
-const MIN_SECTOR_ID_LENGTH = 1;
 
 /**
  * Parameter object for vector store upsert operation.
@@ -305,15 +304,8 @@ export class IngestDocumentUseCase {
    * Security: Input validation to prevent injection and malformed data
    */
   private validateInput(dto: IngestDocumentDto): void {
-    // Validate title
-    if (!dto.title || dto.title.trim().length < MIN_TITLE_LENGTH) {
-      throw new Error('Title cannot be empty');
-    }
-
-    // Validate sectorId
-    if (!dto.sectorId || dto.sectorId.trim().length < MIN_SECTOR_ID_LENGTH) {
-      throw new Error('SectorId cannot be empty');
-    }
+    requireNonEmpty(dto.title, 'Title');
+    requireNonEmpty(dto.sectorId, 'SectorId');
 
     // Validate buffer
     if (!dto.buffer || dto.buffer.length < MIN_BUFFER_SIZE) {

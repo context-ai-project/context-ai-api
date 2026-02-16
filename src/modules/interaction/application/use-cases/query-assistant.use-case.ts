@@ -15,6 +15,7 @@ import type {
   RagQueryOutput,
 } from '@shared/genkit/flows/rag-query.flow';
 import { ragQueryOutputSchema } from '@shared/genkit/flows/rag-query.flow';
+import { requireNonEmpty } from '@shared/validators';
 
 // Constants
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
@@ -25,6 +26,14 @@ const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
  * then preserves the evaluation data which is added by the evaluator service
  * after response generation.
  */
+/**
+ * Checks whether `value` looks like a record (plain object).
+ * Used as a type-guard so we can safely access `.evaluation` on the raw result.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 async function safeExecuteRagQuery(
   ragQueryFn: RagQueryFlowFunction,
   input: RagQueryInput,
@@ -34,12 +43,12 @@ async function safeExecuteRagQuery(
   // Validate core result structure using Zod schema
   const validated = ragQueryOutputSchema.parse(result);
 
-  // Preserve evaluation data (added by evaluator service, not part of core schema)
-  const rawResult = result as Record<string, unknown>;
-  const evaluation =
-    rawResult.evaluation !== undefined && rawResult.evaluation !== null
-      ? (rawResult.evaluation as RagQueryOutput['evaluation'])
-      : undefined;
+  // Preserve evaluation data (added by evaluator service, not part of core schema).
+  // We use a type-guard instead of a bare `as` cast so the access is safe at runtime.
+  let evaluation: RagQueryOutput['evaluation'];
+  if (isRecord(result) && isRecord(result.evaluation)) {
+    evaluation = result.evaluation as unknown as RagQueryOutput['evaluation'];
+  }
 
   return { ...validated, evaluation };
 }
@@ -196,20 +205,9 @@ export class QueryAssistantUseCase {
    * Validate input parameters
    */
   private validateInput(input: QueryAssistantInput): void {
-    if (!input.userContext?.userId || input.userContext.userId.trim() === '') {
-      throw new Error('User ID is required');
-    }
-
-    if (
-      !input.userContext?.sectorId ||
-      input.userContext.sectorId.trim() === ''
-    ) {
-      throw new Error('Sector ID is required');
-    }
-
-    if (!input.query || input.query.trim() === '') {
-      throw new Error('Query is required');
-    }
+    requireNonEmpty(input.userContext?.userId, 'User ID');
+    requireNonEmpty(input.userContext?.sectorId, 'Sector ID');
+    requireNonEmpty(input.query, 'Query');
   }
 
   /**

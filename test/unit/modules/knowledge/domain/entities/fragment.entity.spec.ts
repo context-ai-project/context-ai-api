@@ -150,18 +150,6 @@ describe('Fragment Entity', () => {
   });
 
   describe('Content Analysis', () => {
-    it('should calculate content length', () => {
-      // Arrange
-      const fragment = new Fragment({
-        sourceId: 'source-123',
-        content: 'This is a test content with some words.',
-        position: 0,
-      });
-
-      // Act & Assert
-      expect(fragment.getContentLength()).toBe(39); // 39 characters
-    });
-
     it('should estimate token count (rough estimate: chars / 4)', () => {
       // Arrange
       const content = 'a'.repeat(400); // 400 characters
@@ -176,21 +164,6 @@ describe('Fragment Entity', () => {
 
       // Assert
       expect(estimatedTokens).toBe(100); // 400 / 4 = 100
-    });
-
-    it('should check if content contains a term (case insensitive)', () => {
-      // Arrange
-      const fragment = new Fragment({
-        sourceId: 'source-123',
-        content: 'Este documento habla sobre VACACIONES en la empresa.',
-        position: 0,
-      });
-
-      // Act & Assert
-      expect(fragment.containsTerm('vacaciones')).toBe(true);
-      expect(fragment.containsTerm('VACACIONES')).toBe(true);
-      expect(fragment.containsTerm('empresa')).toBe(true);
-      expect(fragment.containsTerm('salario')).toBe(false);
     });
   });
 
@@ -246,44 +219,5 @@ describe('Fragment Entity', () => {
       expect(fragment.belongsToSource('source-xyz')).toBe(false);
     });
 
-    it('should compare positions with another fragment', () => {
-      // Arrange
-      const fragment1 = new Fragment({
-        sourceId: 'source-123',
-        content: 'First fragment...',
-        position: 0,
-      });
-
-      const fragment2 = new Fragment({
-        sourceId: 'source-123',
-        content: 'Second fragment...',
-        position: 1,
-      });
-
-      // Act & Assert
-      expect(fragment1.isBefore(fragment2)).toBe(true);
-      expect(fragment2.isBefore(fragment1)).toBe(false);
-      expect(fragment1.isAfter(fragment2)).toBe(false);
-      expect(fragment2.isAfter(fragment1)).toBe(true);
-    });
-
-    it('should check if is first fragment', () => {
-      // Arrange
-      const firstFragment = new Fragment({
-        sourceId: 'source-123',
-        content: 'First fragment content...',
-        position: 0,
-      });
-
-      const secondFragment = new Fragment({
-        sourceId: 'source-123',
-        content: 'Second fragment content...',
-        position: 1,
-      });
-
-      // Act & Assert
-      expect(firstFragment.isFirstFragment()).toBe(true);
-      expect(secondFragment.isFirstFragment()).toBe(false);
-    });
   });
 });

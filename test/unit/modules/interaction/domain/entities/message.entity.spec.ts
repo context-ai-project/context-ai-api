@@ -110,15 +110,6 @@ describe('Message Entity', () => {
   });
 
   describe('Content Management', () => {
-    it('should get content length', () => {
-      const message = new Message({
-        ...validProps,
-        content: 'Hello world',
-      });
-
-      expect(message.getContentLength()).toBe(11);
-    });
-
     it('should trim content whitespace', () => {
       const message = new Message({
         ...validProps,
@@ -196,19 +187,6 @@ describe('Message Entity', () => {
   });
 
   describe('Formatting', () => {
-    it('should format message for display', () => {
-      const message = new Message({
-        ...validProps,
-        role: 'user',
-        content: 'How do I request vacation?',
-      });
-
-      const formatted = message.formatForDisplay();
-
-      expect(formatted).toContain('user');
-      expect(formatted).toContain('How do I request vacation?');
-    });
-
     it('should format message for prompt context', () => {
       const userMessage = new Message({
         ...validProps,
@@ -267,7 +245,7 @@ describe('Message Entity', () => {
       const message = new Message({ ...validProps, content: longContent });
 
       expect(message.content).toBe(longContent);
-      expect(message.getContentLength()).toBe(10000);
+      expect(message.content.length).toBe(10000);
     });
 
     it('should handle special characters', () => {

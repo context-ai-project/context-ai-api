@@ -49,6 +49,7 @@ import { SourceType } from '@shared/types';
 import { isValidUUID } from '@shared/validators';
 import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
+import { KnowledgeDtoMapper } from './mappers/knowledge-dto.mapper';
 
 /**
  * Uploaded file interface
@@ -168,16 +169,7 @@ export class KnowledgeController {
         ? await this.knowledgeRepository.findSourcesBySector(sectorId)
         : await this.knowledgeRepository.findAllSources();
 
-      return sources.map((source) => ({
-        id: source.id ?? '',
-        title: source.title,
-        sectorId: source.sectorId,
-        sourceType: source.sourceType,
-        status: source.status,
-        metadata: source.metadata ?? null,
-        createdAt: source.createdAt.toISOString(),
-        updatedAt: source.updatedAt.toISOString(),
-      }));
+      return KnowledgeDtoMapper.toSourceDtoList(sources);
     } catch (error: unknown) {
       this.logger.error(
         `Failed to list documents: ${extractErrorMessage(error)}`,
@@ -243,18 +235,7 @@ export class KnowledgeController {
       const fragmentCount =
         await this.knowledgeRepository.countFragmentsBySource(sourceId);
 
-      return {
-        id: source.id ?? '',
-        title: source.title,
-        sectorId: source.sectorId,
-        sourceType: source.sourceType,
-        status: source.status,
-        metadata: source.metadata ?? null,
-        content: source.content,
-        fragmentCount,
-        createdAt: source.createdAt.toISOString(),
-        updatedAt: source.updatedAt.toISOString(),
-      };
+      return KnowledgeDtoMapper.toSourceDetailDto(source, fragmentCount);
     } catch (error: unknown) {
       if (
         error instanceof NotFoundException ||

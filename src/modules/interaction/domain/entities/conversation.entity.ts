@@ -183,29 +183,6 @@ export class Conversation {
   }
 
   /**
-   * Get conversation duration in milliseconds
-   * @planned Phase 6 — Analytics dashboard: conversation metrics
-   */
-  public getDuration(): number {
-    if (this._messages.length === 0) {
-      return 0;
-    }
-
-    const firstMessage = this._messages[0];
-    const lastMessage = this._messages[this._messages.length - 1];
-
-    return lastMessage.createdAt.getTime() - firstMessage.createdAt.getTime();
-  }
-
-  /**
-   * Count messages by role
-   * @planned Phase 6 — Analytics dashboard: conversation metrics
-   */
-  public countMessagesByRole(role: 'user' | 'assistant' | 'system'): number {
-    return this._messages.filter((msg) => msg.role === role).length;
-  }
-
-  /**
    * Convert to plain object
    */
   public toObject(): {

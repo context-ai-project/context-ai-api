@@ -2,18 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
+ * Auth0 configuration object returned by getAuth0Config()
+ */
+export interface Auth0Config {
+  domain: string;
+  audience: string;
+  issuer: string;
+}
+
+/**
  * Auth Service
  *
  * Handles authentication-related business logic.
  * Provides configuration access for JWT strategies.
  *
- * NOTE: This class currently acts as a thin wrapper over ConfigService
- * (Middle Man pattern). It is intentionally kept as a dedicated abstraction
- * layer so that future authentication logic (token refresh, session management,
- * multi-provider support) has a clear home without coupling consumers to
- * ConfigService directly.
- *
- * @see CS-14 in docs/code-smells-analysis.md
+ * Consolidates Auth0 configuration into a single typed object
+ * to avoid repetitive getter patterns (Middle Man refactoring).
  *
  * Related services:
  * - TokenRevocationService: Token validation and revocation
@@ -25,15 +29,37 @@ export class AuthService {
   constructor(private readonly configService: ConfigService) {}
 
   /**
-   * Get Auth0 domain from configuration
-   * @returns Auth0 domain
+   * Get complete Auth0 configuration as a typed object.
+   * Validates all required fields and throws if any are missing.
+   *
+   * @returns Auth0Config with domain, audience, and issuer
+   * @throws Error if any required configuration is missing
    */
-  getAuth0Domain(): string {
+  getAuth0Config(): Auth0Config {
     const domain = this.configService.get<string>('auth.auth0.domain');
     if (!domain) {
       throw new Error('AUTH0_DOMAIN is not configured');
     }
-    return domain;
+
+    const audience = this.configService.get<string>('auth.auth0.audience');
+    if (!audience) {
+      throw new Error('AUTH0_AUDIENCE is not configured');
+    }
+
+    const issuer = this.configService.get<string>('auth.auth0.issuer');
+    if (!issuer) {
+      throw new Error('AUTH0_ISSUER is not configured');
+    }
+
+    return { domain, audience, issuer };
+  }
+
+  /**
+   * Get Auth0 domain from configuration
+   * @returns Auth0 domain
+   */
+  getAuth0Domain(): string {
+    return this.getAuth0Config().domain;
   }
 
   /**
@@ -41,11 +67,7 @@ export class AuthService {
    * @returns Auth0 audience
    */
   getAuth0Audience(): string {
-    const audience = this.configService.get<string>('auth.auth0.audience');
-    if (!audience) {
-      throw new Error('AUTH0_AUDIENCE is not configured');
-    }
-    return audience;
+    return this.getAuth0Config().audience;
   }
 
   /**
@@ -53,11 +75,7 @@ export class AuthService {
    * @returns Auth0 issuer URL
    */
   getAuth0Issuer(): string {
-    const issuer = this.configService.get<string>('auth.auth0.issuer');
-    if (!issuer) {
-      throw new Error('AUTH0_ISSUER is not configured');
-    }
-    return issuer;
+    return this.getAuth0Config().issuer;
   }
 
   /**
@@ -65,8 +83,6 @@ export class AuthService {
    * @throws Error if any required config is missing
    */
   validateConfiguration(): void {
-    this.getAuth0Domain();
-    this.getAuth0Audience();
-    this.getAuth0Issuer();
+    this.getAuth0Config();
   }
 }
