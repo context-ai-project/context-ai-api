@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: us-central1-docker.pkg.dev
-  IMAGE_NAME: context-ai/api
+  REGISTRY: europe-west1-docker.pkg.dev
+  IMAGE_NAME: context-ai-api/api
 
 jobs:
   test:
@@ -117,7 +117,7 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: context-ai-api
-          region: us-central1
+          region: europe-west1
           image: ${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           env_vars: |
             NODE_ENV=production
