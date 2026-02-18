@@ -121,7 +121,6 @@ jobs:
           image: ${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           env_vars: |
             NODE_ENV=production
-            PORT=3001
             API_PREFIX=api/v1
             DB_HOST=${{ secrets.DB_HOST }}
             DB_PORT=5432
