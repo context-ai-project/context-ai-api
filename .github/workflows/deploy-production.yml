@@ -135,13 +135,13 @@ jobs:
             RATE_LIMIT_MAX_REQUESTS=100
             LOG_LEVEL=info
           secrets: |
-            DB_PASSWORD=${{ secrets.GCP_PROJECT_ID }}/DB_PASSWORD:latest
-            GOOGLE_API_KEY=${{ secrets.GCP_PROJECT_ID }}/GOOGLE_API_KEY:latest
-            PINECONE_API_KEY=${{ secrets.GCP_PROJECT_ID }}/PINECONE_API_KEY:latest
-            AUTH0_DOMAIN=${{ secrets.GCP_PROJECT_ID }}/AUTH0_DOMAIN:latest
-            AUTH0_AUDIENCE=${{ secrets.GCP_PROJECT_ID }}/AUTH0_AUDIENCE:latest
-            SENTRY_DSN=${{ secrets.GCP_PROJECT_ID }}/SENTRY_DSN:latest
-            INTERNAL_API_KEY=${{ secrets.GCP_PROJECT_ID }}/INTERNAL_API_KEY:latest
+            DB_PASSWORD=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/DB_PASSWORD:latest
+            GOOGLE_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/GOOGLE_API_KEY:latest
+            PINECONE_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/PINECONE_API_KEY:latest
+            AUTH0_DOMAIN=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/AUTH0_DOMAIN:latest
+            AUTH0_AUDIENCE=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/AUTH0_AUDIENCE:latest
+            SENTRY_DSN=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/SENTRY_DSN:latest
+            INTERNAL_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/INTERNAL_API_KEY:latest
           flags: |
             --port=3001
             --memory=512Mi
