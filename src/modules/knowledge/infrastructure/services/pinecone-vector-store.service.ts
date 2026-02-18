@@ -15,7 +15,7 @@ import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 // Constants (OWASP: Magic Numbers)
 const BATCH_SIZE = 100;
 const DEFAULT_SEARCH_LIMIT = 5;
-const DEFAULT_MIN_SCORE = 0.7;
+const DEFAULT_MIN_SCORE = 0.55;
 
 /**
  * Type for Pinecone match result from query

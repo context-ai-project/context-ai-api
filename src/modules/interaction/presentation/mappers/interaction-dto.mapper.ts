@@ -1,8 +1,10 @@
 import type { QueryAssistantOutput } from '../../application/use-cases/query-assistant.use-case';
 import type { Conversation } from '../../domain/entities/conversation.entity';
+import { RagResponseType } from '../dtos/query-assistant.dto';
 import type {
   QueryAssistantResponseDto,
   SourceFragmentDto,
+  StructuredResponseDto,
   ConversationSummaryDto,
   ConversationsListDto,
   ConversationDetailDto,
@@ -35,8 +37,33 @@ export class InteractionDtoMapper {
         }
       : undefined;
 
+    // Map structured response if present
+    const structuredDto: StructuredResponseDto | undefined = result.structured
+      ? {
+          summary: result.structured.summary,
+          sections: result.structured.sections.map((s) => ({
+            title: s.title,
+            content: s.content,
+            type: s.type,
+          })),
+          keyPoints: result.structured.keyPoints,
+          relatedTopics: result.structured.relatedTopics,
+        }
+      : undefined;
+
+    // Map responseType string to enum
+    const responseTypeMap: Record<string, RagResponseType> = {
+      answer: RagResponseType.ANSWER,
+      no_context: RagResponseType.NO_CONTEXT,
+      error: RagResponseType.ERROR,
+    };
+    const responseType =
+      responseTypeMap[result.responseType] ?? RagResponseType.ANSWER;
+
     return {
       response: result.response,
+      responseType,
+      structured: structuredDto,
       conversationId: result.conversationId,
       sources: result.sources.map(
         (source): SourceFragmentDto => ({

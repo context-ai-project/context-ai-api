@@ -116,6 +116,7 @@ describe('InteractionController', () => {
 
     const mockUseCaseResult = {
       response: 'Tienes derecho a 15 días hábiles de vacaciones pagadas por año.',
+      responseType: 'answer' as const,
       conversationId: '8470609d-84f7-4b97-bea9-d000c355acb4',
       sources: [
         {
@@ -138,12 +139,15 @@ describe('InteractionController', () => {
 
       const result = await controller.query(validDto, jwtUserId);
 
-      expect(result).toEqual({
-        response: mockUseCaseResult.response,
-        conversationId: mockUseCaseResult.conversationId,
-        sources: mockUseCaseResult.sources,
-        timestamp: mockUseCaseResult.timestamp,
-      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          response: mockUseCaseResult.response,
+          responseType: 'answer',
+          conversationId: mockUseCaseResult.conversationId,
+          sources: mockUseCaseResult.sources,
+          timestamp: mockUseCaseResult.timestamp,
+        }),
+      );
 
       expect(queryAssistantUseCase.execute).toHaveBeenCalledWith({
         userContext: { userId: jwtUserId, sectorId: validDto.sectorId },

@@ -27,7 +27,7 @@ describe('RAG Query Flow', () => {
   let mockGenkit: Genkit;
   let mockVectorSearch: jest.Mock<
     Promise<MockFragment[]>,
-    [embedding: number[], sectorId: string, limit: number]
+    [embedding: number[], sectorId: string, limit: number, minScore?: number]
   >;
   let mockEmbed: jest.Mock<Promise<number[]>, [content: string]>;
   let mockGenerate: jest.Mock<
@@ -39,7 +39,7 @@ describe('RAG Query Flow', () => {
     // Mock vector search function
     mockVectorSearch = jest.fn<
       Promise<MockFragment[]>,
-      [embedding: number[], sectorId: string, limit: number]
+      [embedding: number[], sectorId: string, limit: number, minScore?: number]
     >();
 
     // Mock embed function

@@ -163,7 +163,8 @@
       "^@shared/(.*)$": "<rootDir>/src/shared/$1",
       "^@config/(.*)$": "<rootDir>/src/config/$1",
       "^@common/(.*)$": "<rootDir>/src/common/$1",
-      "^@test/(.*)$": "<rootDir>/test/$1"
+      "^@test/(.*)$": "<rootDir>/test/$1",
+      "^zod/v3$": "<rootDir>/node_modules/zod/v3/index.cjs"
     }
   }
 }
