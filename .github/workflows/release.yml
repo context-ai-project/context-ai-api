@@ -47,24 +47,30 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s (%h)")
+          else
+            LOG=$(git log "${PREVIOUS_TAG}..HEAD" --pretty=format:"- %s (%h)")
+          fi
+          {
+            echo "CHANGELOG<<CHANGELOG_DELIMITER"
+            echo "$LOG"
+            echo "CHANGELOG_DELIMITER"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
           body: |
             ## Changes in ${{ steps.get_version.outputs.VERSION }}
-            
+
             ${{ steps.changelog.outputs.CHANGELOG }}
-            
+
             ## Installation
-            
+
             ```bash
             git clone https://github.com/gromeroalfonso/context-ai-api.git
             cd context-ai-api
@@ -73,4 +79,5 @@ jobs:
             ```
           draft: false
           prerelease: false
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
