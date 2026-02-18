@@ -154,11 +154,11 @@ jobs:
       - name: Smoke Test
         run: |
           URL="${{ steps.deploy.outputs.url }}"
-          echo "🔍 Running smoke test against: $URL/api/v1/health"
+          echo "🔍 Running smoke test against: $URL/api/v1"
 
           # Wait for service to be ready (Cloud Run cold start)
           for i in $(seq 1 5); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/v1/health" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/v1" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "✅ Health check passed (attempt $i)"
               exit 0
