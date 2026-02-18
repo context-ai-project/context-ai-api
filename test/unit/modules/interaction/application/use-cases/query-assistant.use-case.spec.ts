@@ -6,7 +6,8 @@ import { Message } from '@modules/interaction/domain/entities/message.entity';
 import {
   RagQueryInput,
   RagQueryOutput,
-} from '@/shared/genkit/flows/rag-query.flow';
+  RagResponseType,
+} from '@shared/genkit/flows/rag-query.flow';
 
 // Define the type for the RAG query flow service
 type RagQueryFlowService = (input: RagQueryInput) => Promise<RagQueryOutput>;
@@ -61,6 +62,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -90,6 +92,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -124,6 +127,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -154,6 +158,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -190,6 +195,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: assistantResponse,
+        responseType: RagResponseType.ANSWER,
         sources: [
           {
             id: 'frag-1',
@@ -247,6 +253,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -280,6 +287,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -310,6 +318,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });
@@ -359,6 +368,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: testSources,
         timestamp: testTimestamp,
       });
@@ -398,6 +408,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: testSources,
         timestamp: new Date(),
       });
@@ -450,6 +461,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [
           {
             id: 'frag-1',
@@ -499,6 +511,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
         evaluation: evaluationData,
@@ -546,6 +559,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
         // No evaluation field
@@ -630,6 +644,7 @@ describe('QueryAssistantUseCase', () => {
 
       mockRagQueryFlow.mockResolvedValue({
         response: 'Test response',
+        responseType: RagResponseType.ANSWER,
         sources: [],
         timestamp: new Date(),
       });

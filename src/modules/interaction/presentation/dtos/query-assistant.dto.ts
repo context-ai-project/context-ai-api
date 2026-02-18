@@ -198,17 +198,109 @@ export class EvaluationResultDto {
 }
 
 /**
+ * Section types for structured responses
+ */
+export type SectionType = 'info' | 'steps' | 'warning' | 'tip';
+
+/**
+ * Response types to distinguish between normal responses and fallbacks
+ */
+export enum RagResponseType {
+  /** Response with documentary context */
+  ANSWER = 'answer',
+  /** No relevant documents found */
+  NO_CONTEXT = 'no_context',
+  /** Error during processing */
+  ERROR = 'error',
+}
+
+/**
+ * DTO for a single section in a structured response
+ */
+export class ResponseSectionDto {
+  @ApiProperty({ description: 'Section title', example: 'Vacation Policy' })
+  title!: string;
+
+  @ApiProperty({
+    description: 'Section content (supports markdown)',
+    example:
+      'You must submit a request through the HR portal at least **15 days** in advance.',
+  })
+  content!: string;
+
+  @ApiProperty({
+    description: 'Section type',
+    enum: ['info', 'steps', 'warning', 'tip'],
+    example: 'info',
+  })
+  type!: SectionType;
+}
+
+/**
+ * DTO for the structured part of the response
+ */
+export class StructuredResponseDto {
+  @ApiProperty({
+    description: 'Brief 1-2 sentence answer',
+    example:
+      'To request vacation, submit a request through the HR portal at least 15 days in advance.',
+  })
+  summary!: string;
+
+  @ApiProperty({
+    description: 'Detailed information organized into sections',
+    type: [ResponseSectionDto],
+    isArray: true,
+  })
+  sections!: ResponseSectionDto[];
+
+  @ApiProperty({
+    description: 'Key takeaways as bullet points',
+    type: [String],
+    required: false,
+    example: ['Submit 15 days in advance', 'Include desired dates'],
+  })
+  keyPoints?: string[];
+
+  @ApiProperty({
+    description: 'Related topics the user might want to explore',
+    type: [String],
+    required: false,
+    example: ['Sick leave policy', 'Remote work guidelines'],
+  })
+  relatedTopics?: string[];
+}
+
+/**
  * DTO for Query Assistant Response
  *
  * Represents the output from the RAG assistant.
+ * v1.3: Added responseType and structured fields.
  */
 export class QueryAssistantResponseDto {
   @ApiProperty({
-    description: 'Assistant response to the query',
+    description:
+      'Assistant response to the query (plain text, backward compatible)',
     example:
       'To request vacation, you need to submit a request through the HR portal at least 15 days in advance. The request should include your desired dates and a brief reason.',
   })
   response!: string;
+
+  @ApiProperty({
+    description:
+      'Type of response: "answer" (with context), "no_context" (no docs found), "error"',
+    enum: RagResponseType,
+    example: RagResponseType.ANSWER,
+  })
+  responseType!: RagResponseType;
+
+  @ApiProperty({
+    description:
+      'Structured response with sections, key points, and related topics. Present only when responseType is "answer" and structured output succeeded.',
+    type: StructuredResponseDto,
+    required: false,
+  })
+  structured?: StructuredResponseDto;
 
   @ApiProperty({
     description: 'Conversation ID',
