@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserService } from '../../../../../../src/modules/users/application/services/user.service';
 import type { SyncUserDto } from '../../../../../../src/modules/users/application/services/user.service';
 import { UserRepository } from '../../../../../../src/modules/users/infrastructure/persistence/repositories/user.repository';
@@ -6,6 +7,7 @@ import { UserRepository } from '../../../../../../src/modules/users/infrastructu
 describe('UserService', () => {
   let service: UserService;
   let userRepository: jest.Mocked<UserRepository>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockDate = new Date('2024-01-01T00:00:00Z');
   const mockUser = {
@@ -26,9 +28,17 @@ describe('UserService', () => {
       findById: jest.fn(),
       save: jest.fn(),
       findByIdWithRoles: jest.fn(),
+      findByIdWithRelations: jest.fn(),
+      saveModel: jest.fn(),
+      findAllWithRelations: jest.fn(),
     } as unknown as jest.Mocked<UserRepository>;
 
-    service = new UserService(userRepository);
+    eventEmitter = {
+      emit: jest.fn(),
+    } as unknown as jest.Mocked<EventEmitter2>;
+
+    // Pass null for invitationService (default behavior without invitations module)
+    service = new UserService(userRepository, null, eventEmitter);
 
     // Suppress logger output during tests
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
