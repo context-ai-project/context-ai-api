@@ -17,6 +17,7 @@ type ThrottlerObjectConfig = Extract<
   ThrottlerModuleOptions,
   { throttlers: ThrottlerOptions[] }
 >;
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -34,6 +35,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { InvitationsModule } from './modules/invitations/invitations.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 // Auth Guards (registered globally via APP_GUARD)
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
@@ -86,6 +89,14 @@ import { RBACGuard } from './modules/auth/guards/rbac.guard';
       inject: [ConfigService],
     }),
 
+    // Event Emitter Module (v1.3 — Event-driven notifications)
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      maxListeners: 10,
+      verboseMemoryLeak: true,
+    }),
+
     // Feature Modules
     KnowledgeModule,
     InteractionModule,
@@ -94,6 +105,8 @@ import { RBACGuard } from './modules/auth/guards/rbac.guard';
     AuditModule, // Security audit logging (Phase 6)
     SectorsModule, // Sector management (v1.2)
     StatsModule, // Admin dashboard statistics (v1.2)
+    InvitationsModule, // Invitation system (v1.3)
+    NotificationsModule, // In-app notifications (v1.3)
   ],
   controllers: [AppController],
   providers: [

@@ -55,30 +55,6 @@ export class AuthService {
   }
 
   /**
-   * Get Auth0 domain from configuration
-   * @returns Auth0 domain
-   */
-  getAuth0Domain(): string {
-    return this.getAuth0Config().domain;
-  }
-
-  /**
-   * Get Auth0 audience (API identifier) from configuration
-   * @returns Auth0 audience
-   */
-  getAuth0Audience(): string {
-    return this.getAuth0Config().audience;
-  }
-
-  /**
-   * Get Auth0 issuer URL from configuration
-   * @returns Auth0 issuer URL
-   */
-  getAuth0Issuer(): string {
-    return this.getAuth0Config().issuer;
-  }
-
-  /**
    * Validate that all required Auth0 configuration is present
    * @throws Error if any required config is missing
    */

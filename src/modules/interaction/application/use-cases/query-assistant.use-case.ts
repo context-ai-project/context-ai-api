@@ -50,7 +50,13 @@ async function safeExecuteRagQuery(
     evaluation = result.evaluation as unknown as RagQueryOutput['evaluation'];
   }
 
-  return { ...validated, evaluation };
+  // Cast structured field: validated by Genkit output.schema (Zod v3) at generation time,
+  // stored as unknown in the Zod v4 output schema to avoid cross-version type conflicts.
+  const structured = validated.structured as
+    | RagQueryOutput['structured']
+    | undefined;
+
+  return { ...validated, structured, evaluation };
 }
 
 /**
@@ -85,8 +91,29 @@ export interface EvaluationOutput {
   relevancy: EvaluationScoreOutput;
 }
 
+/**
+ * Structured response section
+ */
+export interface StructuredSectionOutput {
+  title: string;
+  content: string;
+  type: 'info' | 'steps' | 'warning' | 'tip';
+}
+
+/**
+ * Structured response output
+ */
+export interface StructuredResponseOutput {
+  summary: string;
+  sections: StructuredSectionOutput[];
+  keyPoints?: string[];
+  relatedTopics?: string[];
+}
+
 export interface QueryAssistantOutput {
   response: string;
+  responseType: 'answer' | 'no_context' | 'error';
+  structured?: StructuredResponseOutput;
   conversationId: string;
   sources: Array<{
     id: string;
@@ -192,6 +219,15 @@ export class QueryAssistantUseCase {
     // 7. Return formatted response with evaluation
     const response: QueryAssistantOutput = {
       response: ragResult.response,
+      responseType: ragResult.responseType ?? 'answer',
+      structured: ragResult.structured
+        ? {
+            summary: ragResult.structured.summary,
+            sections: ragResult.structured.sections,
+            keyPoints: ragResult.structured.keyPoints,
+            relatedTopics: ragResult.structured.relatedTopics,
+          }
+        : undefined,
       conversationId: conversation.id,
       sources: ragResult.sources,
       timestamp: ragResult.timestamp,

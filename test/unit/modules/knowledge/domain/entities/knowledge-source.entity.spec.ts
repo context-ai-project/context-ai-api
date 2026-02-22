@@ -75,7 +75,7 @@ describe('KnowledgeSource Entity', () => {
 
       // Act & Assert
       expect(() => new KnowledgeSource(invalidData)).toThrow(
-        'Title cannot be empty',
+        'Title is required',
       );
     });
 
@@ -105,7 +105,7 @@ describe('KnowledgeSource Entity', () => {
 
       // Act & Assert
       expect(() => new KnowledgeSource(invalidData)).toThrow(
-        'SectorId cannot be empty',
+        'SectorId is required',
       );
     });
 
@@ -135,7 +135,7 @@ describe('KnowledgeSource Entity', () => {
 
       // Act & Assert
       expect(() => new KnowledgeSource(invalidData)).toThrow(
-        'Content cannot be empty',
+        'Content is required',
       );
     });
   });

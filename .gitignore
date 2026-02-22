@@ -49,3 +49,5 @@ lerna-debug.log*
 .genkit/
 # Backup files
 *.backup
+docs/code-smells-analysis.md
+docs/code-smells-analysis.md

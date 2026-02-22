@@ -52,15 +52,18 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
         vectorStore: IVectorStore,
       ) => {
         // Create type-safe wrapper for vectorSearch using IVectorStore (Pinecone)
+        // Passes minScore through so the RAG flow's minSimilarity reaches Pinecone
         const vectorSearchFn = async (
           embedding: number[],
           sectorId: string,
           limit: number,
+          minScore?: number,
         ) => {
           const results = await vectorStore.vectorSearch(
             embedding,
             sectorId,
             limit,
+            minScore,
           );
 
           // Map VectorSearchResult to the format expected by the RAG flow

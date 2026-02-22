@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import type { ISectorRepository } from '../../../domain/repositories/sector.repository.interface';
 import { Sector } from '../../../domain/entities/sector.entity';
 import { SectorModel } from '../models/sector.model';
@@ -42,6 +42,12 @@ export class SectorRepository implements ISectorRepository {
       .where('LOWER(sector.name) = LOWER(:name)', { name: name.trim() })
       .getOne();
     return model ? SectorMapper.toDomain(model) : null;
+  }
+
+  async findByIds(ids: string[]): Promise<Sector[]> {
+    if (ids.length === 0) return [];
+    const models = await this.repository.find({ where: { id: In(ids) } });
+    return SectorMapper.toDomainArray(models);
   }
 
   async findAll(): Promise<Sector[]> {
