@@ -49,6 +49,7 @@ export class NotificationListener {
           message: `An invitation was sent to ${event.name} (${event.email}) with role "${event.role}".`,
           metadata: {
             invitationId: event.invitationId,
+            name: event.name,
             email: event.email,
             role: event.role,
           },
@@ -86,6 +87,7 @@ export class NotificationListener {
           message: `${event.name} (${event.email}) has activated their account.`,
           metadata: {
             userId: event.userId,
+            name: event.name,
             email: event.email,
           },
         }),
@@ -106,12 +108,10 @@ export class NotificationListener {
   // ==================== Private Helpers ====================
 
   /**
-   * Find all users with admin role
+   * Find all users with admin role.
+   * Uses a targeted JOIN query — avoids loading all users into memory.
    */
   private async findAdminUsers(): Promise<{ id: string }[]> {
-    const allUsers = await this.userRepository.findAllWithRelations();
-    return allUsers.filter((user) =>
-      user.roles?.some((role) => role.name === ADMIN_ROLE),
-    );
+    return this.userRepository.findByRole(ADMIN_ROLE);
   }
 }

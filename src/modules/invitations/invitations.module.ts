@@ -12,10 +12,9 @@ import { InvitationService } from './application/invitation.service';
 import { InvitationModel } from './infrastructure/persistence/models/invitation.model';
 import { InvitationRepository } from './infrastructure/persistence/repositories/invitation.repository';
 import { Auth0ManagementService } from './infrastructure/auth0/auth0-management.service';
-import { EmailService } from './infrastructure/email/email.service';
+import { SectorModel } from '../sectors/infrastructure/persistence/models/sector.model';
 
 // External Dependencies
-import { SectorModel } from '../sectors/infrastructure/persistence/models/sector.model';
 import { UsersModule } from '../users/users.module';
 
 /**
@@ -27,8 +26,9 @@ import { UsersModule } from '../users/users.module';
  *
  * Dependencies:
  * - UsersModule: UserRepository (for inviter info + email checks)
- * - SectorModel: Direct TypeORM access for sector validation
- * - ConfigModule: Environment variables (Auth0, Resend, Frontend URL)
+ * - SectorModel: Registered for InvitationRepository.loadSectorModels()
+ *   (ManyToMany association — TypeORM access confined to infrastructure layer)
+ * - ConfigModule: Environment variables (Auth0, Frontend URL)
  *
  * Note: Provides IInvitationAcceptanceService so UserService can accept
  * invitations on first login without circular dependency.
@@ -44,7 +44,6 @@ import { UsersModule } from '../users/users.module';
     InvitationService,
     InvitationRepository,
     Auth0ManagementService,
-    EmailService,
     // Override the null default from UsersModule
     {
       provide: 'IInvitationAcceptanceService',

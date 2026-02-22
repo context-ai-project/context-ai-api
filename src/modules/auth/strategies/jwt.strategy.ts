@@ -9,6 +9,7 @@ import { passportJwtSecret } from 'jwks-rsa';
 import { AuthService } from '../auth.service';
 import { JwtPayload, ValidatedUser } from '../types/jwt-payload.type';
 import { UserService } from '../../users/application/services/user.service';
+import { LOG_ID_PREFIX } from '@shared/constants';
 
 /**
  * Known RBAC actions used for permission normalization.
@@ -54,8 +55,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly authService: AuthService,
     private readonly userService: UserService,
   ) {
-    const auth0Audience = authService.getAuth0Audience();
-    const auth0Issuer = authService.getAuth0Issuer();
+    const auth0Config = authService.getAuth0Config(); // Ensure Auth0 config is loaded at startup
+    const auth0Audience = auth0Config.audience;
+    const auth0Issuer = auth0Config.issuer;
 
     const options: StrategyOptionsWithoutRequest = {
       // JWKS Configuration
@@ -150,7 +152,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // Log successful validation (mask sensitive data)
     this.logger.log('User authenticated', {
-      userId: `${userId.substring(0, 8)}...`, // Partial UUID for privacy
+      userId: `${userId.substring(0, LOG_ID_PREFIX)}...`, // Partial UUID for privacy
       provider,
       action: 'login',
       timestamp: new Date().toISOString(),

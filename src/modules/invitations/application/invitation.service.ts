@@ -6,13 +6,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
 import { InvitationRepository } from '../infrastructure/persistence/repositories/invitation.repository';
 import { Auth0ManagementService } from '../infrastructure/auth0/auth0-management.service';
-import { EmailService } from '../infrastructure/email/email.service';
 import { InvitationModel } from '../infrastructure/persistence/models/invitation.model';
-import { SectorModel } from '../../sectors/infrastructure/persistence/models/sector.model';
 import { UserRepository } from '../../users/infrastructure/persistence/repositories/user.repository';
 import {
   CreateInvitationDto,
@@ -21,7 +17,6 @@ import {
 } from '../presentation/dtos/invitation.dto';
 import { InvitationCreatedEvent } from '../domain/events/invitation.events';
 import { InvitationStatus } from '@shared/types';
-import { ConfigService } from '@nestjs/config';
 import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 
 /** Invitation validity in days */
@@ -45,25 +40,19 @@ export class InvitationService {
   constructor(
     private readonly invitationRepository: InvitationRepository,
     private readonly auth0Service: Auth0ManagementService,
-    private readonly emailService: EmailService,
     private readonly userRepository: UserRepository,
     private readonly eventEmitter: EventEmitter2,
-    private readonly configService: ConfigService,
-    @InjectRepository(SectorModel)
-    private readonly sectorRepository: Repository<SectorModel>,
   ) {}
 
   /**
    * Create a new invitation
    *
-   * Steps:
-   * 1. Validate email is not already invited/registered
-   * 2. Validate sector IDs
-   * 3. Create Auth0 user
-   * 4. Generate password-change ticket (Auth0 sends email)
-   * 5. Send welcome email (Resend)
-   * 6. Persist invitation
-   * 7. Emit InvitationCreatedEvent
+   * Orchestrates 5 private steps — each throws on failure:
+   * 1. Guard duplicate / already-registered
+   * 2. Validate sectors
+   * 3. Require inviter
+   * 4. Provision Auth0 account (create user + send reset email)
+   * 5. Persist record + emit domain event
    */
   async createInvitation(
     dto: CreateInvitationDto,
@@ -71,83 +60,108 @@ export class InvitationService {
   ): Promise<InvitationResponseDto> {
     this.logger.log(`Creating invitation for: ${dto.email}`);
 
-    // 1. Check duplicate invitation
-    const existingInvitation =
-      await this.invitationRepository.findPendingByEmail(dto.email);
-    if (existingInvitation) {
-      throw new ConflictException(
-        `A pending invitation already exists for ${dto.email}`,
-      );
-    }
+    await this.assertNoPendingInvitation(dto.email);
+    await this.assertNotRegistered(dto.email);
 
-    // 2. Check if user already registered
-    const existingUser = await this.userRepository.findByEmail(dto.email);
-    if (existingUser) {
-      throw new ConflictException(
-        `A user with email ${dto.email} is already registered`,
-      );
-    }
-
-    // 3. Validate sectors
     const sectorIds = dto.sectorIds ?? [];
-    let sectors: SectorModel[] = [];
-    if (sectorIds.length > 0) {
-      sectors = await this.sectorRepository.findBy({ id: In(sectorIds) });
-      if (sectors.length !== sectorIds.length) {
-        throw new BadRequestException('One or more sector IDs are invalid');
-      }
-    }
+    const sectors = await this.loadValidatedSectors(sectorIds);
+    const inviter = await this.requireInviter(inviterId);
+    const role = dto.role ?? 'user';
 
-    // 4. Get inviter name
+    const auth0UserId = await this.provisionAuth0Account(dto);
+
+    const invitation = await this.persistInvitationRecord(
+      dto,
+      inviterId,
+      auth0UserId,
+      sectors,
+      role,
+    );
+
+    this.emitInvitationCreatedEvent(invitation, sectorIds, inviterId);
+
+    this.logger.log(`Invitation created: ${invitation.id} for ${dto.email}`);
+    return this.toResponseDto(invitation, inviter.name);
+  }
+
+  // ==================== createInvitation helpers ====================
+
+  private async assertNoPendingInvitation(email: string): Promise<void> {
+    const existing = await this.invitationRepository.findPendingByEmail(email);
+    if (existing) {
+      throw new ConflictException(
+        `A pending invitation already exists for ${email}`,
+      );
+    }
+  }
+
+  private async assertNotRegistered(email: string): Promise<void> {
+    const user = await this.userRepository.findByEmail(email);
+    if (user) {
+      throw new ConflictException(
+        `A user with email ${email} is already registered`,
+      );
+    }
+  }
+
+  private async loadValidatedSectors(sectorIds: string[]) {
+    const sectors = await this.invitationRepository.loadSectorModels(sectorIds);
+    if (sectors.length !== sectorIds.length) {
+      throw new BadRequestException('One or more sector IDs are invalid');
+    }
+    return sectors;
+  }
+
+  private async requireInviter(inviterId: string) {
     const inviter = await this.userRepository.findById(inviterId);
     if (!inviter) {
       throw new NotFoundException('Inviting user not found');
     }
+    return inviter;
+  }
 
-    // 5. Create Auth0 user
-    const role = dto.role ?? 'user';
+  /** Creates Auth0 user + triggers password-reset email. Returns Auth0 userId. */
+  private async provisionAuth0Account(
+    dto: CreateInvitationDto,
+  ): Promise<string> {
     const auth0Result = await this.auth0Service.createUser({
       email: dto.email,
       name: dto.name,
     });
+    await this.auth0Service.sendPasswordResetEmail({ email: dto.email });
+    return auth0Result.userId;
+  }
 
-    // 6. Generate password-change ticket (Auth0 sends email)
-    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
-    await this.auth0Service.createPasswordChangeTicket({
-      userId: auth0Result.userId,
-      resultUrl: `${frontendUrl}/auth/login`,
-    });
-
-    // 7. Send welcome email via Resend (non-blocking, doesn't throw)
-    const sectorNames = sectors.map((s) => s.name);
-    await this.emailService.sendInvitationEmail({
-      to: dto.email,
-      inviteeName: dto.name,
-      role,
-      sectorNames,
-      invitedByName: inviter.name,
-    });
-
-    // 8. Persist invitation
+  private async persistInvitationRecord(
+    dto: CreateInvitationDto,
+    inviterId: string,
+    auth0UserId: string,
+    sectors: Awaited<ReturnType<typeof this.loadValidatedSectors>>,
+    role: string,
+  ): Promise<InvitationModel> {
     const token = crypto.randomUUID();
     const expiresAt = new Date(
       Date.now() + INVITATION_EXPIRY_DAYS * MS_PER_DAY,
     );
-
-    const invitation = await this.invitationRepository.save({
+    return this.invitationRepository.save({
       email: dto.email,
       name: dto.name,
       role,
       status: InvitationStatus.PENDING,
       token,
       invitedBy: inviterId,
-      auth0UserId: auth0Result.userId,
+      auth0UserId,
       sectors,
       expiresAt,
       acceptedAt: null,
     });
+  }
 
-    // 9. Emit event for notifications
+  private emitInvitationCreatedEvent(
+    invitation: InvitationModel,
+    sectorIds: string[],
+    inviterId: string,
+  ): void {
     this.eventEmitter.emit(
       'invitation.created',
       new InvitationCreatedEvent(
@@ -160,10 +174,6 @@ export class InvitationService {
         invitation.createdAt,
       ),
     );
-
-    this.logger.log(`Invitation created: ${invitation.id} for ${dto.email}`);
-
-    return this.toResponseDto(invitation, inviter.name);
   }
 
   /**

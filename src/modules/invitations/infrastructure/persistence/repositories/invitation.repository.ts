@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { InvitationModel } from '../models/invitation.model';
+import { SectorModel } from '../../../../sectors/infrastructure/persistence/models/sector.model';
 import { InvitationStatus } from '@shared/types';
 import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 
@@ -17,7 +18,22 @@ export class InvitationRepository {
   constructor(
     @InjectRepository(InvitationModel)
     private readonly repository: Repository<InvitationModel>,
+    @InjectRepository(SectorModel)
+    private readonly sectorRepository: Repository<SectorModel>,
   ) {}
+
+  /**
+   * Load sector models by IDs — used to associate sectors in the ManyToMany
+   * relation when saving an invitation. Keeps all TypeORM model access
+   * inside the infrastructure layer (not in application services).
+   *
+   * @param ids - Sector IDs to load
+   * @returns Array of SectorModel (may be shorter if some IDs not found)
+   */
+  async loadSectorModels(ids: string[]): Promise<SectorModel[]> {
+    if (ids.length === 0) return [];
+    return this.sectorRepository.findBy({ id: In(ids) });
+  }
 
   /**
    * Find pending invitation by email

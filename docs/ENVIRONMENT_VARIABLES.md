@@ -43,6 +43,17 @@ This document describes all environment variables used by the Context.ai API.
 
 **Setup Instructions**: See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md) for complete configuration guide.
 
+## Auth0 Management API – M2M (Invitations)
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `AUTH0_MGMT_DOMAIN` | Auth0 tenant domain for Management API (usually same as `AUTH0_DOMAIN`) | - | **Yes** |
+| `AUTH0_MGMT_CLIENT_ID` | Client ID of the M2M Application (scopes: `create:users`, `create:user_tickets`, `read:users`) | - | **Yes** |
+| `AUTH0_MGMT_CLIENT_SECRET` | Client Secret of the M2M Application | - | **Yes** |
+| `AUTH0_DB_CONNECTION` | Auth0 database connection name | `Username-Password-Authentication` | No |
+
+**Setup Instructions**: See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md) § "M2M Application for Invitations".
+
 ## Server-to-Server Authentication
 
 | Variable | Description | Default | Required |
@@ -97,6 +108,12 @@ AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.contextai.com
 AUTH0_ISSUER=https://your-tenant.auth0.com/
 
+# Auth0 Management API – M2M (Invitations)
+AUTH0_MGMT_DOMAIN=your-tenant.auth0.com
+AUTH0_MGMT_CLIENT_ID=your-m2m-client-id
+AUTH0_MGMT_CLIENT_SECRET=your-m2m-client-secret
+# AUTH0_DB_CONNECTION=Username-Password-Authentication
+
 # Server-to-Server (must match frontend INTERNAL_API_KEY)
 INTERNAL_API_KEY=generate-with-openssl-rand-hex-32
 
@@ -131,6 +148,7 @@ LOG_LEVEL=debug
 2. Update the required values:
    - **`GOOGLE_API_KEY`** - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
    - **`AUTH0_DOMAIN`**, **`AUTH0_AUDIENCE`**, **`AUTH0_ISSUER`** - See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md)
+   - **`AUTH0_MGMT_DOMAIN`**, **`AUTH0_MGMT_CLIENT_ID`**, **`AUTH0_MGMT_CLIENT_SECRET`** - See [docs/AUTH0_SETUP.md](./AUTH0_SETUP.md) § "M2M Application for Invitations"
    - **`INTERNAL_API_KEY`** - Generate with `openssl rand -hex 32` (must match frontend)
    - **`PINECONE_API_KEY`** - Get from [Pinecone Console](https://app.pinecone.io/)
    - **`DB_*`** - Update if not using default Docker values

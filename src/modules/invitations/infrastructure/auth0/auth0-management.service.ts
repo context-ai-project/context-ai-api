@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ManagementClient } from 'auth0';
+import { AuthenticationClient, ManagementClient } from 'auth0';
 import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 
 /** Suffix appended to random UUID to satisfy Auth0 password complexity */
@@ -14,42 +14,51 @@ export interface Auth0UserResult {
 }
 
 /**
- * Type guard for Auth0 user response data
+ * Auth0 SDK v5 returns the response body directly when awaited.
+ * This interface describes the shape of the unwrapped user response.
  */
 interface Auth0UserResponseData {
   user_id?: string;
 }
 
 /**
- * Type guard for Auth0 ticket response data
- */
-interface Auth0TicketResponseData {
-  ticket?: string;
-}
-
-/**
  * Auth0 Management Service
  *
- * Wraps the Auth0 Management API (M2M) to:
- * - Create users in Auth0
- * - Generate password-change tickets (sends email to user)
+ * Wraps the Auth0 APIs to:
+ * - Create users via Management API (M2M)
+ * - Send password-reset emails via Authentication API
  *
- * Requires an M2M Application with scopes: create:users, create:user_tickets, read:users
+ * Management API requires an M2M Application with scopes: create:users, read:users
+ * Authentication API uses the same M2M client_id to trigger password reset emails.
  */
 @Injectable()
 export class Auth0ManagementService {
   private readonly logger = new Logger(Auth0ManagementService.name);
-  private readonly client: ManagementClient;
+  private readonly managementClient: ManagementClient;
+  private readonly authClient: AuthenticationClient;
   private readonly connection: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.client = new ManagementClient({
-      domain: this.configService.getOrThrow<string>('AUTH0_MGMT_DOMAIN'),
-      clientId: this.configService.getOrThrow<string>('AUTH0_MGMT_CLIENT_ID'),
-      clientSecret: this.configService.getOrThrow<string>(
-        'AUTH0_MGMT_CLIENT_SECRET',
-      ),
+    const domain = this.configService.getOrThrow<string>('AUTH0_MGMT_DOMAIN');
+    const clientId = this.configService.getOrThrow<string>(
+      'AUTH0_MGMT_CLIENT_ID',
+    );
+    const clientSecret = this.configService.getOrThrow<string>(
+      'AUTH0_MGMT_CLIENT_SECRET',
+    );
+
+    this.managementClient = new ManagementClient({
+      domain,
+      clientId,
+      clientSecret,
     });
+
+    this.authClient = new AuthenticationClient({
+      domain,
+      clientId,
+      clientSecret,
+    });
+
     this.connection = this.configService.get<string>(
       'AUTH0_DB_CONNECTION',
       'Username-Password-Authentication',
@@ -60,7 +69,7 @@ export class Auth0ManagementService {
    * Create a user in Auth0 via Management API
    *
    * Uses a temporary random credential. The user will set their real password
-   * via the password-change ticket (sent by email).
+   * via the password-reset email sent by Auth0.
    */
   async createUser(params: {
     email: string;
@@ -69,16 +78,17 @@ export class Auth0ManagementService {
     try {
       const tempCredential = crypto.randomUUID() + TEMP_CREDENTIAL_SUFFIX;
 
-      const response = await this.client.users.create({
+      // Auth0 SDK v5: awaiting HttpResponsePromise returns the body directly
+      const userData = (await this.managementClient.users.create({
         email: params.email,
         name: params.name,
         connection: this.connection,
         password: tempCredential,
         email_verified: false,
-      });
+        verify_email: false,
+      })) as Auth0UserResponseData;
 
-      const responseData = response.data as Auth0UserResponseData;
-      const userId = responseData.user_id;
+      const userId = userData.user_id;
 
       if (!userId) {
         throw new Error('Auth0 did not return a user_id');
@@ -98,40 +108,27 @@ export class Auth0ManagementService {
   }
 
   /**
-   * Create a password-change ticket for a user
+   * Send a password-reset email to the user
    *
-   * Auth0 sends an email to the user with a link to set their password.
-   * After setting the password, they are redirected to the result_url.
+   * Uses Auth0 Authentication API (POST /dbconnections/change_password).
+   * Auth0 sends an email with a link for the user to set their password.
+   * This is the proper way to trigger password-reset emails from Auth0.
    */
-  async createPasswordChangeTicket(params: {
-    userId: string;
-    resultUrl: string;
-  }): Promise<string> {
+  async sendPasswordResetEmail(params: { email: string }): Promise<void> {
     try {
-      const response = await this.client.tickets.changePassword({
-        user_id: params.userId,
-        result_url: params.resultUrl,
-        mark_email_as_verified: true,
+      await this.authClient.database.changePassword({
+        email: params.email,
+        connection: this.connection,
       });
 
-      const responseData = response.data as Auth0TicketResponseData;
-      const ticket = responseData.ticket;
-
-      if (!ticket) {
-        throw new Error('Auth0 did not return a ticket');
-      }
-
-      this.logger.log(
-        `Password change ticket created for user: ${params.userId}`,
-      );
-      return ticket;
+      this.logger.log(`Password reset email sent to: ${params.email}`);
     } catch (error: unknown) {
       this.logger.error(
-        `Failed to create password change ticket: ${extractErrorMessage(error)}`,
+        `Failed to send password reset email to ${params.email}: ${extractErrorMessage(error)}`,
         extractErrorStack(error),
       );
       throw new Error(
-        `Failed to create password change ticket: ${extractErrorMessage(error)}`,
+        `Failed to send password reset email: ${extractErrorMessage(error)}`,
       );
     }
   }

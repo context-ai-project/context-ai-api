@@ -22,8 +22,9 @@ import { SectorsModule } from '../sectors/sectors.module';
  * - v1.3: Invitation acceptance on first login (via IInvitationAcceptanceService)
  *
  * Dependencies:
- * - AuthModule (forwardRef): Provides InternalApiKeyGuard for /users/sync endpoint.
+ * - AuthModule (forwardRef): Provides InternalApiKeyGuard, RoleRepository for /users/sync endpoint.
  *   Uses forwardRef to resolve circular dependency (AuthModule → UsersModule → AuthModule).
+ *   RoleRepository is used by UserService to assign roles during invitation acceptance.
  * - SectorsModule: Provides ISectorRepository for sector validation in admin operations.
  *
  * Note: IInvitationAcceptanceService is provided as null by default.

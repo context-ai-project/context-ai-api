@@ -1,0 +1,65 @@
+# ============================================================
+# Context.ai API - Environment Variables Template
+# ============================================================
+# Copy this file to .env and fill in the required values:
+#   cp env-template.txt .env
+#
+# Variables marked with (REQUIRED) must be set.
+# Variables with default values are optional.
+# ============================================================
+
+# ── Application ──────────────────────────────────────────────
+NODE_ENV=development
+PORT=3001
+API_PREFIX=api/v1
+
+# ── Database (local dev: Docker maps host 5433 → container 5432) ─
+DB_HOST=localhost
+DB_PORT=5433
+DB_USERNAME=context_ai_user
+DB_PASSWORD=context_ai_pass
+DB_DATABASE=context_ai_db
+DB_SYNCHRONIZE=false
+DB_LOGGING=false
+
+# ── Auth0 Authentication (REQUIRED) ─────────────────────────
+# See docs/AUTH0_SETUP.md for full configuration guide.
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.contextai.com
+AUTH0_ISSUER=https://your-tenant.auth0.com/
+
+# ── Auth0 Management API – M2M (REQUIRED for Invitations) ───
+# Create a Machine-to-Machine application in Auth0 with scopes:
+#   create:users, create:user_tickets, read:users
+# See docs/AUTH0_SETUP.md § "M2M Application for Invitations"
+AUTH0_MGMT_DOMAIN=your-tenant.auth0.com
+AUTH0_MGMT_CLIENT_ID=your-m2m-client-id
+AUTH0_MGMT_CLIENT_SECRET=your-m2m-client-secret
+# AUTH0_DB_CONNECTION=Username-Password-Authentication  # optional, default shown
+
+# ── Server-to-Server (REQUIRED – must match frontend) ───────
+# Generate with: openssl rand -hex 32
+INTERNAL_API_KEY=generate-with-openssl-rand-hex-32
+
+# ── Google AI / Genkit (REQUIRED) ───────────────────────────
+# Get from https://aistudio.google.com/app/apikey
+GOOGLE_API_KEY=your_google_api_key_here
+GENKIT_ENV=dev
+
+# ── Pinecone Vector Store (REQUIRED) ────────────────────────
+# Get from https://app.pinecone.io/
+PINECONE_API_KEY=your_pinecone_api_key_here
+PINECONE_INDEX=context-ai
+
+# ── CORS & Security ─────────────────────────────────────────
+FRONTEND_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+
+# ── Rate Limiting ────────────────────────────────────────────
+RATE_LIMIT_TTL=60
+RATE_LIMIT_MAX=100
+
+# ── Observability ────────────────────────────────────────────
+SENTRY_DSN=
+LOG_LEVEL=debug
+

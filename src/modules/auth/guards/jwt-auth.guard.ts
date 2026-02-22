@@ -10,6 +10,7 @@ import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { TokenRevocationService } from '../application/services/token-revocation.service';
 import { ValidatedUser } from '../types/jwt-payload.type';
+import { LOG_ID_PREFIX } from '@shared/constants';
 
 /**
  * PassportError
@@ -173,8 +174,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
       if (isRevoked) {
         this.logger.warn('Revoked token attempted to access resource', {
-          jti: validatedUser.jti.substring(0, 8) + '...',
-          userId: validatedUser.userId?.substring(0, 8) + '...',
+          jti: validatedUser.jti.substring(0, LOG_ID_PREFIX) + '...',
+          userId: validatedUser.userId?.substring(0, LOG_ID_PREFIX) + '...',
           timestamp: new Date().toISOString(),
         });
 

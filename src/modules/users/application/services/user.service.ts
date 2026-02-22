@@ -1,6 +1,7 @@
 import { Injectable, Inject, Logger, Optional } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserRepository } from '../../infrastructure/persistence/repositories/user.repository';
+import { RoleRepository } from '../../../auth/infrastructure/persistence/repositories/role.repository';
 import { User } from '../../domain/entities/user.entity';
 import { UserActivatedEvent } from '../../domain/events/user.events';
 import { extractErrorMessage } from '@shared/utils';
@@ -55,6 +56,7 @@ export class UserService {
 
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly roleRepository: RoleRepository,
     @Optional()
     @Inject('IInvitationAcceptanceService')
     private readonly invitationService: InvitationAcceptanceService | null,
@@ -76,16 +78,16 @@ export class UserService {
     let isNewUser = false;
 
     if (user) {
-      // Update last login
-      this.logger.log(`User found: ${user.id}, updating last login`);
-      user = await this.userRepository.save({
-        id: user.id,
-        auth0UserId: user.auth0UserId,
+      // Update profile from Auth0 + record last login via domain method
+      this.logger.log(
+        `User found: ${user.id}, updating last login (isActive=${String(user.isActive)})`,
+      );
+      const updatedUser = new User({
+        ...user,
         email: dto.email,
         name: dto.name,
-        lastLoginAt: new Date(),
-        updatedAt: new Date(),
-      });
+      }).updateLastLogin();
+      user = await this.userRepository.saveEntity(updatedUser);
     } else {
       // Create new user
       this.logger.log(
@@ -106,11 +108,7 @@ export class UserService {
       await this.acceptPendingInvitation(user, dto);
     }
 
-    // Load roles for the response
-    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
-    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
-
-    return this.mapToDto(user, roles);
+    return this.buildDto(user);
   }
 
   /**
@@ -122,9 +120,7 @@ export class UserService {
   ): Promise<UserResponseDto | null> {
     const user = await this.userRepository.findByAuth0UserId(auth0UserId);
     if (!user) return null;
-    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
-    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
-    return this.mapToDto(user, roles);
+    return this.buildDto(user);
   }
 
   /**
@@ -133,9 +129,7 @@ export class UserService {
   async getUserById(id: string): Promise<UserResponseDto | null> {
     const user = await this.userRepository.findById(id);
     if (!user) return null;
-    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
-    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
-    return this.mapToDto(user, roles);
+    return this.buildDto(user);
   }
 
   /**
@@ -166,14 +160,30 @@ export class UserService {
         `Found pending invitation ${invitation.id} for ${dto.email}, accepting...`,
       );
 
-      // Assign sectors from the invitation
-      const sectorIds = (invitation.sectors ?? []).map((s) => s.id);
-      if (sectorIds.length > 0) {
-        const userWithRelations =
-          await this.userRepository.findByIdWithRelations(user.id);
+      // Load user with all relations (roles + sectors) for assignment
+      const userWithRelations = await this.userRepository.findByIdWithRelations(
+        user.id,
+      );
 
-        if (userWithRelations) {
-          // Import SectorModel dynamically to avoid circular dependency at import level
+      if (userWithRelations) {
+        // Assign role from the invitation
+        const roleName = invitation.role || 'user';
+        const role = await this.roleRepository.findByName(roleName);
+        if (role) {
+          const roleModel = await this.roleRepository.findWithPermissions(
+            role.id,
+          );
+          if (roleModel) {
+            userWithRelations.roles = [roleModel];
+            this.logger.log(
+              `Assigned role "${roleName}" from invitation to user ${user.id}`,
+            );
+          }
+        }
+
+        // Assign sectors from the invitation
+        const sectorIds = (invitation.sectors ?? []).map((s) => s.id);
+        if (sectorIds.length > 0) {
           const existingSectorIds = (userWithRelations.sectors ?? []).map(
             (s) => s.id,
           );
@@ -188,12 +198,14 @@ export class UserService {
             ];
             userWithRelations.sectors =
               allSectorModels as typeof userWithRelations.sectors;
-            await this.userRepository.saveModel(userWithRelations);
             this.logger.log(
               `Assigned ${newSectors.length} sectors from invitation to user ${user.id}`,
             );
           }
         }
+
+        // Save role + sector assignments in a single operation
+        await this.userRepository.saveModel(userWithRelations);
       }
 
       // Mark invitation as accepted
@@ -220,6 +232,17 @@ export class UserService {
         `Failed to accept invitation for ${dto.email}: ${extractErrorMessage(error)}`,
       );
     }
+  }
+
+  /**
+   * Load user roles and map to DTO in a single step.
+   * Eliminates the repeated 3-line pattern:
+   *   findByIdWithRoles → extract names → mapToDto
+   */
+  private async buildDto(user: User): Promise<UserResponseDto> {
+    const userWithRoles = await this.userRepository.findByIdWithRoles(user.id);
+    const roles = userWithRoles?.roles?.map((r) => r.name) ?? [];
+    return this.mapToDto(user, roles);
   }
 
   /**

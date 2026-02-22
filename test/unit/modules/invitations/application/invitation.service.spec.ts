@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ConfigService } from '@nestjs/config';
 import {
   ConflictException,
   NotFoundException,
@@ -10,7 +9,6 @@ import {
 import { InvitationService } from '@modules/invitations/application/invitation.service';
 import { InvitationRepository } from '@modules/invitations/infrastructure/persistence/repositories/invitation.repository';
 import { Auth0ManagementService } from '@modules/invitations/infrastructure/auth0/auth0-management.service';
-import { EmailService } from '@modules/invitations/infrastructure/email/email.service';
 import { InvitationModel } from '@modules/invitations/infrastructure/persistence/models/invitation.model';
 import { SectorModel } from '@modules/sectors/infrastructure/persistence/models/sector.model';
 import { UserRepository } from '@modules/users/infrastructure/persistence/repositories/user.repository';
@@ -24,14 +22,12 @@ const MOCK_INVITATION_ID = '660e8400-e29b-41d4-a716-446655440001';
 const MOCK_EMAIL = 'user@example.com';
 const MOCK_NAME = 'John Doe';
 const MOCK_AUTH0_USER_ID = 'auth0|abc123';
-const MOCK_FRONTEND_URL = 'https://app.contextai.com';
 const MOCK_SECTOR_ID = '770e8400-e29b-41d4-a716-446655440002';
 
 describe('InvitationService', () => {
   let service: InvitationService;
   let invitationRepository: jest.Mocked<InvitationRepository>;
   let auth0Service: jest.Mocked<Auth0ManagementService>;
-  let emailService: jest.Mocked<EmailService>;
   let userRepository: jest.Mocked<UserRepository>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
   let sectorRepository: { findBy: jest.Mock };
@@ -49,11 +45,7 @@ describe('InvitationService', () => {
 
     const mockAuth0Service = {
       createUser: jest.fn(),
-      createPasswordChangeTicket: jest.fn(),
-    };
-
-    const mockEmailService = {
-      sendInvitationEmail: jest.fn(),
+      sendPasswordResetEmail: jest.fn(),
     };
 
     const mockUserRepository = {
@@ -69,10 +61,6 @@ describe('InvitationService', () => {
       findBy: jest.fn(),
     };
 
-    const mockConfigService = {
-      getOrThrow: jest.fn().mockReturnValue(MOCK_FRONTEND_URL),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvitationService,
@@ -81,10 +69,8 @@ describe('InvitationService', () => {
           useValue: mockInvitationRepository,
         },
         { provide: Auth0ManagementService, useValue: mockAuth0Service },
-        { provide: EmailService, useValue: mockEmailService },
         { provide: UserRepository, useValue: mockUserRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
-        { provide: ConfigService, useValue: mockConfigService },
         {
           provide: getRepositoryToken(SectorModel),
           useValue: mockSectorRepository,
@@ -95,7 +81,6 @@ describe('InvitationService', () => {
     service = module.get<InvitationService>(InvitationService);
     invitationRepository = module.get(InvitationRepository);
     auth0Service = module.get(Auth0ManagementService);
-    emailService = module.get(EmailService);
     userRepository = module.get(UserRepository);
     eventEmitter = module.get(EventEmitter2);
     sectorRepository = module.get(getRepositoryToken(SectorModel));
@@ -145,10 +130,7 @@ describe('InvitationService', () => {
       auth0Service.createUser.mockResolvedValue({
         userId: MOCK_AUTH0_USER_ID,
       });
-      auth0Service.createPasswordChangeTicket.mockResolvedValue(
-        'https://auth0.com/ticket/123',
-      );
-      emailService.sendInvitationEmail.mockResolvedValue(undefined);
+      auth0Service.sendPasswordResetEmail.mockResolvedValue(undefined);
       invitationRepository.save.mockResolvedValue(
         mockSavedInvitation as InvitationModel,
       );
@@ -171,15 +153,10 @@ describe('InvitationService', () => {
         name: MOCK_NAME,
       });
 
-      // Verify email sent
-      expect(emailService.sendInvitationEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: MOCK_EMAIL,
-          inviteeName: MOCK_NAME,
-          role: 'user',
-          sectorNames: ['Test Sector'],
-        }),
-      );
+      // Verify password reset email sent
+      expect(auth0Service.sendPasswordResetEmail).toHaveBeenCalledWith({
+        email: MOCK_EMAIL,
+      });
 
       // Verify event emitted
       expect(eventEmitter.emit).toHaveBeenCalledWith(

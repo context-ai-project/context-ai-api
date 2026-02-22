@@ -1,4 +1,5 @@
 import { SourceType, SourceStatus, type Metadata } from '@shared/types';
+import { requireNonEmpty } from '@shared/validators';
 
 /**
  * Knowledge source metadata type
@@ -56,9 +57,7 @@ export class KnowledgeSource {
     sourceType: SourceType;
     content: string;
   }): void {
-    if (!data.title || data.title.trim() === '') {
-      throw new Error('Title cannot be empty');
-    }
+    requireNonEmpty(data.title, 'Title');
 
     if (data.title.length > KnowledgeSource.MAX_TITLE_LENGTH) {
       throw new Error(
@@ -66,9 +65,7 @@ export class KnowledgeSource {
       );
     }
 
-    if (!data.sectorId || data.sectorId.trim() === '') {
-      throw new Error('SectorId cannot be empty');
-    }
+    requireNonEmpty(data.sectorId, 'SectorId');
 
     const validSourceTypes = Object.values(SourceType) as string[];
     const sourceTypeValue = String(data.sourceType);
@@ -76,9 +73,7 @@ export class KnowledgeSource {
       throw new Error('Invalid source type');
     }
 
-    if (!data.content || data.content.trim() === '') {
-      throw new Error('Content cannot be empty');
-    }
+    requireNonEmpty(data.content, 'Content');
   }
 
   // ==================== Status Management ====================
