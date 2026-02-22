@@ -11,9 +11,11 @@ describe('JwtStrategy', () => {
   let userService: UserService;
 
   const mockAuthService = {
-    getAuth0Domain: jest.fn().mockReturnValue('test.auth0.com'),
-    getAuth0Audience: jest.fn().mockReturnValue('https://api.contextai.com'),
-    getAuth0Issuer: jest.fn().mockReturnValue('https://test.auth0.com/'),
+    getAuth0Config: jest.fn().mockReturnValue({
+      domain: 'test.auth0.com',
+      audience: 'https://api.contextai.com',
+      issuer: 'https://test.auth0.com/',
+    }),
   };
 
   const mockUserService = {
@@ -341,8 +343,7 @@ describe('JwtStrategy', () => {
 
   describe('constructor', () => {
     it('should use Auth0 configuration from AuthService', () => {
-      expect(authService.getAuth0Audience).toHaveBeenCalled();
-      expect(authService.getAuth0Issuer).toHaveBeenCalled();
+      expect(authService.getAuth0Config).toHaveBeenCalled();
     });
   });
 });
