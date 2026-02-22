@@ -1,11 +1,15 @@
 import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserService } from '../../../../../../src/modules/users/application/services/user.service';
 import type { SyncUserDto } from '../../../../../../src/modules/users/application/services/user.service';
 import { UserRepository } from '../../../../../../src/modules/users/infrastructure/persistence/repositories/user.repository';
+import { RoleRepository } from '../../../../../../src/modules/auth/infrastructure/persistence/repositories/role.repository';
 
 describe('UserService', () => {
   let service: UserService;
   let userRepository: jest.Mocked<UserRepository>;
+  let roleRepository: jest.Mocked<RoleRepository>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockDate = new Date('2024-01-01T00:00:00Z');
   const mockUser = {
@@ -25,10 +29,29 @@ describe('UserService', () => {
       findByAuth0UserId: jest.fn(),
       findById: jest.fn(),
       save: jest.fn(),
+      saveEntity: jest.fn(),
       findByIdWithRoles: jest.fn(),
+      findByIdWithRelations: jest.fn(),
+      saveModel: jest.fn(),
+      findAllWithRelations: jest.fn(),
     } as unknown as jest.Mocked<UserRepository>;
 
-    service = new UserService(userRepository);
+    roleRepository = {
+      findByName: jest.fn(),
+      findWithPermissions: jest.fn(),
+      findById: jest.fn(),
+      findByIds: jest.fn(),
+      findAll: jest.fn(),
+      findManyWithPermissions: jest.fn(),
+      save: jest.fn(),
+    } as unknown as jest.Mocked<RoleRepository>;
+
+    eventEmitter = {
+      emit: jest.fn(),
+    } as unknown as jest.Mocked<EventEmitter2>;
+
+    // Pass null for invitationService (default behavior without invitations module)
+    service = new UserService(userRepository, roleRepository, null, eventEmitter);
 
     // Suppress logger output during tests
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -52,7 +75,7 @@ describe('UserService', () => {
 
     it('should update existing user and return DTO', async () => {
       userRepository.findByAuth0UserId.mockResolvedValue(mockUser);
-      userRepository.save.mockResolvedValue({
+      userRepository.saveEntity.mockResolvedValue({
         ...mockUser,
         lastLoginAt: new Date(),
       });
@@ -62,7 +85,7 @@ describe('UserService', () => {
       expect(userRepository.findByAuth0UserId).toHaveBeenCalledWith(
         'auth0|123456',
       );
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           id: mockUser.id,
           auth0UserId: mockUser.auth0UserId,
@@ -121,11 +144,11 @@ describe('UserService', () => {
 
     it('should include lastLoginAt in the save call', async () => {
       userRepository.findByAuth0UserId.mockResolvedValue(mockUser);
-      userRepository.save.mockResolvedValue(mockUser);
+      userRepository.saveEntity.mockResolvedValue(mockUser);
 
       await service.syncUser(syncDto);
 
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           lastLoginAt: expect.any(Date),
         }),
@@ -134,13 +157,33 @@ describe('UserService', () => {
 
     it('should include updatedAt when updating existing user', async () => {
       userRepository.findByAuth0UserId.mockResolvedValue(mockUser);
-      userRepository.save.mockResolvedValue(mockUser);
+      userRepository.saveEntity.mockResolvedValue(mockUser);
 
       await service.syncUser(syncDto);
 
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           updatedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('should preserve isActive=false when syncing inactive user', async () => {
+      const inactiveUser = { ...mockUser, isActive: false };
+      userRepository.findByAuth0UserId.mockResolvedValue(inactiveUser);
+      userRepository.saveEntity.mockResolvedValue(inactiveUser);
+
+      const result = await service.syncUser(syncDto);
+
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockUser.id,
+          isActive: false,
+        }),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          isActive: false,
         }),
       );
     });
@@ -221,6 +264,122 @@ describe('UserService', () => {
       await expect(service.getUserById('user-uuid-123')).rejects.toThrow(
         'DB error',
       );
+    });
+  });
+
+  describe('acceptPendingInvitation (via syncUser for new users)', () => {
+    const syncDto: SyncUserDto = {
+      auth0UserId: 'auth0|new-invited-user',
+      email: 'invited@example.com',
+      name: 'Invited User',
+    };
+
+    const mockNewUser = {
+      id: 'invited-user-uuid',
+      auth0UserId: 'auth0|new-invited-user',
+      email: 'invited@example.com',
+      name: 'Invited User',
+      isActive: true,
+      createdAt: mockDate,
+      updatedAt: mockDate,
+      lastLoginAt: mockDate,
+      roles: [],
+    };
+
+    const mockInvitation = {
+      id: 'invitation-uuid',
+      email: 'invited@example.com',
+      role: 'user',
+      sectors: [{ id: 'sector-uuid-1', name: 'Sector A' }],
+    };
+
+    const mockRoleDomain = {
+      id: 'role-uuid',
+      name: 'user',
+      description: 'Regular user',
+      isSystemRole: true,
+      createdAt: mockDate,
+      updatedAt: mockDate,
+    };
+
+    const mockRoleModel = {
+      id: 'role-uuid',
+      name: 'user',
+      description: 'Regular user',
+      isSystemRole: true,
+      permissions: [],
+      createdAt: mockDate,
+      updatedAt: mockDate,
+    };
+
+    it('should assign role and sectors from invitation for new users', async () => {
+      const mockInvitationService = {
+        findPendingByEmail: jest.fn().mockResolvedValue(mockInvitation),
+        markAccepted: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const serviceWithInvitations = new UserService(
+        userRepository,
+        roleRepository,
+        mockInvitationService,
+        eventEmitter,
+      );
+
+      // User not found → new user
+      userRepository.findByAuth0UserId.mockResolvedValue(null);
+      userRepository.save.mockResolvedValue(mockNewUser);
+
+      // Role lookup
+      roleRepository.findByName.mockResolvedValue(mockRoleDomain);
+      roleRepository.findWithPermissions.mockResolvedValue(mockRoleModel);
+
+      // User with relations for sector/role assignment
+      const userWithRelations = {
+        ...mockNewUser,
+        roles: [],
+        sectors: [],
+      };
+      userRepository.findByIdWithRelations.mockResolvedValue(
+        userWithRelations,
+      );
+      userRepository.saveModel.mockResolvedValue(userWithRelations);
+
+      // findByIdWithRoles for the response
+      userRepository.findByIdWithRoles.mockResolvedValue({
+        ...mockNewUser,
+        roles: [mockRoleModel],
+      });
+
+      const result = await serviceWithInvitations.syncUser(syncDto);
+
+      // Verify role was assigned
+      expect(roleRepository.findByName).toHaveBeenCalledWith('user');
+      expect(roleRepository.findWithPermissions).toHaveBeenCalledWith(
+        'role-uuid',
+      );
+
+      // Verify sectors were assigned
+      expect(userRepository.saveModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roles: [mockRoleModel],
+          sectors: expect.arrayContaining([
+            expect.objectContaining({ id: 'sector-uuid-1' }),
+          ]),
+        }),
+      );
+
+      // Verify invitation was marked as accepted
+      expect(mockInvitationService.markAccepted).toHaveBeenCalledWith(
+        'invitation-uuid',
+      );
+
+      // Verify event was emitted
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'user.activated',
+        expect.anything(),
+      );
+
+      expect(result.roles).toEqual(['user']);
     });
   });
 

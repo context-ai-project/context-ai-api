@@ -19,11 +19,16 @@ import { SectorsModule } from '../sectors/sectors.module';
  * - User lookup by Auth0 sub or email
  * - Last login tracking
  * - Admin: user listing, role management, status toggling, sector assignment
+ * - v1.3: Invitation acceptance on first login (via IInvitationAcceptanceService)
  *
  * Dependencies:
- * - AuthModule (forwardRef): Provides InternalApiKeyGuard for /users/sync endpoint.
+ * - AuthModule (forwardRef): Provides InternalApiKeyGuard, RoleRepository for /users/sync endpoint.
  *   Uses forwardRef to resolve circular dependency (AuthModule → UsersModule → AuthModule).
+ *   RoleRepository is used by UserService to assign roles during invitation acceptance.
  * - SectorsModule: Provides ISectorRepository for sector validation in admin operations.
+ *
+ * Note: IInvitationAcceptanceService is provided as null by default.
+ * When InvitationsModule is loaded, it overrides this with the real InvitationService.
  */
 @Module({
   imports: [
@@ -32,7 +37,17 @@ import { SectorsModule } from '../sectors/sectors.module';
     SectorsModule, // For ISectorRepository (admin sector assignment)
   ],
   controllers: [UserController, AdminUserController],
-  providers: [UserRepository, UserService, AdminUserService],
+  providers: [
+    UserRepository,
+    UserService,
+    AdminUserService,
+    // Default null provider for IInvitationAcceptanceService
+    // Overridden by InvitationsModule when loaded
+    {
+      provide: 'IInvitationAcceptanceService',
+      useValue: null,
+    },
+  ],
   exports: [UserService, UserRepository],
 })
 export class UsersModule {}

@@ -67,10 +67,30 @@ export class UserRepository {
   }
 
   /**
-   * Create or update user
+   * Create or update user from a raw Partial<UserModel>
    */
   async save(user: Partial<UserModel>): Promise<User> {
     const model = this.repository.create(user);
+    const saved = await this.repository.save(model);
+    return this.toDomain(saved);
+  }
+
+  /**
+   * Persist a User domain entity (maps fields automatically).
+   * Prefer this over `save(Partial<UserModel>)` when working with domain entities
+   * so the service does not need to know about the UserModel structure.
+   */
+  async saveEntity(user: User): Promise<User> {
+    const model = this.repository.create({
+      id: user.id,
+      auth0UserId: user.auth0UserId,
+      email: user.email,
+      name: user.name,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      lastLoginAt: user.lastLoginAt,
+    });
     const saved = await this.repository.save(model);
     return this.toDomain(saved);
   }
@@ -121,6 +141,22 @@ export class UserRepository {
       where: { id },
       relations: ['roles', 'sectors'],
     });
+  }
+
+  /**
+   * Find all users that have a specific role assigned.
+   * Uses INNER JOIN for efficiency — returns only { id } to avoid loading
+   * unnecessary columns when only the user ID is needed (e.g. notifications).
+   *
+   * @param roleName - Role name to filter by (e.g. 'admin')
+   * @returns Array of objects with id only
+   */
+  async findByRole(roleName: string): Promise<Array<{ id: string }>> {
+    return this.repository
+      .createQueryBuilder('user')
+      .innerJoin('user.roles', 'role', 'role.name = :roleName', { roleName })
+      .select(['user.id'])
+      .getMany();
   }
 
   /**

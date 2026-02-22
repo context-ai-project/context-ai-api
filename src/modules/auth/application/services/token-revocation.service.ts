@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { LOG_ID_PREFIX } from '@shared/constants';
 
 /**
  * TokenRevocationService
@@ -67,7 +68,7 @@ export class TokenRevocationService {
     // Don't store already-expired tokens
     if (expirationMs <= Date.now()) {
       this.logger.debug('Token already expired, skipping revocation', {
-        jti: jti.substring(0, 8) + '...', // Log partial JTI for privacy
+        jti: jti.substring(0, LOG_ID_PREFIX) + '...', // Log partial JTI for privacy
         expirationMs,
       });
       return;
@@ -76,7 +77,7 @@ export class TokenRevocationService {
     this.revokedTokens.set(jti, expirationMs);
 
     this.logger.log('Token revoked', {
-      jti: jti.substring(0, 8) + '...',
+      jti: jti.substring(0, LOG_ID_PREFIX) + '...',
       expiresAt: new Date(expirationMs).toISOString(),
       totalRevoked: this.revokedTokens.size,
     });

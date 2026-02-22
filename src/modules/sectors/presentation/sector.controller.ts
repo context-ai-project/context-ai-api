@@ -52,20 +52,21 @@ const EXAMPLE_UUID = '550e8400-e29b-41d4-a716-446655440000';
  * Sector Controller
  *
  * Handles HTTP requests for sector management operations.
- * All endpoints require admin role.
+ *
+ * Read-only endpoints (GET) are accessible to all authenticated users.
+ * Write endpoints (POST, PATCH, DELETE) require admin role.
  *
  * Endpoints:
- * - GET    /sectors         → List all sectors
- * - GET    /sectors/:id     → Get sector by ID
- * - POST   /sectors         → Create a new sector
- * - PATCH  /sectors/:id     → Update a sector
- * - DELETE /sectors/:id     → Delete a sector (only if no documents)
- * - PATCH  /sectors/:id/status → Toggle sector active/inactive
+ * - GET    /sectors         → List all sectors (any authenticated user)
+ * - GET    /sectors/:id     → Get sector by ID (any authenticated user)
+ * - POST   /sectors         → Create a new sector (admin only)
+ * - PATCH  /sectors/:id     → Update a sector (admin only)
+ * - DELETE /sectors/:id     → Delete a sector (admin only)
+ * - PATCH  /sectors/:id/status → Toggle sector active/inactive (admin only)
  */
 @ApiTags('Sectors')
 @ApiBearerAuth()
 @Controller('sectors')
-@RequireRoles('admin')
 export class SectorController {
   private readonly logger = new Logger(SectorController.name);
 
@@ -87,7 +88,7 @@ export class SectorController {
   @ApiOperation({
     summary: 'List all sectors',
     description:
-      'Returns all sectors with their document counts.\n\n**Required Role:** admin',
+      'Returns all sectors with their document counts.\n\nAccessible to all authenticated users.',
   })
   @ApiResponse({
     status: 200,
@@ -95,7 +96,6 @@ export class SectorController {
     type: [SectorResponseDto],
   })
   @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
-  @ApiForbiddenResponse({ description: API_FORBIDDEN_DESC })
   async listSectors(): Promise<SectorResponseDto[]> {
     this.logger.log('List sectors request');
 
@@ -126,7 +126,7 @@ export class SectorController {
   @ApiOperation({
     summary: 'Get sector by ID',
     description:
-      'Returns a single sector with its document count.\n\n**Required Role:** admin',
+      'Returns a single sector with its document count.\n\nAccessible to all authenticated users.',
   })
   @ApiParam({
     name: 'id',
@@ -140,7 +140,6 @@ export class SectorController {
   })
   @ApiResponse({ status: 404, description: API_SECTOR_NOT_FOUND_DESC })
   @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
-  @ApiForbiddenResponse({ description: API_FORBIDDEN_DESC })
   async getSector(@Param('id') id: string): Promise<SectorResponseDto> {
     this.validateUUID(id, 'id');
     this.logger.log(`Get sector: ${id}`);
@@ -171,6 +170,7 @@ export class SectorController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RequireRoles('admin')
   @ApiOperation({
     summary: 'Create a new sector',
     description:
@@ -209,6 +209,7 @@ export class SectorController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
+  @RequireRoles('admin')
   @ApiOperation({
     summary: 'Update a sector',
     description:
@@ -261,6 +262,7 @@ export class SectorController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
+  @RequireRoles('admin')
   @ApiOperation({
     summary: 'Delete a sector',
     description:
@@ -305,6 +307,7 @@ export class SectorController {
 
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
+  @RequireRoles('admin')
   @ApiOperation({
     summary: 'Toggle sector status (active/inactive)',
     description:

@@ -90,6 +90,9 @@ const RATE_LIMIT_LIST = 50;
 const RATE_LIMIT_GET = 60;
 const RATE_LIMIT_DELETE = 20;
 
+// Maximum characters of the query logged to avoid verbose output
+const LOG_QUERY_MAX_LENGTH = 50;
+
 // Constants for API documentation
 const API_UNAUTHORIZED_DESC =
   'Authentication required - Missing or invalid JWT token';
@@ -207,7 +210,6 @@ export class InteractionController {
     @Body() dto: QueryAssistantDto,
     @CurrentUser('userId') userId: string,
   ): Promise<QueryAssistantResponseDto> {
-    const LOG_QUERY_MAX_LENGTH = 50;
     this.logger.log(
       `Query from user ${userId} in sector ${dto.sectorId}: "${dto.query.substring(0, LOG_QUERY_MAX_LENGTH)}..."`,
     );

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { UserRepository } from '../../../users/infrastructure/persistence/repositories/user.repository';
 import { RoleRepository } from '../../infrastructure/persistence/repositories/role.repository';
 import { extractErrorMessage } from '@shared/utils';
+import { LOG_ID_PREFIX } from '@shared/constants';
 
 /**
  * Permission Service
@@ -40,7 +41,7 @@ export class PermissionService {
 
       if (!userWithRoles) {
         this.logger.warn('User not found for role lookup', {
-          userId: userId.substring(0, 8) + '...',
+          userId: userId.substring(0, LOG_ID_PREFIX) + '...',
         });
         return [];
       }
@@ -48,7 +49,7 @@ export class PermissionService {
       return userWithRoles.roles.map((role) => role.name);
     } catch (error: unknown) {
       this.logger.error('Failed to get user roles', {
-        userId: userId.substring(0, 8) + '...',
+        userId: userId.substring(0, LOG_ID_PREFIX) + '...',
         error: extractErrorMessage(error),
       });
       return [];
@@ -67,7 +68,7 @@ export class PermissionService {
 
       if (!userWithRoles) {
         this.logger.warn('User not found for permission lookup', {
-          userId: userId.substring(0, 8) + '...',
+          userId: userId.substring(0, LOG_ID_PREFIX) + '...',
         });
         return [];
       }
@@ -77,7 +78,7 @@ export class PermissionService {
 
       if (roleIds.length === 0) {
         this.logger.warn('User has no roles assigned', {
-          userId: userId.substring(0, 8) + '...',
+          userId: userId.substring(0, LOG_ID_PREFIX) + '...',
         });
         return [];
       }
@@ -98,7 +99,7 @@ export class PermissionService {
       return Array.from(permissionSet);
     } catch (error: unknown) {
       this.logger.error('Failed to get user permissions', {
-        userId: userId.substring(0, 8) + '...',
+        userId: userId.substring(0, LOG_ID_PREFIX) + '...',
         error: extractErrorMessage(error),
       });
       return [];
@@ -118,7 +119,7 @@ export class PermissionService {
 
     // Structured logging for security audit
     this.logger.log('Permission check', {
-      userId: userId.substring(0, 8) + '...',
+      userId: userId.substring(0, LOG_ID_PREFIX) + '...',
       permission,
       granted: hasAccess,
       timestamp: new Date().toISOString(),
@@ -144,7 +145,7 @@ export class PermissionService {
     );
 
     this.logger.log('Multiple permission check (ANY)', {
-      userId: userId.substring(0, 8) + '...',
+      userId: userId.substring(0, LOG_ID_PREFIX) + '...',
       requiredPermissions: permissions,
       granted: hasAccess,
       timestamp: new Date().toISOString(),
@@ -170,7 +171,7 @@ export class PermissionService {
     );
 
     this.logger.log('Multiple permission check (ALL)', {
-      userId: userId.substring(0, 8) + '...',
+      userId: userId.substring(0, LOG_ID_PREFIX) + '...',
       requiredPermissions: permissions,
       granted: hasAccess,
       timestamp: new Date().toISOString(),
@@ -191,7 +192,7 @@ export class PermissionService {
     const hasAccess = roles.includes(roleName);
 
     this.logger.log('Role check', {
-      userId: userId.substring(0, 8) + '...',
+      userId: userId.substring(0, LOG_ID_PREFIX) + '...',
       role: roleName,
       granted: hasAccess,
       timestamp: new Date().toISOString(),

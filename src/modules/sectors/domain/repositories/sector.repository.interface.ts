@@ -22,6 +22,13 @@ export interface ISectorRepository {
   findById(id: string): Promise<Sector | null>;
 
   /**
+   * Finds multiple sectors by their IDs in a single query
+   * @param ids - Array of sector IDs
+   * @returns Array of found sectors (may be shorter than ids if some not found)
+   */
+  findByIds(ids: string[]): Promise<Sector[]>;
+
+  /**
    * Finds a sector by name (case-insensitive)
    * @param name - The sector name
    * @returns The sector or null if not found

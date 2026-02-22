@@ -70,15 +70,35 @@ Under the **Permissions** tab, add (Auth0 uses `action:resource` format; our bac
 
 ---
 
-## 🖥️ Step 3: Create Machine-to-Machine Application (Optional)
+## 🖥️ Step 3: Create Machine-to-Machine Application (Invitations)
 
-For backend-to-backend communication or testing:
+The invitation system uses the **Auth0 Management API** to create users and send password-reset emails. This requires an M2M application.
 
 1. **Navigate**: `Applications` → `Applications` → `Create Application`
 2. **Name**: `Context.AI Backend M2M`
 3. **Type**: `Machine to Machine Applications`
-4. **Authorize**: Select `Context.AI API`
-5. **Permissions**: Grant necessary scopes
+4. **Authorize**: Select **Auth0 Management API** (not your custom API)
+5. **Grant these scopes**:
+   - `create:users` — Create users during invitation acceptance
+   - `create:user_tickets` — Generate password-change tickets (email sent by Auth0)
+   - `read:users` — Look up existing users by email
+
+6. **Copy credentials** from the M2M application's **Settings** tab:
+   - **Domain** → `AUTH0_MGMT_DOMAIN`
+   - **Client ID** → `AUTH0_MGMT_CLIENT_ID`
+   - **Client Secret** → `AUTH0_MGMT_CLIENT_SECRET`
+
+> **Note**: `AUTH0_MGMT_DOMAIN` is typically the same as `AUTH0_DOMAIN`, but they are kept separate for flexibility (e.g., different tenants for auth vs. management).
+
+### Disable Public Signup (Recommended)
+
+Since users are now created via invitations, public self-signup should be disabled:
+
+1. Go to `Authentication` → `Database` → `Username-Password-Authentication`
+2. Under **Settings**, toggle **Disable Sign Ups** → ON
+3. Save changes
+
+This ensures that only invited users (created via the Management API) can access the platform.
 
 ---
 
@@ -87,10 +107,16 @@ For backend-to-backend communication or testing:
 ### Backend `.env` Configuration
 
 ```bash
-# Auth0 Configuration
+# Auth0 Authentication (JWT validation)
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.contextai.com
 AUTH0_ISSUER=https://your-tenant.auth0.com/
+
+# Auth0 Management API – M2M (Invitations)
+AUTH0_MGMT_DOMAIN=your-tenant.auth0.com
+AUTH0_MGMT_CLIENT_ID=your-m2m-client-id
+AUTH0_MGMT_CLIENT_SECRET=your-m2m-client-secret
+# AUTH0_DB_CONNECTION=Username-Password-Authentication  # optional, default shown
 
 # Internal API Key (for server-to-server communication, e.g., NextAuth → /users/sync)
 INTERNAL_API_KEY=your-secure-random-key
@@ -103,6 +129,10 @@ INTERNAL_API_KEY=your-secure-random-key
 | `AUTH0_DOMAIN` | Your Auth0 tenant domain | `contextai-dev.auth0.com` |
 | `AUTH0_AUDIENCE` | API identifier from Step 2 | `https://api.contextai.com` |
 | `AUTH0_ISSUER` | Issuer URL (domain + trailing slash) | `https://contextai-dev.auth0.com/` |
+| `AUTH0_MGMT_DOMAIN` | M2M app domain (usually same as `AUTH0_DOMAIN`) | `contextai-dev.auth0.com` |
+| `AUTH0_MGMT_CLIENT_ID` | M2M app Client ID (from Step 3) | `abcDEF123...` |
+| `AUTH0_MGMT_CLIENT_SECRET` | M2M app Client Secret (from Step 3) | `xyz789...` |
+| `AUTH0_DB_CONNECTION` | Auth0 database connection name (optional) | `Username-Password-Authentication` |
 | `INTERNAL_API_KEY` | Shared key for frontend server → backend communication (user sync) | `openssl rand -hex 32` |
 
 ### How to Get These Values
@@ -118,6 +148,10 @@ INTERNAL_API_KEY=your-secure-random-key
 3. **AUTH0_ISSUER**:
    - Same as `AUTH0_DOMAIN` but with `https://` and trailing `/`
    - Format: `https://{AUTH0_DOMAIN}/`
+
+4. **AUTH0_MGMT_DOMAIN / CLIENT_ID / CLIENT_SECRET**:
+   - Go to `Applications` → `Applications` → `Context.AI Backend M2M`
+   - Copy **Domain**, **Client ID**, and **Client Secret** from the **Settings** tab
 
 ---
 
@@ -296,8 +330,13 @@ AUTH0_AUDIENCE=https://api.contextai.com
 
 - [ ] Create Auth0 tenant (production)
 - [ ] Create Auth0 API with permissions
-- [ ] Configure environment variables in hosting platform
+- [ ] Create M2M Application with `create:users`, `create:user_tickets`, `read:users` scopes
+- [ ] Disable public signup in Auth0 Database Connection
+- [ ] Configure all `AUTH0_MGMT_*` environment variables in hosting platform
+- [ ] Ensure `FRONTEND_URL` points to production domain
+- [ ] Configure remaining environment variables in hosting platform
 - [ ] Test token validation in staging
+- [ ] Test invitation flow end-to-end in staging
 - [ ] Set up monitoring/alerts for auth failures
 - [ ] Document emergency access procedures
 - [ ] Configure rate limiting (Auth0 + Backend)
@@ -315,6 +354,6 @@ AUTH0_AUDIENCE=https://api.contextai.com
 
 ---
 
-**Last Updated**: Phase 6 - Issue 6.1
+**Last Updated**: v1.3 - Feature 2 (Invitations + Notifications)
 **Maintained By**: Context.AI Development Team
 
