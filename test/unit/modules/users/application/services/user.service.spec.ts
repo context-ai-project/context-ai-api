@@ -29,6 +29,7 @@ describe('UserService', () => {
       findByAuth0UserId: jest.fn(),
       findById: jest.fn(),
       save: jest.fn(),
+      saveEntity: jest.fn(),
       findByIdWithRoles: jest.fn(),
       findByIdWithRelations: jest.fn(),
       saveModel: jest.fn(),
@@ -74,7 +75,7 @@ describe('UserService', () => {
 
     it('should update existing user and return DTO', async () => {
       userRepository.findByAuth0UserId.mockResolvedValue(mockUser);
-      userRepository.save.mockResolvedValue({
+      userRepository.saveEntity.mockResolvedValue({
         ...mockUser,
         lastLoginAt: new Date(),
       });
@@ -84,7 +85,7 @@ describe('UserService', () => {
       expect(userRepository.findByAuth0UserId).toHaveBeenCalledWith(
         'auth0|123456',
       );
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           id: mockUser.id,
           auth0UserId: mockUser.auth0UserId,
@@ -143,11 +144,11 @@ describe('UserService', () => {
 
     it('should include lastLoginAt in the save call', async () => {
       userRepository.findByAuth0UserId.mockResolvedValue(mockUser);
-      userRepository.save.mockResolvedValue(mockUser);
+      userRepository.saveEntity.mockResolvedValue(mockUser);
 
       await service.syncUser(syncDto);
 
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           lastLoginAt: expect.any(Date),
         }),
@@ -156,11 +157,11 @@ describe('UserService', () => {
 
     it('should include updatedAt when updating existing user', async () => {
       userRepository.findByAuth0UserId.mockResolvedValue(mockUser);
-      userRepository.save.mockResolvedValue(mockUser);
+      userRepository.saveEntity.mockResolvedValue(mockUser);
 
       await service.syncUser(syncDto);
 
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           updatedAt: expect.any(Date),
         }),
@@ -170,11 +171,11 @@ describe('UserService', () => {
     it('should preserve isActive=false when syncing inactive user', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
       userRepository.findByAuth0UserId.mockResolvedValue(inactiveUser);
-      userRepository.save.mockResolvedValue(inactiveUser);
+      userRepository.saveEntity.mockResolvedValue(inactiveUser);
 
       const result = await service.syncUser(syncDto);
 
-      expect(userRepository.save).toHaveBeenCalledWith(
+      expect(userRepository.saveEntity).toHaveBeenCalledWith(
         expect.objectContaining({
           id: mockUser.id,
           isActive: false,

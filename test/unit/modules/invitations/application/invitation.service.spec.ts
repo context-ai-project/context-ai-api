@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ConflictException,
@@ -30,7 +29,6 @@ describe('InvitationService', () => {
   let auth0Service: jest.Mocked<Auth0ManagementService>;
   let userRepository: jest.Mocked<UserRepository>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
-  let sectorRepository: { findBy: jest.Mock };
 
   beforeEach(async () => {
     const mockInvitationRepository = {
@@ -39,6 +37,7 @@ describe('InvitationService', () => {
       findAll: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
+      loadSectorModels: jest.fn(),
       countPending: jest.fn(),
       findExpiredPending: jest.fn(),
     };
@@ -57,10 +56,6 @@ describe('InvitationService', () => {
       emit: jest.fn(),
     };
 
-    const mockSectorRepository = {
-      findBy: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvitationService,
@@ -71,10 +66,6 @@ describe('InvitationService', () => {
         { provide: Auth0ManagementService, useValue: mockAuth0Service },
         { provide: UserRepository, useValue: mockUserRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
-        {
-          provide: getRepositoryToken(SectorModel),
-          useValue: mockSectorRepository,
-        },
       ],
     }).compile();
 
@@ -83,7 +74,6 @@ describe('InvitationService', () => {
     auth0Service = module.get(Auth0ManagementService);
     userRepository = module.get(UserRepository);
     eventEmitter = module.get(EventEmitter2);
-    sectorRepository = module.get(getRepositoryToken(SectorModel));
   });
 
   describe('createInvitation', () => {
@@ -125,7 +115,7 @@ describe('InvitationService', () => {
     it('should create an invitation successfully', async () => {
       invitationRepository.findPendingByEmail.mockResolvedValue(null);
       userRepository.findByEmail.mockResolvedValue(null);
-      sectorRepository.findBy.mockResolvedValue([mockSector]);
+      invitationRepository.loadSectorModels.mockResolvedValue([mockSector]);
       userRepository.findById.mockResolvedValue(mockInviter);
       auth0Service.createUser.mockResolvedValue({
         userId: MOCK_AUTH0_USER_ID,
@@ -187,7 +177,7 @@ describe('InvitationService', () => {
     it('should throw BadRequestException for invalid sector IDs', async () => {
       invitationRepository.findPendingByEmail.mockResolvedValue(null);
       userRepository.findByEmail.mockResolvedValue(null);
-      sectorRepository.findBy.mockResolvedValue([]); // No matching sectors
+      invitationRepository.loadSectorModels.mockResolvedValue([]); // No matching sectors
 
       await expect(
         service.createInvitation(createDto, MOCK_INVITER_ID),
@@ -197,7 +187,7 @@ describe('InvitationService', () => {
     it('should throw NotFoundException if inviter not found', async () => {
       invitationRepository.findPendingByEmail.mockResolvedValue(null);
       userRepository.findByEmail.mockResolvedValue(null);
-      sectorRepository.findBy.mockResolvedValue([mockSector]);
+      invitationRepository.loadSectorModels.mockResolvedValue([mockSector]);
       userRepository.findById.mockResolvedValue(null);
 
       await expect(

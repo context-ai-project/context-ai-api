@@ -69,68 +69,6 @@ describe('AuthService', () => {
     });
   });
 
-  describe('getAuth0Domain', () => {
-    it('should return Auth0 domain when configured', () => {
-      mockConfigService.get
-        .mockReturnValueOnce('test.auth0.com')
-        .mockReturnValueOnce('https://api.contextai.com')
-        .mockReturnValueOnce('https://test.auth0.com/');
-
-      const result = service.getAuth0Domain();
-
-      expect(result).toBe('test.auth0.com');
-    });
-
-    it('should throw error when Auth0 domain is not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
-
-      expect(() => service.getAuth0Domain()).toThrow('AUTH0_DOMAIN is not configured');
-    });
-  });
-
-  describe('getAuth0Audience', () => {
-    it('should return Auth0 audience when configured', () => {
-      mockConfigService.get
-        .mockReturnValueOnce('test.auth0.com')
-        .mockReturnValueOnce('https://api.contextai.com')
-        .mockReturnValueOnce('https://test.auth0.com/');
-
-      const result = service.getAuth0Audience();
-
-      expect(result).toBe('https://api.contextai.com');
-    });
-
-    it('should throw error when Auth0 audience is not configured', () => {
-      mockConfigService.get
-        .mockReturnValueOnce('test.auth0.com')
-        .mockReturnValueOnce(undefined);
-
-      expect(() => service.getAuth0Audience()).toThrow('AUTH0_AUDIENCE is not configured');
-    });
-  });
-
-  describe('getAuth0Issuer', () => {
-    it('should return Auth0 issuer when configured', () => {
-      mockConfigService.get
-        .mockReturnValueOnce('test.auth0.com')
-        .mockReturnValueOnce('https://api.contextai.com')
-        .mockReturnValueOnce('https://test.auth0.com/');
-
-      const result = service.getAuth0Issuer();
-
-      expect(result).toBe('https://test.auth0.com/');
-    });
-
-    it('should throw error when Auth0 issuer is not configured', () => {
-      mockConfigService.get
-        .mockReturnValueOnce('test.auth0.com')
-        .mockReturnValueOnce('https://api.contextai.com')
-        .mockReturnValueOnce(undefined);
-
-      expect(() => service.getAuth0Issuer()).toThrow('AUTH0_ISSUER is not configured');
-    });
-  });
-
   describe('validateConfiguration', () => {
     it('should not throw error when all configuration is present', () => {
       mockConfigService.get

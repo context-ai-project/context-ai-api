@@ -29,7 +29,7 @@ describe('NotificationListener', () => {
     };
 
     const mockUserRepository = {
-      findAllWithRelations: jest.fn().mockResolvedValue(mockAdminUsers),
+      findByRole: jest.fn().mockResolvedValue(mockAdminUsers),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -62,7 +62,7 @@ describe('NotificationListener', () => {
 
       await listener.handleInvitationCreated(event);
 
-      expect(userRepository.findAllWithRelations).toHaveBeenCalled();
+      expect(userRepository.findByRole).toHaveBeenCalledWith('admin');
       expect(notificationService.create).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: ADMIN_USER_ID,
@@ -73,7 +73,7 @@ describe('NotificationListener', () => {
     });
 
     it('should not throw on error', async () => {
-      userRepository.findAllWithRelations.mockRejectedValue(
+      userRepository.findByRole.mockRejectedValue(
         new Error('DB error'),
       );
 
