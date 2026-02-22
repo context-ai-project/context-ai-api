@@ -37,6 +37,7 @@ import { SectorsModule } from './modules/sectors/sectors.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { CapsulesModule } from './modules/capsules/capsules.module';
 
 // Auth Guards (registered globally via APP_GUARD)
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
@@ -107,6 +108,7 @@ import { RBACGuard } from './modules/auth/guards/rbac.guard';
     StatsModule, // Admin dashboard statistics (v1.2)
     InvitationsModule, // Invitation system (v1.3)
     NotificationsModule, // In-app notifications (v1.3)
+    CapsulesModule, // Multimedia capsules (v2 Block A)
   ],
   controllers: [AppController],
   providers: [
