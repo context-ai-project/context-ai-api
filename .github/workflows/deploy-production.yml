@@ -139,6 +139,11 @@ jobs:
             PINECONE_API_KEY=PINECONE_API_KEY:latest
             AUTH0_DOMAIN=AUTH0_DOMAIN:latest
             AUTH0_AUDIENCE=AUTH0_AUDIENCE:latest
+            AUTH0_ISSUER=AUTH0_ISSUER:latest
+            AUTH0_MGMT_DOMAIN=AUTH0_MGMT_DOMAIN:latest
+            AUTH0_MGMT_CLIENT_ID=AUTH0_MGMT_CLIENT_ID:latest
+            AUTH0_MGMT_CLIENT_SECRET=AUTH0_MGMT_CLIENT_SECRET:latest
+            AUTH0_DB_CONNECTION=AUTH0_DB_CONNECTION:latest
             SENTRY_DSN=SENTRY_DSN:latest
             INTERNAL_API_KEY=INTERNAL_API_KEY:latest
           flags: |
