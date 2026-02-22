@@ -81,3 +81,34 @@ export class CapsuleStatusResponseDto {
   @ApiPropertyOptional() errorMessage?: string;
   @ApiPropertyOptional() audioUrl?: string;
 }
+
+export class GenerateScriptRequestDto {
+  @ApiPropertyOptional({
+    example: 'es',
+    description: 'Target language for the script',
+  })
+  language?: string;
+}
+
+export class GenerateAudioRequestDto {
+  @ApiProperty({
+    example: 'pNInz6obpgDQGcFmaJgB',
+    description: 'ElevenLabs voice ID',
+  })
+  voiceId!: string;
+}
+
+export class VoiceInfoResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+  @ApiPropertyOptional() description?: string;
+  @ApiPropertyOptional() previewUrl?: string;
+  @ApiPropertyOptional() labels?: Record<string, string>;
+}
+
+export class DownloadUrlResponseDto {
+  @ApiProperty({
+    description: 'Time-limited signed URL for downloading the media file',
+  })
+  url!: string;
+}
