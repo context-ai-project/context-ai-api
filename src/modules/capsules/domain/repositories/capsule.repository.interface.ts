@@ -11,6 +11,12 @@ export interface CapsuleFilters {
   type?: CapsuleType;
   createdBy?: string;
   search?: string;
+  /**
+   * When true, exclude capsules with ARCHIVED status from results.
+   * Used by the default listing behaviour so soft-deleted capsules
+   * are hidden unless the caller explicitly requests status=ARCHIVED.
+   */
+  excludeArchived?: boolean;
 }
 
 export interface PaginationOptions {

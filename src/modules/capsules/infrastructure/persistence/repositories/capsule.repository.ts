@@ -71,6 +71,11 @@ export class CapsuleRepository implements ICapsuleRepository {
         search: `%${filters.search}%`,
       });
     }
+    if (filters.excludeArchived) {
+      qb.andWhere('capsule.status != :archived', {
+        archived: CapsuleStatus.ARCHIVED,
+      });
+    }
 
     qb.orderBy('capsule.created_at', 'DESC').skip(skip).take(limit);
 

@@ -65,11 +65,16 @@ export class ListCapsulesUseCase {
       createdBy: input.createdBy,
     };
 
-    // Enforce visibility: if onlyActive flag is set, override any status filter
+    // Enforce visibility rules:
+    // - onlyActive=true (user role): restrict to ACTIVE capsules only
+    // - explicit status filter: use as requested (allows viewing ARCHIVED via filter)
+    // - no filter: exclude ARCHIVED by default (soft-deleted capsules are not shown)
     if (input.onlyActive) {
       filters.status = CapsuleStatus.ACTIVE;
     } else if (input.status) {
       filters.status = input.status;
+    } else {
+      filters.excludeArchived = true;
     }
 
     this.logger.debug(
