@@ -60,16 +60,18 @@ export class CapsuleModel {
   @Column({ type: 'text', nullable: true })
   script: string | null = null;
 
-  @Column({ name: 'audio_url', type: 'varchar', length: 512, nullable: true })
+  // Stores the GCS storage path (e.g. "capsules/{id}/audio.mp3"), not a signed URL.
+  // Signed URLs are generated on demand via IMediaStorage.getSignedUrl().
+  @Column({ name: 'audio_url', type: 'varchar', length: 1024, nullable: true })
   audioUrl: string | null = null;
 
-  @Column({ name: 'video_url', type: 'varchar', length: 512, nullable: true })
+  @Column({ name: 'video_url', type: 'varchar', length: 1024, nullable: true })
   videoUrl: string | null = null;
 
   @Column({
     name: 'thumbnail_url',
     type: 'varchar',
-    length: 512,
+    length: 1024,
     nullable: true,
   })
   thumbnailUrl: string | null = null;

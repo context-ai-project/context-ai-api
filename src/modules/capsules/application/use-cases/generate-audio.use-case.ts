@@ -81,12 +81,11 @@ export class GenerateAudioUseCase {
         AUDIO_CONTENT_TYPE,
       );
 
-      // 3. Get signed URL for immediate playback
-      const audioUrl = await this.mediaStorage.getSignedUrl(storagePath);
-
-      // 4. Transition to COMPLETED
+      // 3. Transition to COMPLETED — persist the storage path, not the signed URL.
+      // Signed URLs are ephemeral (expire in minutes) and exceed varchar(512).
+      // Playback URLs are generated on-demand via GET /capsules/:id/download/audio.
       capsule.completeGeneration({
-        audioUrl,
+        audioUrl: storagePath,
         durationSeconds: audioResult.durationSeconds,
         metadata: {
           voiceId,
@@ -105,12 +104,16 @@ export class GenerateAudioUseCase {
         error instanceof Error ? error.stack : String(error),
       );
 
-      // Transition to FAILED, preserve script
-      capsule.failGeneration({
-        message: error instanceof Error ? error.message : String(error),
-        failedAt: new Date().toISOString(),
-      });
-      await this.capsuleRepository.save(capsule);
+      // Only transition to FAILED if the capsule is still in GENERATING status.
+      // If completeGeneration() was called in-memory but its save() threw,
+      // the entity is already in COMPLETED status and failGeneration() would throw.
+      if (capsule.isGenerating()) {
+        capsule.failGeneration({
+          message: error instanceof Error ? error.message : String(error),
+          failedAt: new Date().toISOString(),
+        });
+        await this.capsuleRepository.save(capsule);
+      }
 
       throw error;
     }
