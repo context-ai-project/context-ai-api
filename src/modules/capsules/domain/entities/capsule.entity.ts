@@ -235,6 +235,7 @@ export class Capsule {
 
   /**
    * Archives the capsule making it invisible to end users.
+   * Semantic transition used by the "Archive" action in the player UI.
    * Allowed from ACTIVE or COMPLETED.
    */
   public archive(): void {
@@ -242,6 +243,19 @@ export class Capsule {
       throw new Error(
         `Cannot archive capsule in status "${this.status}". Allowed: ACTIVE, COMPLETED`,
       );
+    }
+    this.status = CapsuleStatus.ARCHIVED;
+    this.updatedAt = new Date();
+  }
+
+  /**
+   * Soft-deletes the capsule regardless of its current status.
+   * Used by the "Delete" action in the UI — any non-archived capsule can be deleted.
+   * (DRAFT, GENERATING, COMPLETED, ACTIVE, FAILED → ARCHIVED)
+   */
+  public softDelete(): void {
+    if (this.isArchived()) {
+      throw new Error(`Capsule is already archived/deleted`);
     }
     this.status = CapsuleStatus.ARCHIVED;
     this.updatedAt = new Date();

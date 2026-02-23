@@ -5,7 +5,9 @@ import type { ICapsuleRepository } from '../../domain/repositories/capsule.repos
  * Delete Capsule Use Case
  *
  * Soft-deletes a capsule by setting its status to ARCHIVED.
- * The domain entity `archive()` method enforces valid source statuses.
+ * Uses `softDelete()` which accepts any non-archived status,
+ * unlike `archive()` which is restricted to ACTIVE/COMPLETED
+ * (used by the semantic "Archive" action in the player UI).
  */
 @Injectable()
 export class DeleteCapsuleUseCase {
@@ -24,7 +26,7 @@ export class DeleteCapsuleUseCase {
       throw new NotFoundException(`Capsule with ID "${capsuleId}" not found`);
     }
 
-    capsule.archive();
+    capsule.softDelete();
     await this.capsuleRepository.save(capsule);
 
     this.logger.log(`Capsule archived: ${capsuleId}`);
