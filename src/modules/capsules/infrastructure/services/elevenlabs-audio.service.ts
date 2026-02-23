@@ -14,9 +14,11 @@ const DEFAULT_STABILITY = 0.5;
 const DEFAULT_SIMILARITY_BOOST = 0.75;
 const MAX_CHUNK_CHARS = 4500;
 const AUDIO_CONTENT_TYPE = 'audio/mpeg';
-// Rough estimate: 150 words per minute, 5 chars per word → 750 chars/min
-const CHARS_PER_SECOND_ESTIMATE = 12.5;
 const HTTP_OK = 200;
+
+// MP3 duration calculation from buffer size
+// ElevenLabs produces 128 kbps CBR MP3s → 128,000 bits/s → 16,000 bytes/s
+const MP3_BYTES_PER_SECOND = 16_000;
 
 /** Minimal shape of ElevenLabs voice from the /voices endpoint */
 interface ElevenLabsVoice {
@@ -80,7 +82,7 @@ export class ElevenLabsAudioService implements IAudioGenerator {
     }
 
     const audioBuffer = Buffer.concat(audioBuffers);
-    const durationSeconds = this.estimateDuration(text);
+    const durationSeconds = this.calculateDuration(audioBuffer);
 
     this.logger.log(
       `Audio generated: ${audioBuffer.length} bytes, ~${durationSeconds}s`,
@@ -213,9 +215,11 @@ export class ElevenLabsAudioService implements IAudioGenerator {
   }
 
   /**
-   * Estimates audio duration in seconds based on character count.
+   * Calculates audio duration from the actual MP3 buffer size.
+   * ElevenLabs produces 128 kbps CBR MP3s (16,000 bytes/second).
+   * This is exact for CBR and accurate within ~1s for VBR.
    */
-  private estimateDuration(text: string): number {
-    return Math.ceil(text.length / CHARS_PER_SECOND_ESTIMATE);
+  private calculateDuration(buffer: Buffer): number {
+    return Math.round(buffer.length / MP3_BYTES_PER_SECOND);
   }
 }
