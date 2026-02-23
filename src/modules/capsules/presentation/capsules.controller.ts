@@ -109,19 +109,14 @@ export class CapsulesController {
   @ApiForbiddenResponse({ description: API_FORBIDDEN_DESC })
   async create(
     @Body() dto: CreateCapsuleRequestDto,
-    @Request() req: { user: { sub: string; dbId: string } },
+    @Request() req: { user: { userId: string } },
   ): Promise<CapsuleResponseDto> {
-    if (!dto.title?.trim()) throw new BadRequestException('title is required');
-    if (!dto.sectorId) throw new BadRequestException('sectorId is required');
-    if (!dto.sourceIds?.length)
-      throw new BadRequestException('At least one sourceId is required');
-
     const capsule = await this.createCapsuleUseCase.execute({
       title: dto.title,
       sectorId: dto.sectorId,
       type: dto.type ?? CapsuleType.AUDIO,
       sourceIds: dto.sourceIds,
-      createdBy: req.user.dbId ?? req.user.sub,
+      createdBy: req.user.userId,
       introText: dto.introText,
     });
 

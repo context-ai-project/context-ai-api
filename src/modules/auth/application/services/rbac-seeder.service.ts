@@ -226,7 +226,13 @@ export class RbacSeederService {
       });
 
       if (!existing) {
-        const permission = this.permissionRepository.create(permData);
+        const { resource, action } = this.parsePermissionName(permData.name);
+        const permission = this.permissionRepository.create({
+          ...permData,
+          resource,
+          action,
+          isSystemPermission: true,
+        });
         await this.permissionRepository.save(permission);
         createdCount++;
         this.logger.log(`Created permission: ${permData.name}`);
@@ -236,6 +242,20 @@ export class RbacSeederService {
     }
 
     return createdCount;
+  }
+
+  private parsePermissionName(name: string): {
+    resource: string;
+    action: string;
+  } {
+    const [resource, action] = name.split(':');
+    if (!resource || !action) {
+      throw new Error(
+        `Invalid permission format "${name}". Expected "resource:action".`,
+      );
+    }
+
+    return { resource, action };
   }
 
   /**

@@ -543,7 +543,7 @@ cat .env | grep DB_
 ```sql
 -- Conectar a la base de datos
 psql -U postgres -d contextai
-
+psql -h localhost -p 5433 -U context_ai_user -d context_ai_db
 -- Ver roles
 SELECT * FROM roles ORDER BY name;
 
