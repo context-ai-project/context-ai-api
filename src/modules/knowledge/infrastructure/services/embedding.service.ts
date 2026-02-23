@@ -1,6 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { genkit, Genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { type Genkit } from 'genkit';
+import { getGenkitInstance } from '@shared/genkit/genkit.config';
 import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 import { CHARS_PER_TOKEN_ESTIMATE } from '@shared/constants';
 
@@ -92,14 +92,12 @@ export enum EmbeddingTaskType {
 export class EmbeddingService {
   private readonly logger = new Logger(EmbeddingService.name);
   private readonly config: EmbeddingConfig;
-  private ai: Genkit | null = null;
 
   constructor(@Optional() config?: Partial<EmbeddingConfig>) {
     this.config = {
       model: config?.model ?? DEFAULT_EMBEDDING_MODEL,
       dimensions: config?.dimensions ?? DEFAULT_EMBEDDING_DIMENSIONS,
       batchSize: config?.batchSize ?? DEFAULT_BATCH_SIZE,
-      apiKey: config?.apiKey ?? process.env.GOOGLE_API_KEY,
     };
 
     this.validateConfig();
@@ -126,29 +124,10 @@ export class EmbeddingService {
   }
 
   /**
-   * Lazy initialization of Genkit AI instance
-   * This allows for better testability and resource management
+   * Returns the shared Genkit singleton instance
    */
   private getAI(): Genkit {
-    if (!this.ai) {
-      if (!this.config.apiKey) {
-        throw new Error('GOOGLE_API_KEY environment variable is required');
-      }
-
-      this.ai = genkit({
-        plugins: [
-          googleAI({
-            apiKey: this.config.apiKey,
-          }),
-        ],
-      });
-
-      this.logger.log(
-        `Genkit AI initialized with ${this.config.model} (${this.config.dimensions}D)`,
-      );
-    }
-
-    return this.ai;
+    return getGenkitInstance();
   }
 
   /**
@@ -273,8 +252,7 @@ export class EmbeddingService {
   /**
    * Returns the current configuration
    */
-  public getConfig(): Omit<EmbeddingConfig, 'apiKey'> {
-    // Exclude apiKey for security
+  public getConfig(): EmbeddingConfig {
     return {
       model: this.config.model,
       dimensions: this.config.dimensions,
@@ -341,9 +319,4 @@ export interface EmbeddingConfig {
    * Batch size for processing multiple texts
    */
   batchSize: number;
-
-  /**
-   * Google GenAI API key (optional, falls back to env var)
-   */
-  apiKey?: string;
 }

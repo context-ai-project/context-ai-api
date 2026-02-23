@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { genkit, GENKIT_CONFIG } from '../genkit.config';
+import { getGenkitInstance, GENKIT_CONFIG } from '../genkit.config';
 import {
   createRagEvaluatorService,
   type RagEvaluationResult,
@@ -244,7 +244,7 @@ const STATIC_FALLBACK_RESPONSE =
  * @param vectorSearch - Function to search for relevant fragments (injected dependency)
  */
 export function createRagQueryService(vectorSearch: VectorSearchFn) {
-  const ai = genkit();
+  const ai = getGenkitInstance();
   const evaluator = createRagEvaluatorService(ai);
 
   /**
