@@ -167,6 +167,28 @@ export class CapsulesController {
   }
 
   // ──────────────────────────────────────────────
+  // GET /capsules/voices — Available ElevenLabs voices
+  // (must be declared before /:id to avoid route collision)
+  // ──────────────────────────────────────────────
+  @Get('voices')
+  @RequirePermissions([PERM_CREATE])
+  @ApiOperation({ summary: 'List available ElevenLabs voices' })
+  @ApiResponse({ status: 200, type: [VoiceInfoResponseDto] })
+  @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
+  async getVoices(): Promise<VoiceInfoResponseDto[]> {
+    const voices = await this.audioGenerator.getAvailableVoices();
+    return voices.map((v) => {
+      const dto = new VoiceInfoResponseDto();
+      dto.id = v.id;
+      dto.name = v.name;
+      if (v.description) dto.description = v.description;
+      if (v.previewUrl) dto.previewUrl = v.previewUrl;
+      if (v.labels) dto.labels = v.labels;
+      return dto;
+    });
+  }
+
+  // ──────────────────────────────────────────────
   // GET /capsules/:id — Get single capsule
   // ──────────────────────────────────────────────
   @Get(':id')
@@ -338,26 +360,5 @@ export class CapsulesController {
     const response = new DownloadUrlResponseDto();
     response.url = url;
     return response;
-  }
-
-  // ──────────────────────────────────────────────
-  // GET /capsules/voices — Available ElevenLabs voices
-  // ──────────────────────────────────────────────
-  @Get('voices')
-  @RequirePermissions([PERM_CREATE])
-  @ApiOperation({ summary: 'List available ElevenLabs voices' })
-  @ApiResponse({ status: 200, type: [VoiceInfoResponseDto] })
-  @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
-  async getVoices(): Promise<VoiceInfoResponseDto[]> {
-    const voices = await this.audioGenerator.getAvailableVoices();
-    return voices.map((v) => {
-      const dto = new VoiceInfoResponseDto();
-      dto.id = v.id;
-      dto.name = v.name;
-      if (v.description) dto.description = v.description;
-      if (v.previewUrl) dto.previewUrl = v.previewUrl;
-      if (v.labels) dto.labels = v.labels;
-      return dto;
-    });
   }
 }
