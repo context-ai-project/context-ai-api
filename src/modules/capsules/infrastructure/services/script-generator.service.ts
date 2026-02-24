@@ -5,12 +5,13 @@ import type { IVectorStore } from '../../../knowledge/domain/services/vector-sto
 import { EmbeddingService } from '../../../knowledge/infrastructure/services/embedding.service';
 import { EmbeddingTaskType } from '../../../knowledge/infrastructure/services/embedding.service';
 
-// Script generation constants (OWASP: Magic Numbers)
-const SCRIPT_TEMPERATURE = 0.5;
-const SCRIPT_MAX_OUTPUT_TOKENS = 2048;
-const RAG_TOP_K = 20;
-const RAG_MIN_SCORE = 0.5;
-const MAX_CONTEXT_CHARS = 12000;
+// Script generation constants
+const SCRIPT_TEMPERATURE = 0.4;
+const SCRIPT_MAX_OUTPUT_TOKENS = 4096;
+const RAG_TOP_K = 25;
+const RAG_MIN_SCORE = 0.45;
+const MAX_CONTEXT_CHARS = 16000;
+const MAX_SCRIPT_CHARS = 10000;
 
 /** Input for script generation */
 export interface GenerateScriptInput {
@@ -33,12 +34,12 @@ export interface GenerateScriptResult {
 /**
  * ScriptGeneratorService
  *
- * Generates narrative scripts for audio capsules using Gemini 2.5 Flash
+ * Generates informative audio scripts for capsules using Gemini 2.5 Flash
  * via Genkit. Retrieves relevant context from Pinecone (RAG) scoped to
  * the documents selected for the capsule.
  *
- * Output: ~1500-word narrative script structured as:
- *   Introduction → Core content → Closing
+ * Output: 5000-10000 character audio script (~3-6 min) structured as:
+ *   Brief opening → Structured core content → Key takeaways
  */
 @Injectable()
 export class ScriptGeneratorService {
@@ -141,7 +142,15 @@ export class ScriptGeneratorService {
   }
 
   /**
-   * Builds the LLM prompt for narrative script generation.
+   * Builds the LLM prompt for audio script generation.
+   *
+   * Principles:
+   * - Informative first: synthesize the most important concepts without losing
+   *   essential details. Do NOT over-summarize.
+   * - Structured: clear logical flow so the listener can follow along.
+   * - Natural spoken tone: sounds like a well-produced audiobook, not a lecture
+   *   or a corporate memo. No filler phrases or fluff.
+   * - Hard limit: output MUST NOT exceed MAX_SCRIPT_CHARS characters.
    */
   private buildPrompt(
     context: string,
@@ -149,30 +158,53 @@ export class ScriptGeneratorService {
     language?: string,
   ): string {
     const langInstruction = language
-      ? `Write the script in ${language}.`
+      ? `Write the entire script in ${language}.`
       : 'Write the script in the same language as the source documents.';
 
     const contextSection = context
-      ? `## Relevant document fragments\n\n${context}\n\n`
+      ? `<documents>\n${context}\n</documents>\n\n`
       : '';
 
     const introSection = introText?.trim()
-      ? `## Introductory note from the content author\n\n${introText.trim()}\n\n`
+      ? `<author_note>\n${introText.trim()}\n</author_note>\n\n`
       : '';
 
-    return `You are a professional content narrator. Your task is to create an engaging, informative audio script from the provided documents.
+    return `You are a skilled audiobook narrator and content synthesizer. Your task is to transform the provided documents into a clear, engaging audio script.
 
 ${langInstruction}
 
-${contextSection}${introSection}## Instructions
+${contextSection}${introSection}## Your process
 
-- Write a narrative script of approximately 1500 words.
-- Structure: Introduction (hook + topic overview) → Core content (main concepts explained clearly) → Closing (key takeaways + call to action).
-- Use a warm, professional tone suitable for corporate onboarding or training.
-- Do NOT include section headers or stage directions in the output — the script should flow naturally as spoken audio.
-- Do NOT include metadata, source references, or document titles.
-- If no document context is available, generate a placeholder script that the author can edit.
+1. **Analyze** the documents thoroughly. Identify the core concepts, key facts, important processes, and any critical details that the listener absolutely must know.
+2. **Prioritize**: separate what is essential from what is secondary. Essential information must always be included. Secondary details can be mentioned briefly or omitted if space is tight.
+3. **Synthesize** — do NOT simply summarize paragraph by paragraph. Reorganize the information into a coherent narrative that flows logically from one idea to the next.
 
-## Script`;
+## Script requirements
+
+**Content:**
+- Be informative and concrete. Every sentence should teach the listener something.
+- Do NOT omit critical information — if a process has 5 steps, mention all 5. If there are specific numbers, dates, or requirements, include them.
+- Do NOT add generic filler ("In today's fast-paced world…", "Let's dive in…", "Without further ado…"). Get straight to the substance.
+- If the author provided a note, use it to understand the intended focus and tone, but do not read it verbatim.
+
+**Structure:**
+- Start with a brief, direct opening that tells the listener what they will learn and why it matters (2-3 sentences max).
+- Organize the core content in logical blocks. Use natural verbal transitions between topics ("Now, regarding…", "An important aspect to consider is…", "On the other hand…").
+- Close with the key takeaways — the 3 to 5 things the listener should remember.
+
+**Tone & style:**
+- Sound natural, like a knowledgeable colleague explaining something important — confident but approachable.
+- Use varied sentence lengths. Mix short impactful statements with longer explanatory ones.
+- Avoid bullet-point language. This is meant to be heard, not read.
+- No section headers, no stage directions, no markdown formatting.
+- No references to sources, documents, pages, or metadata.
+
+**Length:**
+- The script MUST be between 5000 and ${MAX_SCRIPT_CHARS} characters (roughly 3-6 minutes of audio).
+- Use the full space when the content warrants it. Do not cut short if there is important information left to cover.
+
+## Output
+
+Write ONLY the script text. Nothing else — no titles, no comments, no explanations.`;
   }
 }
