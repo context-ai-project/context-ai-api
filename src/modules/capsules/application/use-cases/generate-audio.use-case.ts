@@ -19,11 +19,15 @@ const AUDIO_CONTENT_TYPE = 'audio/mpeg';
  *
  * Orchestrates the full audio generation pipeline:
  * 1. Validates capsule has script and voiceId
- * 2. Transitions status → GENERATING
+ * 2. Transitions status → GENERATING (synchronous — fast)
  * 3. Synthesizes audio via IAudioGenerator (ElevenLabs)
  * 4. Uploads result to IMediaStorage (GCS)
  * 5. Transitions status → COMPLETED with audioUrl and duration
  * 6. On failure: transitions to FAILED, preserves script
+ *
+ * The controller calls `startAndProcess()` which:
+ * - Awaits the validation + GENERATING transition (returns instantly to client)
+ * - Runs the heavy pipeline in the background (fire-and-forget)
  */
 @Injectable()
 export class GenerateAudioUseCase {
@@ -38,8 +42,38 @@ export class GenerateAudioUseCase {
     private readonly mediaStorage: IMediaStorage,
   ) {}
 
-  async execute(capsuleId: string, voiceId: string): Promise<void> {
-    this.logger.log(`Starting audio generation for capsule: ${capsuleId}`);
+  /**
+   * Phase 1 (synchronous): validate inputs and transition to GENERATING.
+   * Called by the controller — returns quickly so the HTTP 202 fires immediately.
+   *
+   * Phase 2 (background): kicks off the heavy TTS + upload pipeline.
+   * The caller does NOT await the returned promise of phase 2 — it runs
+   * in the background and the client polls GET /capsules/:id/status.
+   */
+  async startAndProcess(capsuleId: string, voiceId: string): Promise<void> {
+    // ── Phase 1: validate + start (synchronous) ──────────────────────
+    await this.validateAndStart(capsuleId, voiceId);
+
+    // ── Phase 2: heavy pipeline (fire-and-forget) ────────────────────
+    // We intentionally do NOT await this — it runs in the background.
+    // Errors are caught internally and transition the capsule to FAILED.
+    this.processAudioPipeline(capsuleId, voiceId).catch((error: unknown) => {
+      this.logger.error(
+        `Background audio pipeline failed for capsule ${capsuleId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    });
+  }
+
+  /**
+   * Validates the capsule and transitions it to GENERATING status.
+   * This is the synchronous, fast part that runs before HTTP 202.
+   */
+  private async validateAndStart(
+    capsuleId: string,
+    voiceId: string,
+  ): Promise<void> {
+    this.logger.log(`Validating audio generation for capsule: ${capsuleId}`);
 
     const capsule = await this.capsuleRepository.findById(capsuleId);
     if (!capsule) {
@@ -62,14 +96,37 @@ export class GenerateAudioUseCase {
       );
     }
 
-    // Transition to GENERATING
+    // Transition to GENERATING and persist
     capsule.startGeneration();
     await this.capsuleRepository.save(capsule);
 
+    this.logger.log(
+      `Capsule ${capsuleId} transitioned to GENERATING — starting background pipeline`,
+    );
+  }
+
+  /**
+   * The heavy audio pipeline: TTS synthesis → upload → mark COMPLETED.
+   * Runs in the background after the HTTP 202 has been sent.
+   * On failure, transitions the capsule to FAILED.
+   */
+  private async processAudioPipeline(
+    capsuleId: string,
+    voiceId: string,
+  ): Promise<void> {
+    // Re-fetch from DB so we have a fresh entity (not the one from phase 1)
+    const capsule = await this.capsuleRepository.findById(capsuleId);
+    if (!capsule) {
+      this.logger.error(
+        `Capsule ${capsuleId} not found during background pipeline`,
+      );
+      return;
+    }
+
     try {
-      // 1. Synthesize audio
+      // 1. Synthesize audio via ElevenLabs
       const audioResult = await this.audioGenerator.generateAudio(
-        capsule.script,
+        capsule.script!,
         { voiceId },
       );
 
@@ -105,8 +162,6 @@ export class GenerateAudioUseCase {
       );
 
       // Only transition to FAILED if the capsule is still in GENERATING status.
-      // If completeGeneration() was called in-memory but its save() threw,
-      // the entity is already in COMPLETED status and failGeneration() would throw.
       if (capsule.isGenerating()) {
         capsule.failGeneration({
           message: error instanceof Error ? error.message : String(error),
@@ -114,8 +169,6 @@ export class GenerateAudioUseCase {
         });
         await this.capsuleRepository.save(capsule);
       }
-
-      throw error;
     }
   }
 }

@@ -313,7 +313,9 @@ export class CapsulesController {
     @Body() dto: GenerateAudioRequestDto,
   ): Promise<void> {
     if (!dto.voiceId) throw new BadRequestException('voiceId is required');
-    await this.generateAudioUseCase.execute(id, dto.voiceId);
+    // startAndProcess validates synchronously (fast), then kicks off the
+    // heavy TTS pipeline in the background — HTTP 202 fires immediately.
+    await this.generateAudioUseCase.startAndProcess(id, dto.voiceId);
   }
 
   // ──────────────────────────────────────────────
