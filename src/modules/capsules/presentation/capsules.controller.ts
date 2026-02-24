@@ -333,6 +333,16 @@ export class CapsulesController {
     response.capsuleId = capsule.id!;
     response.status = capsule.status;
     if (capsule.audioUrl) response.audioUrl = capsule.audioUrl;
+
+    // Expose generation progress from metadata (0-100)
+    const meta = capsule.generationMetadata;
+    if (meta && typeof meta['progress'] === 'number') {
+      response.progress = meta['progress'];
+    }
+    if (meta && typeof meta['step'] === 'string') {
+      response.currentStep = meta['step'];
+    }
+
     return response;
   }
 

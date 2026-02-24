@@ -48,6 +48,12 @@ export interface VoiceInfo {
  * Port for audio synthesis services.
  * Implementations: ElevenLabsAudioService.
  */
+/** Callback invoked after each TTS chunk completes, reporting real progress */
+export type ChunkProgressCallback = (
+  completed: number,
+  total: number,
+) => void | Promise<void>;
+
 export interface IAudioGenerator {
   /**
    * Generates audio from a text script.
@@ -55,11 +61,13 @@ export interface IAudioGenerator {
    *
    * @param text - Narrative script to synthesize
    * @param options - Voice and model options
+   * @param onChunkProgress - Optional progress callback (completed chunks / total)
    * @returns Audio buffer with duration metadata
    */
   generateAudio(
     text: string,
     options: AudioGenerationOptions,
+    onChunkProgress?: ChunkProgressCallback,
   ): Promise<AudioResult>;
 
   /**

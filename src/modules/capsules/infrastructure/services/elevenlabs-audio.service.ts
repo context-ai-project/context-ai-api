@@ -5,9 +5,10 @@ import type {
   AudioGenerationOptions,
   AudioResult,
   VoiceInfo,
+  ChunkProgressCallback,
 } from '../../domain/services/audio-generator.interface';
 
-// ElevenLabs API constants (OWASP: Magic Numbers)
+// ElevenLabs API constants
 const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
 const DEFAULT_MODEL = 'eleven_multilingual_v2';
 const DEFAULT_STABILITY = 0.5;
@@ -62,6 +63,7 @@ export class ElevenLabsAudioService implements IAudioGenerator {
   async generateAudio(
     text: string,
     options: AudioGenerationOptions,
+    onChunkProgress?: ChunkProgressCallback,
   ): Promise<AudioResult> {
     if (!text?.trim()) {
       throw new Error('Text is required for audio generation');
@@ -76,9 +78,12 @@ export class ElevenLabsAudioService implements IAudioGenerator {
     );
 
     const audioBuffers: Buffer[] = [];
+    let chunkIndex = 0;
     for (const chunk of chunks) {
       const buffer = await this.generateChunk(chunk, options);
       audioBuffers.push(buffer);
+      chunkIndex++;
+      await onChunkProgress?.(chunkIndex, chunks.length);
     }
 
     const audioBuffer = Buffer.concat(audioBuffers);

@@ -124,13 +124,37 @@ export class GenerateAudioUseCase {
     }
 
     try {
-      // 1. Synthesize audio via ElevenLabs
+      // Initialize progress metadata
+      capsule.generationMetadata = { progress: 0, step: 'AUDIO' };
+      await this.capsuleRepository.save(capsule);
+
+      // 1. Synthesize audio via ElevenLabs — persist progress per chunk
+      // Progress 0-80% = TTS chunks, 80-90% = upload, 90-100% = done
       const audioResult = await this.audioGenerator.generateAudio(
         capsule.script!,
         { voiceId },
+        async (completed: number, total: number) => {
+          const AUDIO_PROGRESS_MAX = 80;
+          const progress = Math.round((completed / total) * AUDIO_PROGRESS_MAX);
+          capsule.generationMetadata = {
+            ...capsule.generationMetadata,
+            progress,
+            chunksCompleted: completed,
+            chunksTotal: total,
+          };
+          await this.capsuleRepository.save(capsule);
+        },
       );
 
-      // 2. Upload to cloud storage
+      // 2. Upload to cloud storage (progress: 80 → 90%)
+      const UPLOAD_PROGRESS = 90;
+      capsule.generationMetadata = {
+        ...capsule.generationMetadata,
+        progress: UPLOAD_PROGRESS,
+        step: 'UPLOAD',
+      };
+      await this.capsuleRepository.save(capsule);
+
       const storagePath = AUDIO_STORAGE_PATH(capsuleId);
       await this.mediaStorage.upload(
         audioResult.audioBuffer,
@@ -138,9 +162,7 @@ export class GenerateAudioUseCase {
         AUDIO_CONTENT_TYPE,
       );
 
-      // 3. Transition to COMPLETED — persist the storage path, not the signed URL.
-      // Signed URLs are ephemeral (expire in minutes) and exceed varchar(512).
-      // Playback URLs are generated on-demand via GET /capsules/:id/download/audio.
+      // 3. Transition to COMPLETED (progress: 100%)
       capsule.completeGeneration({
         audioUrl: storagePath,
         durationSeconds: audioResult.durationSeconds,
@@ -149,6 +171,8 @@ export class GenerateAudioUseCase {
           storagePath,
           generatedAt: new Date().toISOString(),
           audioSizeBytes: audioResult.audioBuffer.length,
+          progress: 100,
+          step: 'DONE',
         },
       });
 
