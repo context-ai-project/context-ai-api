@@ -5,10 +5,19 @@ import type { SyncUserDto } from '../../../../../../src/modules/users/applicatio
 import { UserRepository } from '../../../../../../src/modules/users/infrastructure/persistence/repositories/user.repository';
 import { RoleRepository } from '../../../../../../src/modules/auth/infrastructure/persistence/repositories/role.repository';
 
+const mockSectorRepository = {
+  findByName: jest.fn(),
+  findById: jest.fn(),
+  findByIds: jest.fn(),
+  findAll: jest.fn(),
+  save: jest.fn(),
+} as unknown as { findByName: jest.Mock; findById: jest.Mock };
+
 describe('UserService', () => {
   let service: UserService;
   let userRepository: jest.Mocked<UserRepository>;
   let roleRepository: jest.Mocked<RoleRepository>;
+  let sectorRepository: typeof mockSectorRepository;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockDate = new Date('2024-01-01T00:00:00Z');
@@ -46,12 +55,32 @@ describe('UserService', () => {
       save: jest.fn(),
     } as unknown as jest.Mocked<RoleRepository>;
 
+    sectorRepository = { ...mockSectorRepository, findByName: jest.fn(), findById: jest.fn() };
     eventEmitter = {
       emit: jest.fn(),
     } as unknown as jest.Mocked<EventEmitter2>;
 
+    // Default sector for assignDefaultRoleAndSectorIfNeeded (new users without invitation)
+    sectorRepository.findByName.mockResolvedValue({
+      id: 'hr-sector-uuid',
+      name: 'Human Resources',
+      description: 'HR sector',
+      icon: 'users',
+      status: 'ACTIVE',
+      contactName: null,
+      contactPhone: null,
+      createdAt: mockDate,
+      updatedAt: mockDate,
+    });
+
     // Pass null for invitationService (default behavior without invitations module)
-    service = new UserService(userRepository, roleRepository, null, eventEmitter);
+    service = new UserService(
+      userRepository,
+      roleRepository,
+      sectorRepository,
+      null,
+      eventEmitter,
+    );
 
     // Suppress logger output during tests
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -109,6 +138,31 @@ describe('UserService', () => {
       userRepository.save.mockResolvedValue({
         ...mockUser,
         id: 'new-user-uuid',
+      });
+      roleRepository.findByName.mockResolvedValue({
+        id: 'role-uuid',
+        name: 'user',
+        description: 'User role',
+        isSystemRole: true,
+        createdAt: mockDate,
+        updatedAt: mockDate,
+      });
+      roleRepository.findWithPermissions.mockResolvedValue({
+        id: 'role-uuid',
+        name: 'user',
+        permissions: [],
+      });
+      userRepository.findByIdWithRelations.mockResolvedValue({
+        ...mockUser,
+        id: 'new-user-uuid',
+        roles: [],
+        sectors: [],
+      });
+      userRepository.saveModel.mockResolvedValue({});
+      userRepository.findByIdWithRoles.mockResolvedValue({
+        ...mockUser,
+        id: 'new-user-uuid',
+        roles: [{ id: 'role-uuid', name: 'user' }],
       });
 
       const result = await service.syncUser(syncDto);
@@ -321,6 +375,7 @@ describe('UserService', () => {
       const serviceWithInvitations = new UserService(
         userRepository,
         roleRepository,
+        sectorRepository,
         mockInvitationService,
         eventEmitter,
       );

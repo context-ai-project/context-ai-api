@@ -10,6 +10,8 @@ export interface CreateSectorInput {
   name: string;
   description: string;
   icon: SectorIcon;
+  contactName?: string | null;
+  contactPhone?: string | null;
 }
 
 /**
@@ -44,6 +46,8 @@ export class CreateSectorUseCase {
       name: input.name,
       description: input.description,
       icon: input.icon,
+      contactName: input.contactName,
+      contactPhone: input.contactPhone,
     });
 
     // Persist

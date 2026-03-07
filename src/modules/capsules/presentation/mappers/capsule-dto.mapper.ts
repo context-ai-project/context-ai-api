@@ -25,6 +25,7 @@ export class CapsuleDtoMapper {
     if (capsule.durationSeconds !== null)
       dto.durationSeconds = capsule.durationSeconds ?? undefined;
     if (capsule.audioVoiceId) dto.audioVoiceId = capsule.audioVoiceId;
+    if (capsule.language) dto.language = capsule.language;
     if (capsule.generationMetadata)
       dto.generationMetadata = capsule.generationMetadata;
     dto.createdBy = capsule.createdBy;

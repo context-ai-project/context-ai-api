@@ -39,6 +39,9 @@ const makeCapsule = (withScript = true): Capsule => {
   return capsule;
 };
 
+/** Flush all pending microtasks so fire-and-forget pipelines complete in tests */
+const flushPromises = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 describe('GenerateAudioUseCase', () => {
   let useCase: GenerateAudioUseCase;
 
@@ -67,27 +70,31 @@ describe('GenerateAudioUseCase', () => {
       contentType: 'audio/mpeg',
       sizeBytes: 8,
     });
-    mockMediaStorage.getSignedUrl.mockResolvedValue(
-      'https://storage.googleapis.com/signed-url',
-    );
 
-    await useCase.execute('cap-1', 'voice-id-abc');
+    // startAndProcess kicks off phase 1 (sync) then phase 2 (background)
+    await useCase.startAndProcess('cap-1', 'voice-id-abc');
+    // Flush microtasks to let the background pipeline finish
+    await flushPromises();
 
-    expect(mockRepository.save).toHaveBeenCalledTimes(2); // GENERATING + COMPLETED
+    // Phase 1 (1 save: GENERATING) + Phase 2 (3 saves: progress/upload/COMPLETED)
+    expect(mockRepository.save).toHaveBeenCalledTimes(4);
     expect(mockAudioGenerator.generateAudio).toHaveBeenCalledWith(
       'The narrative script to synthesize.',
       { voiceId: 'voice-id-abc' },
+      expect.any(Function), // progress callback
     );
     expect(mockMediaStorage.upload).toHaveBeenCalledTimes(1);
     expect(capsule.status).toBe(CapsuleStatus.COMPLETED);
-    expect(capsule.audioUrl).toBe('https://storage.googleapis.com/signed-url');
+    // audioUrl is the GCS storage path (signed URLs are generated on-demand)
+    expect(capsule.audioUrl).toBe('capsules/cap-1/audio.mp3');
     expect(capsule.durationSeconds).toBe(120);
   });
 
   it('throws NotFoundException when capsule not found', async () => {
     mockRepository.findById.mockResolvedValue(null);
 
-    await expect(useCase.execute('missing', 'voice-id')).rejects.toThrow(
+    // Phase 1 (validation) throws synchronously → startAndProcess rejects
+    await expect(useCase.startAndProcess('missing', 'voice-id')).rejects.toThrow(
       NotFoundException,
     );
   });
@@ -96,7 +103,7 @@ describe('GenerateAudioUseCase', () => {
     const capsule = makeCapsule(false);
     mockRepository.findById.mockResolvedValue(capsule);
 
-    await expect(useCase.execute('cap-1', 'voice-id')).rejects.toThrow(
+    await expect(useCase.startAndProcess('cap-1', 'voice-id')).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -109,12 +116,12 @@ describe('GenerateAudioUseCase', () => {
       new Error('ElevenLabs API error'),
     );
 
-    await expect(useCase.execute('cap-1', 'voice-id')).rejects.toThrow(
-      'ElevenLabs API error',
-    );
+    // Phase 2 runs in the background — startAndProcess itself does NOT re-throw
+    await useCase.startAndProcess('cap-1', 'voice-id');
+    await flushPromises();
 
     expect(capsule.status).toBe(CapsuleStatus.FAILED);
-    // save called twice: GENERATING + FAILED
-    expect(mockRepository.save).toHaveBeenCalledTimes(2);
+    // Phase 1 (1: GENERATING) + Phase 2 (2: initial progress + FAILED)
+    expect(mockRepository.save).toHaveBeenCalledTimes(3);
   });
 });

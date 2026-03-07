@@ -47,6 +47,22 @@ export class SectorModel {
   })
   status!: SectorStatus;
 
+  @Column({
+    name: 'contact_name',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  contactName: string | null = null;
+
+  @Column({
+    name: 'contact_phone',
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+  })
+  contactPhone: string | null = null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date = new Date();
 

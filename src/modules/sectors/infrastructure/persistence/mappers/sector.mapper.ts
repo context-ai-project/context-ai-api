@@ -16,6 +16,8 @@ export class SectorMapper {
       name: model.name,
       description: model.description,
       icon: model.icon,
+      contactName: model.contactName,
+      contactPhone: model.contactPhone,
     });
 
     // Hydrate persisted fields
@@ -47,6 +49,8 @@ export class SectorMapper {
     model.description = entity.description;
     model.icon = entity.icon;
     model.status = entity.status;
+    model.contactName = entity.contactName;
+    model.contactPhone = entity.contactPhone;
     model.createdAt = entity.createdAt;
     model.updatedAt = entity.updatedAt;
 

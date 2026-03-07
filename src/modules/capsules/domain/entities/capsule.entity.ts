@@ -40,6 +40,7 @@ export class Capsule {
   public thumbnailUrl: string | null;
   public durationSeconds: number | null;
   public audioVoiceId: string | null;
+  public language: string | null;
   public generationMetadata: Record<string, unknown> | null;
   public createdBy: string;
   public publishedAt: Date | null;
@@ -72,6 +73,7 @@ export class Capsule {
     this.thumbnailUrl = null;
     this.durationSeconds = null;
     this.audioVoiceId = null;
+    this.language = null;
     this.generationMetadata = null;
     this.createdBy = data.createdBy;
     this.publishedAt = null;
@@ -206,15 +208,26 @@ export class Capsule {
   }
 
   /**
-   * Updates the AI-generated script. Allowed in DRAFT, COMPLETED, or FAILED.
+   * Updates the AI-generated script and optional description.
+   * Allowed in DRAFT, COMPLETED, or FAILED.
    */
-  public updateScript(script: string): void {
+  public updateScript(
+    script: string,
+    description?: string,
+    language?: string,
+  ): void {
     if (!this.canGenerateScript()) {
       throw new Error(
         `Cannot update script when capsule is in status "${this.status}"`,
       );
     }
     this.script = script;
+    if (description !== undefined) {
+      this.description = description || null;
+    }
+    if (language !== undefined) {
+      this.language = language || null;
+    }
     this.updatedAt = new Date();
   }
 

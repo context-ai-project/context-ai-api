@@ -141,32 +141,33 @@ describe('EmbeddingService', () => {
       });
     });
 
-    it('should initialize Genkit on first call', async () => {
+    it('should use the shared Genkit instance to generate embeddings', async () => {
       // Arrange
       const text = 'Test text';
       const mockEmbedding = Array(3072).fill(0.1);
       mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
       // Act
-      await service.generateEmbedding(text);
+      const result = await service.generateEmbedding(text);
 
-      // Assert
-      expect(mockGenkitFactory).toHaveBeenCalledTimes(1);
-      expect(mockGoogleAI).toHaveBeenCalledWith({
-        apiKey: 'test-api-key',
-      });
+      // Assert — the embed function on the shared instance must be called
+      expect(mockEmbedFn).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(3072);
     });
 
-    it('should throw error if API key is missing', async () => {
-      // Arrange
+    it('should use the shared Genkit instance regardless of local env vars', async () => {
+      // The service delegates API key management to the shared Genkit singleton
+      // (genkit.config.ts), so a missing local GOOGLE_API_KEY does not prevent
+      // calling embed — validation happens at module initialisation level.
       delete process.env.GOOGLE_API_KEY;
       const serviceWithoutKey = new EmbeddingService();
       const text = 'Test text';
+      const mockEmbedding = Array(3072).fill(0.1);
+      mockEmbedFn.mockResolvedValue([{ embedding: mockEmbedding }]);
 
-      // Act & Assert
-      await expect(serviceWithoutKey.generateEmbedding(text)).rejects.toThrow(
-        'GOOGLE_API_KEY environment variable is required',
-      );
+      // Service should still delegate to the shared instance and succeed
+      const result = await serviceWithoutKey.generateEmbedding(text);
+      expect(result).toHaveLength(3072);
     });
 
     it('should throw error for empty text', async () => {

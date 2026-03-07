@@ -193,6 +193,8 @@ export class SectorController {
         name: dto.name,
         description: dto.description,
         icon: dto.icon,
+        contactName: dto.contactName,
+        contactPhone: dto.contactPhone,
       });
 
       return SectorDtoMapper.toResponse(sector, 0);
@@ -243,6 +245,8 @@ export class SectorController {
         name: dto.name,
         description: dto.description,
         icon: dto.icon,
+        contactName: dto.contactName,
+        contactPhone: dto.contactPhone,
       });
 
       const documentCount =

@@ -72,6 +72,11 @@ export interface QueryAssistantInput {
   query: string;
   conversationId?: string;
   searchOptions?: SearchOptions;
+  /** Contact info for the sector, used in fallback messages */
+  sectorContact?: {
+    name: string | null;
+    phone: string | null;
+  };
 }
 
 /**
@@ -112,7 +117,7 @@ export interface StructuredResponseOutput {
 
 export interface QueryAssistantOutput {
   response: string;
-  responseType: 'answer' | 'no_context' | 'error';
+  responseType: 'answer' | 'no_context' | 'conversational' | 'error';
   structured?: StructuredResponseOutput;
   conversationId: string;
   sources: Array<{
@@ -173,6 +178,10 @@ export class QueryAssistantUseCase {
       }),
       ...(input.searchOptions?.minSimilarity !== undefined && {
         minSimilarity: input.searchOptions.minSimilarity,
+      }),
+      ...(input.sectorContact !== undefined && {
+        sectorContactName: input.sectorContact.name,
+        sectorContactPhone: input.sectorContact.phone,
       }),
     } as RagQueryInput;
 

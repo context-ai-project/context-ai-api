@@ -26,8 +26,29 @@ export class SectorRepository implements ISectorRepository {
   ) {}
 
   async save(sector: Sector): Promise<Sector> {
-    const model = SectorMapper.toModel(sector);
-    const saved = await this.repository.save(model);
+    console.log('sector', sector);
+    if (!sector.id) {
+      const model = SectorMapper.toModel(sector);
+      const saved = await this.repository.save(model);
+      return SectorMapper.toDomain(saved);
+    }
+    // Update: load existing entity so TypeORM performs UPDATE
+    const existing = await this.repository.findOne({
+      where: { id: sector.id },
+    });
+    if (!existing) {
+      const model = SectorMapper.toModel(sector);
+      const saved = await this.repository.save(model);
+      return SectorMapper.toDomain(saved);
+    }
+    existing.name = sector.name;
+    existing.description = sector.description;
+    existing.icon = sector.icon;
+    existing.status = sector.status;
+    existing.contactName = sector.contactName;
+    existing.contactPhone = sector.contactPhone;
+    existing.updatedAt = sector.updatedAt;
+    const saved = await this.repository.save(existing);
     return SectorMapper.toDomain(saved);
   }
 

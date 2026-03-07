@@ -5,29 +5,53 @@ import type {
   AudioGenerationOptions,
   AudioResult,
   VoiceInfo,
+  SharedVoiceInfo,
   ChunkProgressCallback,
 } from '../../domain/services/audio-generator.interface';
 
 // ElevenLabs API constants
 const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
 const DEFAULT_MODEL = 'eleven_multilingual_v2';
-const DEFAULT_STABILITY = 0.5;
+const DEFAULT_STABILITY = 0.4;
 const DEFAULT_SIMILARITY_BOOST = 0.75;
+const DEFAULT_STYLE = 0.35;
 const MAX_CHUNK_CHARS = 4500;
 const AUDIO_CONTENT_TYPE = 'audio/mpeg';
 const HTTP_OK = 200;
+const SHARED_VOICES_PAGE_SIZE = 50;
 
 // MP3 duration calculation from buffer size
 // ElevenLabs produces 128 kbps CBR MP3s → 128,000 bits/s → 16,000 bytes/s
 const MP3_BYTES_PER_SECOND = 16_000;
 
+/** Progress callback shape — local type avoids ESLint "type could not be resolved" (interface import) */
+type ChunkProgressFn = (
+  completed: number,
+  total: number,
+) => void | Promise<void>;
+
 /** Minimal shape of ElevenLabs voice from the /voices endpoint */
 interface ElevenLabsVoice {
   voice_id: string;
   name: string;
+  category?: string;
   description?: string;
   labels?: Record<string, string>;
   preview_url?: string;
+}
+
+/** Shape of a shared voice from the /shared-voices endpoint */
+interface ElevenLabsSharedVoice {
+  voice_id: string;
+  public_owner_id: string;
+  name: string;
+  category?: string;
+  language?: string;
+  gender?: string;
+  accent?: string;
+  description?: string;
+  preview_url?: string;
+  is_added_by_user?: boolean;
 }
 
 /**
@@ -38,8 +62,9 @@ interface ElevenLabsVoice {
  *
  * Features:
  * - Text fragmentation for scripts longer than MAX_CHUNK_CHARS
- * - Multi-lingual v2 model support
+ * - eleven_v3 model support
  * - Voice listing from /v1/voices endpoint
+ * - Shared Voice Library search
  * - Configurable voice settings (stability, similarity_boost)
  *
  * Environment variables:
@@ -83,7 +108,10 @@ export class ElevenLabsAudioService implements IAudioGenerator {
       const buffer = await this.generateChunk(chunk, options);
       audioBuffers.push(buffer);
       chunkIndex++;
-      await onChunkProgress?.(chunkIndex, chunks.length);
+      const progressCb = onChunkProgress as ChunkProgressFn | undefined;
+      if (progressCb) {
+        await progressCb(chunkIndex, chunks.length);
+      }
     }
 
     const audioBuffer = Buffer.concat(audioBuffers);
@@ -124,6 +152,7 @@ export class ElevenLabsAudioService implements IAudioGenerator {
       return data.voices.map((v) => ({
         id: v.voice_id,
         name: v.name,
+        category: v.category,
         description: v.description,
         labels: v.labels,
         previewUrl: v.preview_url,
@@ -132,6 +161,52 @@ export class ElevenLabsAudioService implements IAudioGenerator {
       const message = extractErrorMessage(error);
       this.logger.error(`Failed to fetch voices: ${message}`);
       throw new Error(`Failed to fetch ElevenLabs voices: ${message}`);
+    }
+  }
+
+  async searchSharedVoices(query: string): Promise<SharedVoiceInfo[]> {
+    const params = new URLSearchParams({
+      search: query,
+      page_size: String(SHARED_VOICES_PAGE_SIZE),
+    });
+    const url = `${ELEVENLABS_BASE_URL}/shared-voices?${params.toString()}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'xi-api-key': this.apiKey,
+          Accept: 'application/json',
+        },
+      });
+
+      if (response.status !== HTTP_OK) {
+        const body = await response.text();
+        throw new Error(
+          `ElevenLabs /shared-voices returned HTTP ${response.status}: ${body}`,
+        );
+      }
+
+      const data = (await response.json()) as {
+        voices: ElevenLabsSharedVoice[];
+      };
+
+      return data.voices.map((v) => ({
+        voiceId: v.voice_id,
+        publicOwnerId: v.public_owner_id,
+        name: v.name,
+        category: v.category,
+        language: v.language,
+        gender: v.gender,
+        accent: v.accent,
+        description: v.description,
+        previewUrl: v.preview_url,
+        isAddedByUser: v.is_added_by_user,
+      }));
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error);
+      this.logger.error(`Failed to search shared voices: ${message}`);
+      throw new Error(`Failed to search ElevenLabs shared voices: ${message}`);
     }
   }
 
@@ -154,6 +229,8 @@ export class ElevenLabsAudioService implements IAudioGenerator {
       voice_settings: {
         stability: options.stability ?? DEFAULT_STABILITY,
         similarity_boost: options.similarityBoost ?? DEFAULT_SIMILARITY_BOOST,
+        style: options.style ?? DEFAULT_STYLE,
+        use_speaker_boost: true,
       },
     });
 

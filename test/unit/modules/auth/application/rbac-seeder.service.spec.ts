@@ -80,6 +80,10 @@ describe('RbacSeederService', () => {
         { id: '8', name: 'users:read' } as PermissionModel,
         { id: '9', name: 'users:manage' } as PermissionModel,
         { id: '10', name: 'system:admin' } as PermissionModel,
+        { id: '11', name: 'capsule:read' } as PermissionModel,
+        { id: '12', name: 'capsule:create' } as PermissionModel,
+        { id: '13', name: 'capsule:update' } as PermissionModel,
+        { id: '14', name: 'capsule:delete' } as PermissionModel,
       ];
 
       // Mock empty database during seedRoles and seedPermissions
@@ -126,11 +130,11 @@ describe('RbacSeederService', () => {
       const result = await service.seed();
 
       expect(result.rolesCreated).toBe(3);
-      expect(result.permissionsCreated).toBe(10);
+      expect(result.permissionsCreated).toBe(14);
       expect(result.associationsCreated).toBeGreaterThan(0);
       // roleRepository.save is called 3 times for roles + 3 times for role-permission associations
       expect(roleRepository.save).toHaveBeenCalled();
-      expect(permissionRepository.save).toHaveBeenCalledTimes(10); // 10 permissions
+      expect(permissionRepository.save).toHaveBeenCalledTimes(14); // 14 permissions
     });
 
     it('should skip existing roles and permissions', async () => {
@@ -197,9 +201,9 @@ describe('RbacSeederService', () => {
       const result = await service.seed();
 
       expect(result.rolesCreated).toBe(2); // manager and user
-      expect(result.permissionsCreated).toBe(7); // 10 - 3 existing
+      expect(result.permissionsCreated).toBe(11); // 14 - 3 existing
       expect(roleRepository.save).toHaveBeenCalledTimes(2);
-      expect(permissionRepository.save).toHaveBeenCalledTimes(7);
+      expect(permissionRepository.save).toHaveBeenCalledTimes(11);
     });
   });
 
@@ -242,8 +246,8 @@ describe('RbacSeederService', () => {
 
       const result = await service['seedPermissions']();
 
-      expect(result).toBe(10); // 10 permissions
-      expect(permissionRepository.save).toHaveBeenCalledTimes(10);
+      expect(result).toBe(14); // 14 permissions
+      expect(permissionRepository.save).toHaveBeenCalledTimes(14);
       expect(permissionRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'chat:read' }),
       );

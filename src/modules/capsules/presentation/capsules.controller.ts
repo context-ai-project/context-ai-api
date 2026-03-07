@@ -43,6 +43,7 @@ import {
   GenerateScriptRequestDto,
   GenerateAudioRequestDto,
   VoiceInfoResponseDto,
+  SharedVoiceInfoResponseDto,
   DownloadUrlResponseDto,
   CapsuleStatusResponseDto,
 } from './dtos/capsule.dto';
@@ -64,6 +65,30 @@ const PERM_READ = 'capsule:read';
 const PERM_CREATE = 'capsule:create';
 const PERM_UPDATE = 'capsule:update';
 const PERM_DELETE = 'capsule:delete';
+
+/** Contract for audio generation pipeline — used to avoid ESLint "type could not be resolved" (NestJS DI + circular deps) */
+interface IGenerateAudioPipeline {
+  startAndProcess(capsuleId: string, voiceId: string): Promise<void>;
+}
+
+/** Shape of a shared voice from search — avoids ESLint "type could not be resolved" */
+interface SharedVoiceItem {
+  voiceId: string;
+  publicOwnerId: string;
+  name: string;
+  category?: string;
+  language?: string;
+  gender?: string;
+  accent?: string;
+  description?: string;
+  previewUrl?: string;
+  isAddedByUser?: boolean;
+}
+
+/** Contract for searching shared voices — avoids ESLint "type could not be resolved" (IAudioGenerator DI) */
+interface ISearchSharedVoices {
+  searchSharedVoices(query: string): Promise<SharedVoiceItem[]>;
+}
 
 /**
  * Capsules Controller
@@ -181,9 +206,57 @@ export class CapsulesController {
       const dto = new VoiceInfoResponseDto();
       dto.id = v.id;
       dto.name = v.name;
+      if (v.category) dto.category = v.category;
       if (v.description) dto.description = v.description;
       if (v.previewUrl) dto.previewUrl = v.previewUrl;
       if (v.labels) dto.labels = v.labels;
+      return dto;
+    });
+  }
+
+  // ──────────────────────────────────────────────
+  // GET /capsules/voices/search — Search Shared Voice Library
+  // (must be declared before /:id to avoid route collision)
+  // ──────────────────────────────────────────────
+  @Get('voices/search')
+  @RequirePermissions([PERM_CREATE])
+  @ApiOperation({ summary: 'Search the ElevenLabs shared voice library' })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query' })
+  @ApiResponse({ status: 200, type: [SharedVoiceInfoResponseDto] })
+  @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
+  async searchSharedVoices(
+    @Query('q') query: string,
+  ): Promise<SharedVoiceInfoResponseDto[]> {
+    if (!query?.trim()) {
+      throw new BadRequestException('Search query (q) is required');
+    }
+    const generator = this.audioGenerator as ISearchSharedVoices;
+    const voices = await generator.searchSharedVoices(query.trim());
+    return voices.map((item: SharedVoiceItem): SharedVoiceInfoResponseDto => {
+      const {
+        voiceId,
+        publicOwnerId,
+        name,
+        category,
+        language,
+        gender,
+        accent,
+        description,
+        previewUrl,
+        isAddedByUser,
+      } = item;
+      const dto: SharedVoiceInfoResponseDto = {
+        voiceId,
+        publicOwnerId,
+        name,
+      };
+      if (category) dto.category = category;
+      if (language) dto.language = language;
+      if (gender) dto.gender = gender;
+      if (accent) dto.accent = accent;
+      if (description) dto.description = description;
+      if (previewUrl) dto.previewUrl = previewUrl;
+      if (isAddedByUser !== undefined) dto.isAddedByUser = isAddedByUser;
       return dto;
     });
   }
@@ -315,7 +388,8 @@ export class CapsulesController {
     if (!dto.voiceId) throw new BadRequestException('voiceId is required');
     // startAndProcess validates synchronously (fast), then kicks off the
     // heavy TTS pipeline in the background — HTTP 202 fires immediately.
-    await this.generateAudioUseCase.startAndProcess(id, dto.voiceId);
+    const useCase: IGenerateAudioPipeline = this.generateAudioUseCase;
+    await useCase.startAndProcess(id, dto.voiceId);
   }
 
   // ──────────────────────────────────────────────

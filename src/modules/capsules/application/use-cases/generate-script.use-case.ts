@@ -47,7 +47,7 @@ export class GenerateScriptUseCase {
       language,
     });
 
-    capsule.updateScript(result.script);
+    capsule.updateScript(result.script, result.description, language);
     await this.capsuleRepository.save(capsule);
 
     this.logger.log(`Script generated and saved for capsule: ${capsuleId}`);

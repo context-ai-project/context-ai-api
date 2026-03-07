@@ -87,6 +87,11 @@ export class CapsuleModel {
   })
   audioVoiceId: string | null = null;
 
+  // BCP-47 language code of the generated script (e.g. "es-ES", "en-US").
+  // Populated when the AI script is generated; null for pre-language-feature capsules.
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  language: string | null = null;
+
   @Column({ name: 'generation_metadata', type: 'jsonb', nullable: true })
   generationMetadata: Record<string, unknown> | null = null;
 

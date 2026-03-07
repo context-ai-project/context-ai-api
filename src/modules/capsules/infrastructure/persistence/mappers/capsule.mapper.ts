@@ -29,6 +29,7 @@ export class CapsuleMapper {
     m['thumbnailUrl'] = model.thumbnailUrl;
     m['durationSeconds'] = model.durationSeconds;
     m['audioVoiceId'] = model.audioVoiceId;
+    m['language'] = model.language;
     m['generationMetadata'] = model.generationMetadata;
     m['publishedAt'] = model.publishedAt;
     m['createdAt'] = model.createdAt;
@@ -54,6 +55,7 @@ export class CapsuleMapper {
     model.thumbnailUrl = entity.thumbnailUrl;
     model.durationSeconds = entity.durationSeconds;
     model.audioVoiceId = entity.audioVoiceId;
+    model.language = entity.language;
     model.generationMetadata = entity.generationMetadata;
     model.createdBy = entity.createdBy;
     model.publishedAt = entity.publishedAt;

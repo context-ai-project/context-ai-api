@@ -16,6 +16,8 @@ export interface AudioGenerationOptions {
   stability?: number;
   /** Similarity boost 0–1 (default 0.75) */
   similarityBoost?: number;
+  /** Style setting 0–1 (default 0.35) */
+  style?: number;
 }
 
 /** Result of a successful audio generation */
@@ -36,10 +38,36 @@ export interface VoiceInfo {
   name: string;
   /** Optional description of the voice */
   description?: string;
+  /** Voice category (premade, cloned, generated, professional, famous, high_quality) */
+  category?: string;
   /** Labels/tags associated with the voice */
   labels?: Record<string, string>;
   /** Preview URL (if available) */
   previewUrl?: string;
+}
+
+/** Info about a shared voice from the ElevenLabs Voice Library */
+export interface SharedVoiceInfo {
+  /** Unique voice identifier */
+  voiceId: string;
+  /** Public owner ID (needed to add the voice to your library) */
+  publicOwnerId: string;
+  /** Human-readable voice name */
+  name: string;
+  /** Voice category */
+  category?: string;
+  /** Voice language */
+  language?: string;
+  /** Voice gender */
+  gender?: string;
+  /** Voice accent */
+  accent?: string;
+  /** Description of the voice */
+  description?: string;
+  /** Preview URL */
+  previewUrl?: string;
+  /** Whether the user has already added this voice */
+  isAddedByUser?: boolean;
 }
 
 /**
@@ -71,9 +99,17 @@ export interface IAudioGenerator {
   ): Promise<AudioResult>;
 
   /**
-   * Returns the list of available voices for the provider.
+   * Returns the list of available voices in the user's library.
    *
    * @returns Array of voice descriptors
    */
   getAvailableVoices(): Promise<VoiceInfo[]>;
+
+  /**
+   * Searches the shared voice library for voices matching the query.
+   *
+   * @param query - Search term (name, language, etc.)
+   * @returns Array of shared voice descriptors
+   */
+  searchSharedVoices(query: string): Promise<SharedVoiceInfo[]>;
 }

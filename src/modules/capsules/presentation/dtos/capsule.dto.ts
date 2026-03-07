@@ -100,6 +100,12 @@ export class CapsuleResponseDto {
   @ApiPropertyOptional() thumbnailUrl?: string;
   @ApiPropertyOptional() durationSeconds?: number;
   @ApiPropertyOptional() audioVoiceId?: string;
+  @ApiPropertyOptional({
+    example: 'es-ES',
+    description:
+      'BCP-47 language code of the generated script (e.g. "es-ES", "en-US")',
+  })
+  language?: string;
   @ApiPropertyOptional() generationMetadata?: Record<string, unknown>;
   @ApiProperty() createdBy!: string;
   @ApiPropertyOptional() publishedAt?: string;
@@ -150,9 +156,23 @@ export class GenerateAudioRequestDto {
 export class VoiceInfoResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
+  @ApiPropertyOptional() category?: string;
   @ApiPropertyOptional() description?: string;
   @ApiPropertyOptional() previewUrl?: string;
   @ApiPropertyOptional() labels?: Record<string, string>;
+}
+
+export class SharedVoiceInfoResponseDto {
+  @ApiProperty() voiceId!: string;
+  @ApiProperty() publicOwnerId!: string;
+  @ApiProperty() name!: string;
+  @ApiPropertyOptional() category?: string;
+  @ApiPropertyOptional() language?: string;
+  @ApiPropertyOptional() gender?: string;
+  @ApiPropertyOptional() accent?: string;
+  @ApiPropertyOptional() description?: string;
+  @ApiPropertyOptional() previewUrl?: string;
+  @ApiPropertyOptional() isAddedByUser?: boolean;
 }
 
 export class DownloadUrlResponseDto {

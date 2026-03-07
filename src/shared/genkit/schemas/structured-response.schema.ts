@@ -30,6 +30,8 @@ export enum RagResponseType {
   ANSWER = 'answer',
   /** No relevant documents found */
   NO_CONTEXT = 'no_context',
+  /** Conversational message (greeting, thanks, acknowledgement) — no RAG search needed */
+  CONVERSATIONAL = 'conversational',
   /** Error during processing */
   ERROR = 'error',
 }
