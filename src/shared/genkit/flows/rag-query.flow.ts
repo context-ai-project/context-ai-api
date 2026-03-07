@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { genkit, GENKIT_CONFIG } from '../genkit.config';
+import { getGenkitInstance, GENKIT_CONFIG } from '../genkit.config';
 import {
   createRagEvaluatorService,
   type RagEvaluationResult,
@@ -62,6 +62,9 @@ export const ragQueryInputSchema = z.object({
     .min(RAG_CONFIG.MIN_SIMILARITY_RANGE.min)
     .max(RAG_CONFIG.MIN_SIMILARITY_RANGE.max)
     .default(RAG_CONFIG.DEFAULT_MIN_SIMILARITY),
+  /** Contact info of the person responsible for the sector */
+  sectorContactName: z.string().nullable().optional(),
+  sectorContactPhone: z.string().nullable().optional(),
 });
 
 export type RagQueryInput = z.infer<typeof ragQueryInputSchema>;
@@ -91,6 +94,7 @@ export const ragQueryOutputSchema = z.object({
   responseType: z.enum([
     RagResponseType.ANSWER,
     RagResponseType.NO_CONTEXT,
+    RagResponseType.CONVERSATIONAL,
     RagResponseType.ERROR,
   ]),
   structured: z.unknown().optional(),
@@ -171,26 +175,62 @@ INSTRUCTIONS:
  * Build fallback prompt when no relevant context is found (Feature 3)
  *
  * Instead of returning a static string, the LLM generates a contextual,
- * empathetic response in the user's language.
+ * empathetic response in the user's language. Includes sector contact info
+ * so the assistant can direct the user to the right person.
  */
-function buildFallbackPrompt(query: string, sectorName?: string): string {
+function buildFallbackPrompt(
+  query: string,
+  sectorName?: string,
+  contactName?: string | null,
+  contactPhone?: string | null,
+): string {
   const sectorContext = sectorName
     ? `The user is asking in the context of the "${sectorName}" department/sector.`
     : '';
 
+  const contactSection =
+    contactName || contactPhone
+      ? `\n\nSECTOR CONTACT:
+- Name: ${contactName ?? 'not provided'}
+- Phone: ${contactPhone ?? 'not provided'}
+
+IMPORTANT: Always mention this contact at the end of your response so the user knows who to reach.`
+      : '';
+
   return `You are an onboarding assistant for a company. The user asked a question, but there are NO relevant documents available to answer it.
 
-${sectorContext}
+${sectorContext}${contactSection}
 
 USER QUESTION: "${query}"
 
 INSTRUCTIONS:
 - Acknowledge that you don't have specific information about this topic in the available documentation
 - Be empathetic and helpful in your response
-- Suggest general alternatives (e.g., contact HR, check the company intranet, ask their manager)
+- If a sector contact is provided above, end your response mentioning their name and phone number
+- If no contact is provided, suggest general alternatives (e.g., check the company intranet, ask their manager)
 - If the question seems related to common onboarding topics, mention that the documentation might not have been uploaded yet
-- Keep the response concise (2-3 sentences max)
+- Keep the response concise (3-4 sentences max)
 - Respond in the SAME LANGUAGE as the user's question
+
+RESPONSE:`;
+}
+
+/**
+ * Build prompt for direct conversational responses (no RAG needed)
+ *
+ * Used when the user sends a greeting, thanks, acknowledgement or similar
+ * short social message that does not require knowledge base lookup.
+ */
+function buildConversationalPrompt(query: string): string {
+  return `You are a friendly company assistant. The user sent a conversational message (greeting, thanks, acknowledgement, or similar).
+
+USER MESSAGE: "${query}"
+
+INSTRUCTIONS:
+- Reply naturally and warmly in 1-2 sentences
+- Do NOT search for any documentation or policies
+- Respond in the SAME LANGUAGE as the user's message
+- Keep it brief and friendly
 
 RESPONSE:`;
 }
@@ -244,7 +284,7 @@ const STATIC_FALLBACK_RESPONSE =
  * @param vectorSearch - Function to search for relevant fragments (injected dependency)
  */
 export function createRagQueryService(vectorSearch: VectorSearchFn) {
-  const ai = genkit();
+  const ai = getGenkitInstance();
   const evaluator = createRagEvaluatorService(ai);
 
   /**
@@ -321,27 +361,146 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
    *
    * When no relevant documents are found, instead of returning a static string,
    * we ask the LLM to generate a contextual, empathetic response in the user's language.
+   * If contact info is available, it is included in the prompt so the assistant
+   * can direct the user to the right person.
    *
    * Falls back to a static response if the LLM call fails.
    */
   async function generateFallbackResponse(
     query: string,
     sectorName?: string,
+    contactName?: string | null,
+    contactPhone?: string | null,
   ): Promise<string> {
     try {
-      const prompt = buildFallbackPrompt(query, sectorName);
+      const prompt = buildFallbackPrompt(
+        query,
+        sectorName,
+        contactName,
+        contactPhone,
+      );
       const result = await ai.generate({
         model: GENKIT_CONFIG.LLM_MODEL,
         prompt,
         config: {
           ...GENKIT_CONFIG.RAG_GENERATION_CONFIG,
-          maxOutputTokens: 256, // Keep fallback responses short
+          maxOutputTokens: 300,
         },
       });
       return result.text;
     } catch {
-      // If LLM fails, degrade gracefully to static fallback
       return STATIC_FALLBACK_RESPONSE;
+    }
+  }
+
+  /**
+   * Detect whether a query is purely conversational (greeting, thanks, acknowledgement…)
+   * and does NOT need a vector knowledge search.
+   *
+   * Strategy:
+   * 1. Regex fast-path for the most common patterns (zero latency)
+   * 2. For short ambiguous queries, ask the LLM to classify (one small call)
+   * Long queries (> 10 words) are always treated as substantive.
+   */
+  const CONVERSATIONAL_PHRASES = new Set([
+    'gracias',
+    'thanks',
+    'thank you',
+    'ok',
+    'okay',
+    'perfecto',
+    'genial',
+    'entendido',
+    'de acuerdo',
+    'claro',
+    'bien',
+    'super',
+    'great',
+    'got it',
+    'noted',
+    'vale',
+    'de nada',
+    "you're welcome",
+    'you are welcome',
+    'hola',
+    'hello',
+    'hi',
+    'hey',
+    'buenos días',
+    'buenas tardes',
+    'buenas noches',
+    'good morning',
+    'good afternoon',
+    'good evening',
+    'adiós',
+    'bye',
+    'goodbye',
+    'hasta luego',
+  ]);
+
+  const TRAILING_CHARS = ' \t\n\r!.,';
+
+  function isConversationalPhrase(s: string): boolean {
+    let normalized = s.trim().toLowerCase();
+    while (
+      normalized.length > 0 &&
+      TRAILING_CHARS.includes(normalized[normalized.length - 1] ?? '')
+    ) {
+      normalized = normalized.slice(0, -1);
+    }
+    return normalized.length > 0 && CONVERSATIONAL_PHRASES.has(normalized);
+  }
+
+  const CONVERSATIONAL_WORDS_LONG = 8;
+
+  async function isConversationalQuery(query: string): Promise<boolean> {
+    const trimmed = query.trim();
+
+    // Fast path: known trivial patterns
+    if (isConversationalPhrase(trimmed)) return true;
+
+    // Long queries are almost never conversational
+    const wordCount = trimmed.split(/\s+/).length;
+    if (wordCount > CONVERSATIONAL_WORDS_LONG) return false;
+
+    // For short ambiguous queries, use a lightweight LLM classifier
+    try {
+      const classifyPrompt = `Classify this user message as CONVERSATIONAL or SUBSTANTIVE.
+
+CONVERSATIONAL: greetings, farewells, thanks, acknowledgements, confirmations with no question (e.g. "gracias", "ok", "entendido", "hola", "perfecto", "de acuerdo").
+SUBSTANTIVE: any real question or request that needs looking up information.
+
+USER MESSAGE: "${trimmed}"
+
+Reply with ONLY one word: CONVERSATIONAL or SUBSTANTIVE`;
+
+      const result = await ai.generate({
+        model: GENKIT_CONFIG.LLM_MODEL,
+        prompt: classifyPrompt,
+        config: { temperature: 0, maxOutputTokens: 5 },
+      });
+      return result.text.trim().toUpperCase().startsWith('CONVERSATIONAL');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Generate a direct conversational reply without searching the knowledge base.
+   */
+  async function generateConversationalResponse(
+    query: string,
+  ): Promise<string> {
+    try {
+      const prompt = buildConversationalPrompt(query);
+      const result = await ai.generate({
+        model: GENKIT_CONFIG.LLM_MODEL,
+        prompt,
+        config: { ...GENKIT_CONFIG.RAG_GENERATION_CONFIG, maxOutputTokens: 80 },
+      });
+      return result.text.trim();
+    } catch {
+      return '¡De nada! ¿En qué más puedo ayudarte?';
     }
   }
 
@@ -351,6 +510,27 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
   async function executeQuery(input: RagQueryInput): Promise<RagQueryOutput> {
     // Validate input
     const validatedInput = ragQueryInputSchema.parse(input);
+
+    // Step 0: Detect conversational queries — skip vector search entirely
+    const conversational = await isConversationalQuery(validatedInput.query);
+    if (conversational) {
+      const conversationalReply = await generateConversationalResponse(
+        validatedInput.query,
+      );
+      return {
+        response: conversationalReply,
+        responseType: RagResponseType.CONVERSATIONAL,
+        sources: [],
+        conversationId: validatedInput.conversationId,
+        timestamp: new Date(),
+        metadata: {
+          model: GENKIT_CONFIG.LLM_MODEL,
+          temperature: 0,
+          fragmentsRetrieved: 0,
+          fragmentsUsed: 0,
+        },
+      };
+    }
 
     // Step 1: Generate query embedding
     const embeddingResult = await ai.embed({
@@ -400,6 +580,9 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
     if (relevantFragments.length === 0) {
       const fallbackResponse = await generateFallbackResponse(
         validatedInput.query,
+        undefined,
+        validatedInput.sectorContactName,
+        validatedInput.sectorContactPhone,
       );
 
       return {

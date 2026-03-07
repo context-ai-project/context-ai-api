@@ -23,6 +23,8 @@ export class SectorDtoMapper {
       icon: sector.icon,
       status: sector.status,
       documentCount,
+      contactName: sector.contactName,
+      contactPhone: sector.contactPhone,
       createdAt: sector.createdAt.toISOString(),
       updatedAt: sector.updatedAt.toISOString(),
     };

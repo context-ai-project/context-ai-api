@@ -13,6 +13,10 @@ const NAME_MIN = 2;
 const NAME_MAX = 100;
 const DESC_MIN = 10;
 const DESC_MAX = 500;
+const CONTACT_NAME_MAX = 150;
+const CONTACT_PHONE_MAX = 30;
+const CONTACT_NAME_EXAMPLE = 'María García';
+const CONTACT_PHONE_EXAMPLE = '+34 612 345 678';
 
 // Example values
 const EXAMPLE_UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -51,6 +55,27 @@ export class CreateSectorDto {
   })
   @IsEnum(SectorIcon)
   icon!: SectorIcon;
+
+  @ApiPropertyOptional({
+    description: 'Full name of the sector contact person (first and last name)',
+    example: CONTACT_NAME_EXAMPLE,
+    maxLength: CONTACT_NAME_MAX,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(CONTACT_NAME_MAX)
+  contactName?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Phone number of the sector contact person (e.g. "+34 612 345 678")',
+    example: CONTACT_PHONE_EXAMPLE,
+    maxLength: CONTACT_PHONE_MAX,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(CONTACT_PHONE_MAX)
+  contactPhone?: string;
 }
 
 /**
@@ -89,6 +114,26 @@ export class UpdateSectorDto {
   @IsOptional()
   @IsEnum(SectorIcon)
   icon?: SectorIcon;
+
+  @ApiPropertyOptional({
+    description: 'Full name of the sector contact person',
+    example: CONTACT_NAME_EXAMPLE,
+    maxLength: CONTACT_NAME_MAX,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(CONTACT_NAME_MAX)
+  contactName?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Phone number of the sector contact person',
+    example: CONTACT_PHONE_EXAMPLE,
+    maxLength: CONTACT_PHONE_MAX,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(CONTACT_PHONE_MAX)
+  contactPhone?: string | null;
 }
 
 /**
@@ -138,6 +183,18 @@ export class SectorResponseDto {
     example: '2025-12-15T00:00:00.000Z',
   })
   updatedAt!: string;
+
+  @ApiPropertyOptional({
+    description: 'Full name of the sector contact person',
+    example: CONTACT_NAME_EXAMPLE,
+  })
+  contactName?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Phone number of the sector contact person',
+    example: CONTACT_PHONE_EXAMPLE,
+  })
+  contactPhone?: string | null;
 }
 
 /**

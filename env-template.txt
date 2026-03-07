@@ -59,6 +59,18 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 RATE_LIMIT_TTL=60
 RATE_LIMIT_MAX=100
 
+# ── ElevenLabs TTS — v2 Audio Capsules (REQUIRED for generation) ──
+# Get from https://elevenlabs.io/app/api-key
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+
+# ── Google Cloud Storage — v2 Audio Capsules (REQUIRED for generation) ──
+# Bucket name for storing generated audio files
+GCS_BUCKET_CAPSULES=context-ai-capsules-dev
+# GCP project ID
+GCS_PROJECT_ID=your-gcp-project-id
+# Path to service account JSON key (optional in GKE/Cloud Run — uses workload identity)
+# GCS_KEY_FILE=/path/to/service-account-key.json
+
 # ── Observability ────────────────────────────────────────────
 SENTRY_DSN=
 LOG_LEVEL=debug

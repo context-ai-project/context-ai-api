@@ -33,6 +33,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { QueryAssistantUseCase } from '../application/use-cases/query-assistant.use-case';
 import type { IConversationRepository } from '../domain/repositories/conversation.repository.interface';
+import type { ISectorRepository } from '../../sectors/domain/repositories/sector.repository.interface';
 import {
   QueryAssistantDto,
   QueryAssistantResponseDto,
@@ -110,6 +111,8 @@ export class InteractionController {
     private readonly queryAssistantUseCase: QueryAssistantUseCase,
     @Inject('IConversationRepository')
     private readonly conversationRepository: IConversationRepository,
+    @Inject('ISectorRepository')
+    private readonly sectorRepository: ISectorRepository,
   ) {}
 
   /**
@@ -215,6 +218,22 @@ export class InteractionController {
     );
 
     try {
+      // Look up sector contact info for fallback messages (non-blocking: undefined if not found)
+      let sectorContact:
+        | { name: string | null; phone: string | null }
+        | undefined;
+      try {
+        const sector = await this.sectorRepository.findById(dto.sectorId);
+        if (sector) {
+          const cName: string | null = sector.contactName ?? null;
+
+          const cPhone: string | null = sector.contactPhone ?? null;
+          sectorContact = { name: cName, phone: cPhone };
+        }
+      } catch {
+        // Contact info is optional — silently skip if lookup fails
+      }
+
       // Execute use case — userId comes from JWT session, not from body
       const result = await this.queryAssistantUseCase.execute({
         userContext: { userId, sectorId: dto.sectorId },
@@ -224,6 +243,7 @@ export class InteractionController {
           maxResults: dto.maxResults,
           minSimilarity: dto.minSimilarity,
         },
+        sectorContact,
       });
 
       const response = InteractionDtoMapper.toQueryResponse(result);

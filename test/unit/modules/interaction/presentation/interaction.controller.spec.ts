@@ -48,6 +48,16 @@ describe('InteractionController', () => {
           useValue: mockConversationRepository,
         },
         {
+          provide: 'ISectorRepository',
+          useValue: {
+            findById: jest.fn().mockResolvedValue(null),
+            findAll: jest.fn(),
+            existsByName: jest.fn(),
+            save: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
+        {
           provide: Reflector,
           useValue: {
             getAllAndOverride: jest.fn(),
