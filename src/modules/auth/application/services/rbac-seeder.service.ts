@@ -16,6 +16,12 @@ const PERM_USERS_READ = 'users:read';
 const PERM_USERS_MANAGE = 'users:manage';
 const PERM_SYSTEM_ADMIN = 'system:admin';
 
+// Capsule permissions (v2 — Block A)
+const PERM_CAPSULE_READ = 'capsule:read';
+const PERM_CAPSULE_CREATE = 'capsule:create';
+const PERM_CAPSULE_UPDATE = 'capsule:update';
+const PERM_CAPSULE_DELETE = 'capsule:delete';
+
 // Constants for permission descriptions
 const PERM_DESC_KNOWLEDGE_READ = 'View knowledge documents';
 const PERM_DESC_KNOWLEDGE_CREATE = 'Upload and create knowledge documents';
@@ -24,6 +30,10 @@ const PERM_DESC_KNOWLEDGE_DELETE = 'Delete knowledge documents';
 const PERM_DESC_PROFILE_READ = 'View own profile';
 const PERM_DESC_PROFILE_UPDATE = 'Update own profile';
 const PERM_DESC_USERS_READ = 'View user information';
+const PERM_DESC_CAPSULE_READ = 'View and play audio capsules';
+const PERM_DESC_CAPSULE_CREATE = 'Create capsules and trigger AI generation';
+const PERM_DESC_CAPSULE_UPDATE = 'Edit capsule metadata and scripts';
+const PERM_DESC_CAPSULE_DELETE = 'Archive and delete capsules';
 
 /**
  * RBAC Seeder Service
@@ -189,6 +199,24 @@ export class RbacSeederService {
         name: PERM_SYSTEM_ADMIN,
         description: 'Full system administration access',
       },
+
+      // Capsule permissions (v2 — Block A: Audio Capsules)
+      {
+        name: PERM_CAPSULE_READ,
+        description: PERM_DESC_CAPSULE_READ,
+      },
+      {
+        name: PERM_CAPSULE_CREATE,
+        description: PERM_DESC_CAPSULE_CREATE,
+      },
+      {
+        name: PERM_CAPSULE_UPDATE,
+        description: PERM_DESC_CAPSULE_UPDATE,
+      },
+      {
+        name: PERM_CAPSULE_DELETE,
+        description: PERM_DESC_CAPSULE_DELETE,
+      },
     ];
 
     let createdCount = 0;
@@ -198,7 +226,13 @@ export class RbacSeederService {
       });
 
       if (!existing) {
-        const permission = this.permissionRepository.create(permData);
+        const { resource, action } = this.parsePermissionName(permData.name);
+        const permission = this.permissionRepository.create({
+          ...permData,
+          resource,
+          action,
+          isSystemPermission: true,
+        });
         await this.permissionRepository.save(permission);
         createdCount++;
         this.logger.log(`Created permission: ${permData.name}`);
@@ -208,6 +242,20 @@ export class RbacSeederService {
     }
 
     return createdCount;
+  }
+
+  private parsePermissionName(name: string): {
+    resource: string;
+    action: string;
+  } {
+    const [resource, action] = name.split(':');
+    if (!resource || !action) {
+      throw new Error(
+        `Invalid permission format "${name}". Expected "resource:action".`,
+      );
+    }
+
+    return { resource, action };
   }
 
   /**
@@ -225,10 +273,11 @@ export class RbacSeederService {
           PERM_KNOWLEDGE_READ,
           PERM_PROFILE_READ,
           PERM_PROFILE_UPDATE,
+          PERM_CAPSULE_READ,
         ],
       },
 
-      // MANAGER ROLE: Knowledge management + all user permissions
+      // MANAGER ROLE: Knowledge management + capsule management + all user permissions
       {
         roleName: 'manager',
         permissions: [
@@ -240,6 +289,10 @@ export class RbacSeederService {
           PERM_PROFILE_READ,
           PERM_PROFILE_UPDATE,
           PERM_USERS_READ,
+          PERM_CAPSULE_READ,
+          PERM_CAPSULE_CREATE,
+          PERM_CAPSULE_UPDATE,
+          PERM_CAPSULE_DELETE,
         ],
       },
 

@@ -7,6 +7,7 @@ import { ConversationModel } from './infrastructure/persistence/models/conversat
 import { MessageModel } from './infrastructure/persistence/models/message.model';
 import { createRagQueryService } from '@shared/genkit/flows/rag-query.flow';
 import { KnowledgeModule } from '@modules/knowledge/knowledge.module';
+import { SectorsModule } from '@modules/sectors/sectors.module';
 import { IVectorStore } from '@modules/knowledge/domain/services/vector-store.interface';
 import { IConversationRepository } from './domain/repositories/conversation.repository.interface';
 
@@ -36,6 +37,7 @@ import { IConversationRepository } from './domain/repositories/conversation.repo
   imports: [
     TypeOrmModule.forFeature([ConversationModel, MessageModel]),
     KnowledgeModule, // Import to access IVectorStore
+    SectorsModule, // Import to access ISectorRepository (sector contact info)
   ],
   controllers: [InteractionController],
   providers: [

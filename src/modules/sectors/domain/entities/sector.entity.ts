@@ -19,6 +19,8 @@ export class Sector {
   public description: string;
   public icon: SectorIcon;
   public status: SectorStatus;
+  public contactName: string | null;
+  public contactPhone: string | null;
   public createdAt: Date;
   public updatedAt: Date;
 
@@ -28,13 +30,21 @@ export class Sector {
   static readonly DESC_MIN_LENGTH = 10;
   static readonly DESC_MAX_LENGTH = 500;
 
-  constructor(data: { name: string; description: string; icon: SectorIcon }) {
+  constructor(data: {
+    name: string;
+    description: string;
+    icon: SectorIcon;
+    contactName?: string | null;
+    contactPhone?: string | null;
+  }) {
     this.validate(data);
 
     this.name = data.name.trim();
     this.description = data.description.trim();
     this.icon = data.icon;
     this.status = SectorStatus.ACTIVE;
+    this.contactName = data.contactName?.trim() || null;
+    this.contactPhone = data.contactPhone?.trim() || null;
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }
@@ -131,6 +141,8 @@ export class Sector {
     name?: string;
     description?: string;
     icon?: SectorIcon;
+    contactName?: string | null;
+    contactPhone?: string | null;
   }): void {
     if (data.name !== undefined) {
       const trimmed = data.name.trim();
@@ -168,6 +180,14 @@ export class Sector {
         throw new Error('Invalid sector icon');
       }
       this.icon = data.icon;
+    }
+
+    if (data.contactName !== undefined) {
+      this.contactName = data.contactName?.trim() || null;
+    }
+
+    if (data.contactPhone !== undefined) {
+      this.contactPhone = data.contactPhone?.trim() || null;
     }
 
     this.updatedAt = new Date();

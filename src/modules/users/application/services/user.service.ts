@@ -2,9 +2,13 @@ import { Injectable, Inject, Logger, Optional } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserRepository } from '../../infrastructure/persistence/repositories/user.repository';
 import { RoleRepository } from '../../../auth/infrastructure/persistence/repositories/role.repository';
+import type { ISectorRepository } from '../../../sectors/domain/repositories/sector.repository.interface';
 import { User } from '../../domain/entities/user.entity';
 import { UserActivatedEvent } from '../../domain/events/user.events';
 import { extractErrorMessage } from '@shared/utils';
+
+/** Default sector name for new users when no invitation exists (RRHH / Human Resources) */
+const DEFAULT_SECTOR_NAME = 'Human Resources';
 
 /**
  * Interface for InvitationService to avoid circular import.
@@ -57,6 +61,8 @@ export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly roleRepository: RoleRepository,
+    @Inject('ISectorRepository')
+    private readonly sectorRepository: ISectorRepository,
     @Optional()
     @Inject('IInvitationAcceptanceService')
     private readonly invitationService: InvitationAcceptanceService | null,
@@ -103,12 +109,46 @@ export class UserService {
       isNewUser = true;
     }
 
-    // v1.3: Accept pending invitation for new users
+    // v1.3: Accept pending invitation for new users; otherwise assign default role + sector
     if (isNewUser) {
       await this.acceptPendingInvitation(user, dto);
+      await this.assignDefaultRoleAndSectorIfNeeded(user);
     }
 
     return this.buildDto(user);
+  }
+
+  /**
+   * For new users without a pending invitation: assign role "user" and sector "Human Resources" (RRHH).
+   */
+  private async assignDefaultRoleAndSectorIfNeeded(user: User): Promise<void> {
+    const userWithRelations = await this.userRepository.findByIdWithRelations(
+      user.id,
+    );
+    if (!userWithRelations) return;
+    const hasRoles = (userWithRelations.roles?.length ?? 0) > 0;
+    if (hasRoles) return;
+
+    const role = await this.roleRepository.findByName('user');
+    const roleModel = role
+      ? await this.roleRepository.findWithPermissions(role.id)
+      : null;
+    const defaultSector =
+      await this.sectorRepository.findByName(DEFAULT_SECTOR_NAME);
+    if (!roleModel || !defaultSector) {
+      this.logger.warn(
+        `Could not assign default role/sector for new user ${user.id}: role or sector "${DEFAULT_SECTOR_NAME}" not found`,
+      );
+      return;
+    }
+    userWithRelations.roles = [roleModel];
+    userWithRelations.sectors = [
+      { id: defaultSector.id } as (typeof userWithRelations.sectors)[0],
+    ];
+    await this.userRepository.saveModel(userWithRelations);
+    this.logger.log(
+      `Assigned default role "user" and sector "${DEFAULT_SECTOR_NAME}" to new user ${user.id}`,
+    );
   }
 
   /**

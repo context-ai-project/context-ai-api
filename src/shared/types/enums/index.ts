@@ -4,3 +4,6 @@ export * from './sector-status.enum';
 export * from './sector-icon.enum';
 export * from './invitation-status.enum';
 export * from './notification-type.enum';
+export * from './capsule-type.enum';
+export * from './capsule-status.enum';
+export * from './capsule-generation-step.enum';
