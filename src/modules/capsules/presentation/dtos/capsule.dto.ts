@@ -129,6 +129,7 @@ export class CapsuleStatusResponseDto {
   @ApiPropertyOptional() progress?: number;
   @ApiPropertyOptional() errorMessage?: string;
   @ApiPropertyOptional() audioUrl?: string;
+  @ApiPropertyOptional() videoUrl?: string;
 }
 
 export class GenerateScriptRequestDto {
@@ -151,6 +152,15 @@ export class GenerateAudioRequestDto {
   @IsString()
   @MaxLength(VOICE_ID_MAX)
   voiceId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Updated script to persist before generation (avoids race conditions)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(SCRIPT_MAX)
+  script?: string;
 }
 
 export class VoiceInfoResponseDto {

@@ -214,7 +214,7 @@ export class InteractionController {
     @CurrentUser('userId') userId: string,
   ): Promise<QueryAssistantResponseDto> {
     this.logger.log(
-      `Query from user ${userId} in sector ${dto.sectorId}: "${dto.query.substring(0, LOG_QUERY_MAX_LENGTH)}..."`,
+      `Query from user ${userId} in sector ${dto.sectorId}: "${dto.query.substring(0, LOG_QUERY_MAX_LENGTH)}"`,
     );
 
     try {

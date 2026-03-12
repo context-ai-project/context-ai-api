@@ -160,6 +160,18 @@ export class CapsuleRepository implements ICapsuleRepository {
       where: { sectorId, status: status as unknown as CapsuleStatus },
     });
   }
+
+  async countVideoCapsulesThisMonth(): Promise<number> {
+    const rows = await this.dataSource.query<{ count: string }[]>(
+      `SELECT COUNT(*) AS count
+       FROM capsules
+       WHERE type = $1
+         AND status != $2
+         AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`,
+      [CapsuleType.VIDEO, CapsuleStatus.ARCHIVED],
+    );
+    return parseInt(rows[0].count, 10);
+  }
 }
 
 // Re-export filter/pagination types for use-case imports

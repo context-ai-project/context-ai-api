@@ -171,6 +171,7 @@ export class QueryAssistantUseCase {
     // 4. Execute RAG query flow with type-safe wrapper
     const ragQueryInput = {
       query: contextualQuery,
+      rawUserMessage: input.query,
       sectorId: input.userContext.sectorId,
       conversationId: conversation.id,
       ...(input.searchOptions?.maxResults !== undefined && {

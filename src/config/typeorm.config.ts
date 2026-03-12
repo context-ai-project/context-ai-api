@@ -113,6 +113,8 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
  * Used by TypeORM CLI for running migrations
  * Usage: npm run migration:generate -- MigrationName
  */
+const isProductionCli = process.env.NODE_ENV === 'production';
+
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DB_HOST || 'localhost',
@@ -126,6 +128,12 @@ export const dataSourceOptions: DataSourceOptions = {
 
   synchronize: false,
   logging: process.env.DB_LOGGING === 'true',
+
+  ssl: isProductionCli
+    ? {
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+      }
+    : false,
 };
 
 // Export DataSource for TypeORM CLI

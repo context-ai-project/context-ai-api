@@ -1,51 +1,49 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { getGenkitInstance, GENKIT_CONFIG } from '@shared/genkit/genkit.config';
+import { getCapsuleGenkitInstance } from '@shared/genkit/capsules-genkit.config';
+import { GENKIT_CONFIG } from '@shared/genkit/genkit.config';
 import { extractErrorMessage } from '@shared/utils';
+import {
+  parseVideoScenes,
+  type VideoScene,
+} from '../../domain/value-objects/video-scene.vo';
 import type { IVectorStore } from '../../../knowledge/domain/services/vector-store.interface';
 import { EmbeddingService } from '../../../knowledge/infrastructure/services/embedding.service';
 import { EmbeddingTaskType } from '../../../knowledge/infrastructure/services/embedding.service';
 
-// Script generation constants
 const SCRIPT_TEMPERATURE = 0.4;
 const SCRIPT_MAX_OUTPUT_TOKENS = 4096;
 const RAG_TOP_K = 25;
 const RAG_MIN_SCORE = 0.45;
 const MAX_CONTEXT_CHARS = 16000;
-const MAX_SCRIPT_CHARS = 5000;
+
 const DESCRIPTION_TEMPERATURE = 0.3;
 const DESCRIPTION_MAX_TOKENS = 256;
 const MAX_DESCRIPTION_CHARS = 300;
 const ELLIPSIS_LENGTH = 3;
+const VIDEO_SCRIPT_TEMPERATURE = 0.5;
+const VIDEO_SCRIPT_MAX_TOKENS = 8192;
+const MAX_SCENES = 8;
+const MAX_SCRIPT_WORDS = 250;
 
-/** Input for script generation */
 export interface GenerateScriptInput {
-  /** Sources to retrieve RAG context from */
   sourceIds: string[];
-  /** Sector namespace for Pinecone */
   sectorId: string;
-  /** Optional introductory text from the admin */
   introText?: string | null;
-  /** Target language for the script (default: auto-detect) */
   language?: string;
 }
 
-/** Result of script generation */
 export interface GenerateScriptResult {
   script: string;
   description: string;
   tokensUsed?: number;
 }
 
-/**
- * ScriptGeneratorService
- *
- * Generates informative audio scripts for capsules using Gemini 2.5 Flash
- * via Genkit. Retrieves relevant context from Pinecone (RAG) scoped to
- * the documents selected for the capsule.
- *
- * Output: 5000-10000 character audio script (~3-6 min) structured as:
- *   Brief opening → Structured core content → Key takeaways
- */
+export interface GenerateVideoScriptResult {
+  scenes: VideoScene[];
+  scriptJson: string;
+  description: string;
+}
+
 @Injectable()
 export class ScriptGeneratorService {
   private readonly logger = new Logger(ScriptGeneratorService.name);
@@ -62,10 +60,14 @@ export class ScriptGeneratorService {
     );
 
     const context = await this.buildRagContext(input);
-    const prompt = this.buildPrompt(context, input.introText, input.language);
+    const prompt = this.buildAudioPrompt(
+      context,
+      input.introText,
+      input.language,
+    );
 
     try {
-      const ai = getGenkitInstance();
+      const ai = getCapsuleGenkitInstance();
       const response = await ai.generate({
         model: GENKIT_CONFIG.LLM_MODEL,
         prompt,
@@ -93,13 +95,57 @@ export class ScriptGeneratorService {
     }
   }
 
-  /**
-   * Generates a short description/summary from the script.
-   * Used as the capsule description visible in list views and cards.
-   */
+  async generateVideoScript(
+    input: GenerateScriptInput,
+  ): Promise<GenerateVideoScriptResult> {
+    this.logger.log(
+      `Generating video script (scenes) for sector ${input.sectorId}`,
+    );
+
+    const context = await this.buildRagContext(input);
+    const prompt = this.buildVideoScenesPrompt(
+      context,
+      input.introText,
+      input.language,
+    );
+
+    try {
+      const ai = getCapsuleGenkitInstance();
+      const response = await ai.generate({
+        model: GENKIT_CONFIG.LLM_MODEL,
+        prompt,
+        config: {
+          temperature: VIDEO_SCRIPT_TEMPERATURE,
+          maxOutputTokens: VIDEO_SCRIPT_MAX_TOKENS,
+        },
+      });
+
+      const rawText = response.text?.trim() ?? '';
+
+      if (!rawText) {
+        throw new Error('LLM returned an empty response for video script');
+      }
+
+      const jsonString = this.extractJsonFromResponse(rawText);
+      const scenes = parseVideoScenes(jsonString);
+
+      this.logger.log(`Video script generated: ${scenes.length} scenes`);
+
+      const description = await this.generateDescription(
+        scenes.map((s) => s.textToNarrate).join(' '),
+      );
+
+      return { scenes, scriptJson: jsonString, description };
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error);
+      this.logger.error(`Video script generation failed: ${message}`);
+      throw new Error(`Failed to generate video script: ${message}`);
+    }
+  }
+
   private async generateDescription(script: string): Promise<string> {
     try {
-      const ai = getGenkitInstance();
+      const ai = getCapsuleGenkitInstance();
       const response = await ai.generate({
         model: GENKIT_CONFIG.LLM_MODEL,
         prompt: `Summarize the following audio script in 1-2 sentences (max ${MAX_DESCRIPTION_CHARS} characters). The summary should describe what the capsule covers. Write it in the same language as the script. Output ONLY the summary, nothing else.\n\n${script}`,
@@ -112,7 +158,6 @@ export class ScriptGeneratorService {
       const description = response.text?.trim() ?? '';
       if (!description) return '';
 
-      // Truncate if exceeds limit
       if (description.length > MAX_DESCRIPTION_CHARS) {
         return (
           description.substring(0, MAX_DESCRIPTION_CHARS - ELLIPSIS_LENGTH) +
@@ -135,13 +180,8 @@ export class ScriptGeneratorService {
   // Private helpers
   // ──────────────────────────────────────────────
 
-  /**
-   * Retrieves RAG context from Pinecone for the selected source documents.
-   * Uses a generic query embedding to retrieve broadly relevant fragments.
-   */
   private async buildRagContext(input: GenerateScriptInput): Promise<string> {
     try {
-      // Use a generic knowledge-retrieval query
       const queryText = input.introText?.trim()
         ? input.introText
         : 'principales conceptos y puntos clave del documento';
@@ -158,13 +198,11 @@ export class ScriptGeneratorService {
         RAG_MIN_SCORE,
       );
 
-      // Filter to only the selected source documents
       const sourceSet = new Set(input.sourceIds);
       const filtered = results.filter((r) =>
         sourceSet.has(r.metadata.sourceId),
       );
 
-      // Concatenate content up to MAX_CONTEXT_CHARS
       let context = '';
       for (const result of filtered) {
         const addition = result.metadata.content + '\n\n';
@@ -187,17 +225,135 @@ export class ScriptGeneratorService {
   }
 
   /**
-   * Builds the LLM prompt for audio script generation.
-   *
-   * Principles:
-   * - Informative first: synthesize the most important concepts without losing
-   *   essential details. Do NOT over-summarize.
-   * - Structured: clear logical flow so the listener can follow along.
-   * - Natural spoken tone: sounds like a well-produced audiobook, not a lecture
-   *   or a corporate memo. No filler phrases or fluff.
-   * - Hard limit: output MUST NOT exceed MAX_SCRIPT_CHARS characters.
+   * Converts an existing plain-text narrative script into structured
+   * VideoScene[] JSON — used internally by the video generation pipeline
+   * so the user never sees the raw JSON.
    */
-  private buildPrompt(
+  async convertScriptToScenes(
+    narrativeScript: string,
+    language?: string,
+  ): Promise<GenerateVideoScriptResult> {
+    this.logger.log('Converting narrative script to video scenes');
+
+    const prompt = this.buildScriptToScenesPrompt(narrativeScript, language);
+
+    try {
+      const ai = getCapsuleGenkitInstance();
+      const response = await ai.generate({
+        model: GENKIT_CONFIG.LLM_MODEL,
+        prompt,
+        config: {
+          temperature: VIDEO_SCRIPT_TEMPERATURE,
+          maxOutputTokens: VIDEO_SCRIPT_MAX_TOKENS,
+        },
+      });
+
+      const rawText = response.text?.trim() ?? '';
+      if (!rawText) {
+        throw new Error('LLM returned an empty response for scene conversion');
+      }
+
+      const jsonString = this.extractJsonFromResponse(rawText);
+      const scenes = parseVideoScenes(jsonString);
+
+      this.logger.log(`Script converted to ${scenes.length} scenes`);
+
+      const description = await this.generateDescription(narrativeScript);
+
+      return { scenes, scriptJson: jsonString, description };
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error);
+      this.logger.error(`Script-to-scenes conversion failed: ${message}`);
+      throw new Error(`Failed to convert script to video scenes: ${message}`);
+    }
+  }
+
+  private buildScriptToScenesPrompt(
+    narrativeScript: string,
+    language?: string,
+  ): string {
+    const langInstruction = language
+      ? `Write all content in ${language}.`
+      : 'Write in the same language as the script.';
+
+    return `You are an expert instructional designer. Transform the following narrative script into a structured video script with ${MAX_SCENES} scenes maximum.
+
+${langInstruction}
+
+<script>
+${narrativeScript}
+</script>
+
+## Output format
+
+Return ONLY a JSON array. Each element must have exactly these fields:
+- "textToNarrate": The narration text for this scene (2-4 sentences, taken or adapted from the script above)
+- "visualPrompt": A detailed image generation prompt describing the visual for this scene (corporate/professional style, no text in image)
+- "titleOverlay": A short title (3-6 words) to display on screen
+
+## Rules
+- Preserve the key information and tone from the original script
+- Split the script into logical scenes that flow naturally
+- Each scene should be self-contained
+- Visual prompts should describe professional, corporate-style illustrations
+- **CRITICAL**: The SUM of all "textToNarrate" fields across ALL scenes MUST NOT exceed ${MAX_SCRIPT_WORDS} words total. This ensures the video stays under 2 minutes. Be concise.
+- Output ONLY the JSON array, no markdown, no explanation`;
+  }
+
+  private extractJsonFromResponse(text: string): string {
+    const fenceStart = text.indexOf('```');
+    if (fenceStart !== -1) {
+      const contentStart = text.indexOf('\n', fenceStart);
+      const fenceEnd = text.indexOf('```', contentStart);
+      if (contentStart !== -1 && fenceEnd !== -1) {
+        return text.substring(contentStart + 1, fenceEnd).trim();
+      }
+    }
+    const bracketStart = text.indexOf('[');
+    const bracketEnd = text.lastIndexOf(']');
+    if (bracketStart !== -1 && bracketEnd > bracketStart) {
+      return text.substring(bracketStart, bracketEnd + 1).trim();
+    }
+    return text;
+  }
+
+  private buildVideoScenesPrompt(
+    context: string,
+    introText: string | null | undefined,
+    language?: string,
+  ): string {
+    const langInstruction = language
+      ? `Write all content in ${language}.`
+      : 'Write in the same language as the source documents.';
+
+    const contextSection = context
+      ? `<documents>\n${context}\n</documents>\n\n`
+      : '';
+
+    const introSection = introText?.trim()
+      ? `<author_note>\n${introText.trim()}\n</author_note>\n\n`
+      : '';
+
+    return `You are an expert instructional designer. Transform the provided documents into a structured video script with ${MAX_SCENES} scenes maximum.
+
+${langInstruction}
+
+${contextSection}${introSection}## Output format
+
+Return ONLY a JSON array. Each element must have exactly these fields:
+- "textToNarrate": The narration text for this scene (2-4 sentences, conversational tone)
+- "visualPrompt": A detailed image generation prompt describing the visual for this scene (corporate/professional style, no text in image)
+- "titleOverlay": A short title (3-6 words) to display on screen
+
+## Rules
+- Cover the most important concepts from the documents
+- Each scene should be self-contained and flow logically to the next
+- Visual prompts should describe professional, corporate-style illustrations
+- **CRITICAL**: The SUM of all "textToNarrate" fields across ALL scenes MUST NOT exceed ${MAX_SCRIPT_WORDS} words total. This ensures the video stays under 2 minutes. Be concise and direct.
+- Output ONLY the JSON array, no markdown, no explanation`;
+  }
+
+  private buildAudioPrompt(
     context: string,
     introText: string | null | undefined,
     language?: string,
@@ -244,22 +400,16 @@ ${contextSection}${introSection}## Your process
 4. Active Voice: Use strong verbs and address the user directly as "you".
 5.No references to sources, documents, pages, or metadata.
 
-Personality & Tone Guidelines:
-1. Tone: Conversational and approachable, yet professional. Avoid overly corporate, rigid, or "robotic" language.
-2. Empathy: Recognize the user's context. If there is a problem, validate the situation before diving into the solution.
-3. Clarity: Be direct and concise. Avoid unnecessary fluff.
-4. Active Voice: Use strong verbs and address the user directly as "you".
-
-
 Specific Guidelines for Audio/TTS Generation:
 Since your response will be converted to audio:
 1. Rhythm & Punctuation: Use commas and periods frequently to create natural "breathing pauses" for the voice model.
 2. "Write for the Ear": Write how people speak, not how they write textbooks. Use natural connectors (e.g., "On the other hand...", "Here is the key thing...").
 3. Clean Output: Avoid complex symbols, code blocks, or special characters (like URLs or LaTeX) that sound awkward when read aloud.
 
-**Length:**
-- The script MUST be between 2500 and ${MAX_SCRIPT_CHARS} characters (roughly 1-3 minutes of audio).
-- Use the full space when the content warrants it. Do not cut short if there is important information left to cover.
+**Length — CRITICAL CONSTRAINT:**
+- The script MUST NOT exceed ${MAX_SCRIPT_WORDS} words. This is a hard limit to keep the audio under 2 minutes (at ~150 words/minute).
+- Be concise and direct. Prioritize the most essential information within this word budget.
+- Do NOT pad the script with filler to reach a minimum — shorter is better than longer.
 
 ## Output
 

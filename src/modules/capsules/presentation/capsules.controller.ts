@@ -34,6 +34,7 @@ import { PublishCapsuleUseCase } from '../application/use-cases/publish-capsule.
 import { ArchiveCapsuleUseCase } from '../application/use-cases/archive-capsule.use-case';
 import { GenerateScriptUseCase } from '../application/use-cases/generate-script.use-case';
 import { GenerateAudioUseCase } from '../application/use-cases/generate-audio.use-case';
+import { GenerateVideoUseCase } from '../application/use-cases/generate-video.use-case';
 
 import {
   CreateCapsuleRequestDto,
@@ -66,9 +67,15 @@ const PERM_CREATE = 'capsule:create';
 const PERM_UPDATE = 'capsule:update';
 const PERM_DELETE = 'capsule:delete';
 
-/** Contract for audio generation pipeline — used to avoid ESLint "type could not be resolved" (NestJS DI + circular deps) */
-interface IGenerateAudioPipeline {
+/** Contract for audio generation pipeline */
+interface IAudioGeneratePipeline {
   startAndProcess(capsuleId: string, voiceId: string): Promise<void>;
+}
+
+/** Contract for video generation pipeline */
+interface IVideoGeneratePipeline {
+  execute(capsuleId: string, voiceId: string): Promise<void>;
+  getQuotaInfo(): Promise<{ used: number; limit: number; remaining: number }>;
 }
 
 /** Shape of a shared voice from search — avoids ESLint "type could not be resolved" */
@@ -93,13 +100,13 @@ interface ISearchSharedVoices {
 /**
  * Capsules Controller
  *
- * Handles HTTP requests for multimedia capsule management (v2 Block A).
+ * Handles HTTP requests for multimedia capsule management (v2 Block A + B).
  *
  * Permission model:
  * - GET endpoints:    capsule:read (all authenticated users)
  * - POST/PATCH:       capsule:create / capsule:update (admin, manager)
  * - DELETE:           capsule:delete (admin, manager)
- * - Generation:       capsule:create (generate-script, generate-audio)
+ * - Generation:       capsule:create (generate-script, generate-audio, generate-video)
  */
 @ApiTags('Capsules')
 @ApiBearerAuth()
@@ -117,6 +124,7 @@ export class CapsulesController {
     private readonly archiveCapsuleUseCase: ArchiveCapsuleUseCase,
     private readonly generateScriptUseCase: GenerateScriptUseCase,
     private readonly generateAudioUseCase: GenerateAudioUseCase,
+    private readonly generateVideoUseCase: GenerateVideoUseCase,
     @Inject('IAudioGenerator')
     private readonly audioGenerator: IAudioGenerator,
     @Inject('IMediaStorage')
@@ -262,6 +270,33 @@ export class CapsulesController {
   }
 
   // ──────────────────────────────────────────────
+  // GET /capsules/quota — Video generation quota
+  // (must be declared before /:id to avoid route collision)
+  // ──────────────────────────────────────────────
+  @Get('quota')
+  @RequirePermissions([PERM_CREATE])
+  @ApiOperation({ summary: 'Get monthly video generation quota' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      properties: {
+        used: { type: 'number' },
+        limit: { type: 'number' },
+        remaining: { type: 'number' },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
+  async getQuota(): Promise<{
+    used: number;
+    limit: number;
+    remaining: number;
+  }> {
+    const provider = this.generateVideoUseCase as IVideoGeneratePipeline;
+    return provider.getQuotaInfo();
+  }
+
+  // ──────────────────────────────────────────────
   // GET /capsules/:id — Get single capsule
   // ──────────────────────────────────────────────
   @Get(':id')
@@ -369,27 +404,42 @@ export class CapsulesController {
   }
 
   // ──────────────────────────────────────────────
-  // POST /capsules/:id/generate — Audio pipeline
+  // POST /capsules/:id/generate — Generation pipeline (audio or video)
   // ──────────────────────────────────────────────
   @Post(':id/generate')
   @HttpCode(HttpStatus.ACCEPTED)
   @RequirePermissions([PERM_CREATE])
   @ApiOperation({
-    summary: 'Start audio generation pipeline (DRAFT/COMPLETED → GENERATING)',
+    summary:
+      'Start generation pipeline — routes to audio or video based on capsule type',
   })
   @ApiParam({ name: 'id', example: EXAMPLE_UUID })
-  @ApiResponse({ status: 202, description: 'Audio generation started' })
+  @ApiResponse({ status: 202, description: 'Generation started' })
   @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
   @ApiForbiddenResponse({ description: API_FORBIDDEN_DESC })
-  async generateAudio(
+  async generate(
     @Param('id') id: string,
     @Body() dto: GenerateAudioRequestDto,
   ): Promise<void> {
     if (!dto.voiceId) throw new BadRequestException('voiceId is required');
-    // startAndProcess validates synchronously (fast), then kicks off the
-    // heavy TTS pipeline in the background — HTTP 202 fires immediately.
-    const useCase: IGenerateAudioPipeline = this.generateAudioUseCase;
-    await useCase.startAndProcess(id, dto.voiceId);
+
+    // Persist the latest script atomically before kicking off the pipeline
+    if (dto.script != null) {
+      await this.updateCapsuleUseCase.execute({
+        capsuleId: id,
+        script: dto.script.trim(),
+      });
+    }
+
+    const capsule = await this.getCapsuleUseCase.execute(id);
+
+    if (capsule.type === CapsuleType.VIDEO) {
+      const useCase: IVideoGeneratePipeline = this.generateVideoUseCase;
+      await useCase.execute(id, dto.voiceId);
+    } else {
+      const useCase: IAudioGeneratePipeline = this.generateAudioUseCase;
+      await useCase.startAndProcess(id, dto.voiceId);
+    }
   }
 
   // ──────────────────────────────────────────────
@@ -407,14 +457,22 @@ export class CapsulesController {
     response.capsuleId = capsule.id!;
     response.status = capsule.status;
     if (capsule.audioUrl) response.audioUrl = capsule.audioUrl;
+    if (capsule.videoUrl) response.videoUrl = capsule.videoUrl;
 
-    // Expose generation progress from metadata (0-100)
     const meta = capsule.generationMetadata;
     if (meta && typeof meta['progress'] === 'number') {
       response.progress = meta['progress'];
     }
     if (meta && typeof meta['step'] === 'string') {
       response.currentStep = meta['step'];
+    }
+
+    if (capsule.status === CapsuleStatus.FAILED && meta?.['error']) {
+      const err = meta['error'] as Record<string, unknown>;
+      response.errorMessage =
+        (err['reason'] as string | undefined) ??
+        (err['message'] as string | undefined) ??
+        'Generation failed';
     }
 
     return response;

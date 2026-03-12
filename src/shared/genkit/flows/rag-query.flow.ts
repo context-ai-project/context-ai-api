@@ -49,6 +49,8 @@ const RAG_CONFIG = {
  */
 export const ragQueryInputSchema = z.object({
   query: z.string().min(1, 'Query is required'),
+  /** Original user message (without conversation history), used for classification */
+  rawUserMessage: z.string().optional(),
   sectorId: z.string().min(1, 'Sector ID is required'),
   conversationId: z.string().optional(),
   maxResults: z
@@ -403,6 +405,7 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
    * Long queries (> 10 words) are always treated as substantive.
    */
   const CONVERSATIONAL_PHRASES = new Set([
+    'muchas gracias',
     'gracias',
     'thanks',
     'thank you',
@@ -438,7 +441,7 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
     'hasta luego',
   ]);
 
-  const TRAILING_CHARS = ' \t\n\r!.,';
+  const TRAILING_CHARS = ' \t\n\r!.,;:…?¿¡';
 
   function isConversationalPhrase(s: string): boolean {
     let normalized = s.trim().toLowerCase();
@@ -447,6 +450,13 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
       TRAILING_CHARS.includes(normalized[normalized.length - 1] ?? '')
     ) {
       normalized = normalized.slice(0, -1);
+    }
+    // Also strip leading punctuation (e.g. "¡hola!", "¿ok?")
+    while (
+      normalized.length > 0 &&
+      TRAILING_CHARS.includes(normalized[0] ?? '')
+    ) {
+      normalized = normalized.slice(1);
     }
     return normalized.length > 0 && CONVERSATIONAL_PHRASES.has(normalized);
   }
@@ -458,7 +468,6 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
 
     // Fast path: known trivial patterns
     if (isConversationalPhrase(trimmed)) return true;
-
     // Long queries are almost never conversational
     const wordCount = trimmed.split(/\s+/).length;
     if (wordCount > CONVERSATIONAL_WORDS_LONG) return false;
@@ -512,11 +521,13 @@ Reply with ONLY one word: CONVERSATIONAL or SUBSTANTIVE`;
     const validatedInput = ragQueryInputSchema.parse(input);
 
     // Step 0: Detect conversational queries — skip vector search entirely
-    const conversational = await isConversationalQuery(validatedInput.query);
+    // Use the raw user message (without history) for classification
+    const messageToClassify =
+      validatedInput.rawUserMessage ?? validatedInput.query;
+    const conversational = await isConversationalQuery(messageToClassify);
     if (conversational) {
-      const conversationalReply = await generateConversationalResponse(
-        validatedInput.query,
-      );
+      const conversationalReply =
+        await generateConversationalResponse(messageToClassify);
       return {
         response: conversationalReply,
         responseType: RagResponseType.CONVERSATIONAL,
