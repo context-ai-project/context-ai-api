@@ -11,7 +11,7 @@ describe('Imagen3ImageGeneratorService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.GOOGLE_CAPSULES_API_KEY = 'test-api-key';
+    process.env.GOOGLE_API_KEY = 'test-api-key';
 
     (GoogleGenAI as jest.Mock).mockImplementation(() => ({
       models: { generateImages: mockGenerateImages },
@@ -21,7 +21,7 @@ describe('Imagen3ImageGeneratorService', () => {
   });
 
   afterEach(() => {
-    delete process.env.GOOGLE_CAPSULES_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
   });
 
   it('generates an image buffer from a prompt', async () => {
@@ -59,10 +59,10 @@ describe('Imagen3ImageGeneratorService', () => {
     );
   });
 
-  it('throws if GOOGLE_CAPSULES_API_KEY is not set', () => {
-    delete process.env.GOOGLE_CAPSULES_API_KEY;
+  it('throws if GOOGLE_API_KEY is not set', () => {
+    delete process.env.GOOGLE_API_KEY;
     expect(() => new Imagen3ImageGeneratorService()).toThrow(
-      'GOOGLE_CAPSULES_API_KEY',
+      'GOOGLE_API_KEY',
     );
   });
 });

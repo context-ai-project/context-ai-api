@@ -18,10 +18,10 @@ export class Imagen3ImageGeneratorService implements IImageGenerator {
   private readonly client: GoogleGenAI;
 
   constructor() {
-    const apiKey = process.env.GOOGLE_CAPSULES_API_KEY;
+    const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       throw new Error(
-        'GOOGLE_CAPSULES_API_KEY environment variable is required for image generation',
+        'GOOGLE_API_KEY environment variable is required for image generation',
       );
     }
     this.client = new GoogleGenAI({ apiKey });

@@ -115,17 +115,33 @@ describe('ElevenLabsAudioService', () => {
   // ── getAvailableVoices ─────────────────────────────────────────────────────
 
   describe('getAvailableVoices', () => {
-    it('maps voice list from API response', async () => {
+    it('returns only non-premade (user-added/created) voices', async () => {
       mockFetch.mockResolvedValue(
         fakeResponse({
           voices: [
             {
-              voice_id: 'v1',
-              name: 'Alice',
+              voice_id: 'premade-1',
+              name: 'Rachel',
               category: 'premade',
-              description: 'English female',
-              preview_url: 'https://preview.url',
-              labels: { accent: 'american' },
+              description: 'ElevenLabs default',
+              preview_url: 'https://preview.url/rachel',
+              labels: {},
+            },
+            {
+              voice_id: 'cloned-1',
+              name: 'My Custom Voice',
+              category: 'cloned',
+              description: 'User cloned',
+              preview_url: 'https://preview.url/custom',
+              labels: { accent: 'spanish' },
+            },
+            {
+              voice_id: 'community-1',
+              name: 'Community Voice',
+              category: 'community',
+              description: 'Added from library',
+              preview_url: 'https://preview.url/community',
+              labels: {},
             },
           ],
         }),
@@ -133,15 +149,29 @@ describe('ElevenLabsAudioService', () => {
 
       const voices = await service.getAvailableVoices();
 
-      expect(voices).toHaveLength(1);
+      // Premade voices are filtered out; only user-added voices are returned
+      expect(voices).toHaveLength(2);
+      expect(voices.map((v) => v.id)).toEqual(['cloned-1', 'community-1']);
       expect(voices[0]).toMatchObject({
-        id: 'v1',
-        name: 'Alice',
-        category: 'premade',
-        description: 'English female',
-        previewUrl: 'https://preview.url',
-        labels: { accent: 'american' },
+        id: 'cloned-1',
+        name: 'My Custom Voice',
+        category: 'cloned',
+        labels: { accent: 'spanish' },
       });
+    });
+
+    it('returns empty array when all voices are premade', async () => {
+      mockFetch.mockResolvedValue(
+        fakeResponse({
+          voices: [
+            { voice_id: 'p1', name: 'Rachel', category: 'premade' },
+            { voice_id: 'p2', name: 'Josh', category: 'premade' },
+          ],
+        }),
+      );
+
+      const voices = await service.getAvailableVoices();
+      expect(voices).toHaveLength(0);
     });
 
     it('throws when API returns non-200', async () => {
