@@ -328,12 +328,20 @@ describe('Capsule entity', () => {
       expect(capsule.canGenerateVideo()).toBe(false);
     });
 
-    it('returns false when script is not valid scenes JSON', () => {
+    it('returns true when VIDEO capsule has a non-empty script (scene JSON validation is done in the use case)', () => {
       const capsule = new Capsule({
         ...VALID_INPUT,
         type: CapsuleType.VIDEO,
       });
-      capsule.updateScript('plain text, not JSON scenes');
+      capsule.updateScript('plain text narrative — scene conversion happens in GenerateVideoUseCase');
+      expect(capsule.canGenerateVideo()).toBe(true);
+    });
+
+    it('returns false when VIDEO capsule has no script', () => {
+      const capsule = new Capsule({
+        ...VALID_INPUT,
+        type: CapsuleType.VIDEO,
+      });
       expect(capsule.canGenerateVideo()).toBe(false);
     });
   });

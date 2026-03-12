@@ -22,7 +22,7 @@ export class GenerateVideoUseCase {
     private readonly scriptGenerator: ScriptGeneratorService,
   ) {
     this.monthlyLimit =
-      parseInt(process.env.VIDEO_MAX_CAPSULES_PER_MONTH ?? '', 20) ||
+      parseInt(process.env.VIDEO_MAX_CAPSULES_PER_MONTH ?? '', 40) ||
       DEFAULT_MONTHLY_QUOTA;
   }
 

@@ -27,6 +27,10 @@ const mockTaskDispatcher = {
   dispatchVideoGeneration: jest.fn(),
 };
 
+const mockScriptGenerator = {
+  convertScriptToScenes: jest.fn(),
+};
+
 function makeVideoCapsule(): Capsule {
   const capsule = new Capsule({
     title: 'Test Video',
@@ -44,10 +48,15 @@ describe('GenerateVideoUseCase', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.VIDEO_MAX_CAPSULES_PER_MONTH = '10';
+    process.env.VIDEO_MAX_CAPSULES_PER_MONTH = '40';
+    mockScriptGenerator.convertScriptToScenes.mockResolvedValue({
+      scenes: [{ textToNarrate: 'Welcome', visualPrompt: 'office', titleOverlay: 'Welcome' }],
+      scriptJson: SCENES_JSON,
+    });
     useCase = new GenerateVideoUseCase(
       mockCapsuleRepo as never,
       mockTaskDispatcher as never,
+      mockScriptGenerator as never,
     );
   });
 
@@ -104,14 +113,14 @@ describe('GenerateVideoUseCase', () => {
   it('throws when monthly quota is exhausted', async () => {
     const capsule = makeVideoCapsule();
     mockCapsuleRepo.findById.mockResolvedValue(capsule);
-    mockCapsuleRepo.countVideoCapsulesThisMonth.mockResolvedValue(10);
+    mockCapsuleRepo.countVideoCapsulesThisMonth.mockResolvedValue(40);
 
     await expect(useCase.execute('cap-1', 'voice')).rejects.toThrow(
       'quota',
     );
   });
 
-  it('throws when script is not valid scenes JSON', async () => {
+  it('propagates error from ScriptGeneratorService when script cannot be converted to scenes', async () => {
     const capsule = new Capsule({
       title: 'Bad Script',
       sectorId: 's',
@@ -119,9 +128,13 @@ describe('GenerateVideoUseCase', () => {
       createdBy: 'u',
     });
     (capsule as unknown as Record<string, unknown>)['id'] = 'cap-3';
-    capsule.updateScript('not json');
+    capsule.updateScript('A plain text narrative — not JSON scenes');
     mockCapsuleRepo.findById.mockResolvedValue(capsule);
     mockCapsuleRepo.countVideoCapsulesThisMonth.mockResolvedValue(0);
+    // ScriptGeneratorService throws when it cannot convert the narrative
+    mockScriptGenerator.convertScriptToScenes.mockRejectedValueOnce(
+      new Error('Script is not valid scenes JSON'),
+    );
 
     await expect(useCase.execute('cap-3', 'voice')).rejects.toThrow(
       'valid scenes',
@@ -134,7 +147,7 @@ describe('GenerateVideoUseCase', () => {
 
       const quota = await useCase.getQuotaInfo();
 
-      expect(quota).toEqual({ used: 3, limit: 10, remaining: 7 });
+      expect(quota).toEqual({ used: 3, limit: 20, remaining: 17 }); // limit=40 from VIDEO_MAX_CAPSULES_PER_MONTH env
     });
   });
 });

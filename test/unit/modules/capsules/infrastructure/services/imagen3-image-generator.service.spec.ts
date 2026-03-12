@@ -37,7 +37,8 @@ describe('Imagen3ImageGeneratorService', () => {
     expect(mockGenerateImages).toHaveBeenCalledWith(
       expect.objectContaining({
         model: expect.stringContaining('imagen'),
-        prompt: 'modern office building',
+        // The service appends a corporate style suffix to every prompt
+        prompt: expect.stringContaining('modern office building'),
       }),
     );
   });

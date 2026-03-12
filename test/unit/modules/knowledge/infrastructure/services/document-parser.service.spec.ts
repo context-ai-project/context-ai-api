@@ -154,7 +154,7 @@ Más contenido aquí.
       expect(result.metadata.sourceType).toBe(SourceType.MARKDOWN);
     });
 
-    it('should strip markdown syntax and return plain text', async () => {
+    it('should strip markdown syntax in contentForEmbedding and return plain text', async () => {
       // Arrange
       const markdown = '# Header\n\n**Bold** and *italic* text.';
       const buffer = Buffer.from(markdown, 'utf-8');
@@ -162,14 +162,15 @@ Más contenido aquí.
       // Act
       const result = await service.parse(buffer, SourceType.MARKDOWN);
 
-      // Assert
-      // Should not contain markdown syntax characters
-      expect(result.content).not.toContain('**');
-      expect(result.content).not.toContain('*');
-      expect(result.content).not.toContain('#');
+      // Assert — content preserves original; contentForEmbedding is normalized
+      expect(result.contentForEmbedding).not.toContain('**');
+      expect(result.contentForEmbedding).not.toContain('*');
+      expect(result.contentForEmbedding).not.toContain('#');
+      expect(result.contentForEmbedding).toContain('Header');
+      expect(result.contentForEmbedding).toContain('Bold');
+      expect(result.contentForEmbedding).toContain('italic');
+      // Original content is preserved
       expect(result.content).toContain('Header');
-      expect(result.content).toContain('Bold');
-      expect(result.content).toContain('italic');
     });
 
     it('should handle code blocks in markdown', async () => {
@@ -206,7 +207,7 @@ function hello() {
       expect(result.content).toContain('example.com');
     });
 
-    it('should handle images in markdown without leaving stray characters', async () => {
+    it('should handle images in markdown without leaving stray characters in contentForEmbedding', async () => {
       // Arrange — image syntax ![alt](url) must be processed before link syntax [text](url)
       const markdown = 'See this image ![Company Logo](https://example.com/logo.png) in the doc.';
       const buffer = Buffer.from(markdown, 'utf-8');
@@ -214,15 +215,15 @@ function hello() {
       // Act
       const result = await service.parse(buffer, SourceType.MARKDOWN);
 
-      // Assert
-      expect(result.content).toContain('Company Logo');
+      // Assert — normalization applies to contentForEmbedding
+      expect(result.contentForEmbedding).toContain('Company Logo');
       // Should NOT contain the leftover '!' from incorrect regex ordering
-      expect(result.content).not.toContain('!');
-      // Should NOT contain the image URL in the output
-      expect(result.content).not.toContain('https://example.com/logo.png');
+      expect(result.contentForEmbedding).not.toContain('!');
+      // Should NOT contain the image URL in the embedding content
+      expect(result.contentForEmbedding).not.toContain('https://example.com/logo.png');
     });
 
-    it('should handle mixed images and links in markdown', async () => {
+    it('should handle mixed images and links in markdown — contentForEmbedding', async () => {
       // Arrange
       const markdown = 'Image: ![alt text](https://img.com/pic.jpg) and link: [click here](https://example.com)';
       const buffer = Buffer.from(markdown, 'utf-8');
@@ -230,14 +231,14 @@ function hello() {
       // Act
       const result = await service.parse(buffer, SourceType.MARKDOWN);
 
-      // Assert
-      expect(result.content).toContain('alt text');
-      expect(result.content).toContain('click here');
-      expect(result.content).toContain('example.com');
-      // Image URL should NOT appear in output
-      expect(result.content).not.toContain('https://img.com/pic.jpg');
+      // Assert — normalization applies to contentForEmbedding
+      expect(result.contentForEmbedding).toContain('alt text');
+      expect(result.contentForEmbedding).toContain('click here');
+      expect(result.contentForEmbedding).toContain('example.com');
+      // Image URL should NOT appear in embedding content
+      expect(result.contentForEmbedding).not.toContain('https://img.com/pic.jpg');
       // No stray '!' characters
-      expect(result.content).not.toContain('!');
+      expect(result.contentForEmbedding).not.toContain('!');
     });
 
     it('should throw error for empty markdown buffer', async () => {
@@ -330,7 +331,7 @@ function hello() {
       expect(result.content).not.toMatch(/\s+$/);
     });
 
-    it('should normalize line breaks (convert multiple to single)', async () => {
+    it('should normalize line breaks in contentForEmbedding (convert multiple to single)', async () => {
       // Arrange
       const markdown = 'Line 1\n\n\n\nLine 2';
       const buffer = Buffer.from(markdown, 'utf-8');
@@ -338,12 +339,11 @@ function hello() {
       // Act
       const result = await service.parse(buffer, SourceType.MARKDOWN);
 
-      // Assert
-      // Should not have 3+ consecutive line breaks
-      expect(result.content).not.toMatch(/\n{3,}/);
+      // Assert — contentForEmbedding is normalized; content preserves structure
+      expect(result.contentForEmbedding).not.toMatch(/\n{3,}/);
     });
 
-    it('should remove excessive whitespace', async () => {
+    it('should remove excessive whitespace from contentForEmbedding', async () => {
       // Arrange
       const markdown = 'Word1     Word2       Word3';
       const buffer = Buffer.from(markdown, 'utf-8');
@@ -351,8 +351,8 @@ function hello() {
       // Act
       const result = await service.parse(buffer, SourceType.MARKDOWN);
 
-      // Assert
-      expect(result.content).not.toMatch(/\s{2,}/);
+      // Assert — normalization applies to contentForEmbedding
+      expect(result.contentForEmbedding).not.toMatch(/\s{2,}/);
     });
   });
 
