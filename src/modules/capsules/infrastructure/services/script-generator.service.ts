@@ -273,7 +273,7 @@ export class ScriptGeneratorService {
     language?: string,
   ): string {
     const langInstruction = language
-      ? `Write all content in ${language}.`
+      ? `**LANGUAGE — MANDATORY RULE**: You MUST generate the ENTIRE JSON response strictly in "${language}". This includes ALL "textToNarrate" narrations, ALL "titleOverlay" titles, and ALL "visualPrompt" descriptions. Do NOT use any other language under any circumstance.`
       : 'Write in the same language as the script.';
 
     return `You are an expert instructional designer. Transform the following narrative script into a structured video script with ${MAX_SCENES} scenes maximum.
@@ -323,7 +323,7 @@ Return ONLY a JSON array. Each element must have exactly these fields:
     language?: string,
   ): string {
     const langInstruction = language
-      ? `Write all content in ${language}.`
+      ? `**LANGUAGE — MANDATORY RULE**: You MUST generate the ENTIRE JSON response strictly in "${language}". This includes ALL "textToNarrate" narrations, ALL "titleOverlay" titles, and ALL "visualPrompt" descriptions. Do NOT use any other language under any circumstance.`
       : 'Write in the same language as the source documents.';
 
     const contextSection = context
@@ -359,7 +359,7 @@ Return ONLY a JSON array. Each element must have exactly these fields:
     language?: string,
   ): string {
     const langInstruction = language
-      ? `Write the entire script in ${language}.`
+      ? `**LANGUAGE — MANDATORY RULE**: You MUST write the ENTIRE script strictly in "${language}". Every single word, sentence, and paragraph MUST be in "${language}". Do NOT use any other language under any circumstance, regardless of the language of the source documents.`
       : 'Write the script in the same language as the source documents.';
 
     const contextSection = context
