@@ -10,6 +10,7 @@ import type { IAudioGenerator } from '../../domain/services/audio-generator.inte
 import type { IMediaStorage } from '../../domain/services/media-storage.interface';
 import { NotificationService } from '../../../notifications/application/notification.service';
 import { NotificationType } from '@shared/types';
+import { CapsuleType } from '@shared/types/enums/capsule-type.enum';
 import { extractErrorMessage } from '@shared/utils';
 
 // Storage path convention
@@ -202,19 +203,19 @@ export class GenerateAudioUseCase {
   private async notifyGenerationComplete(capsule: {
     id?: string;
     createdBy: string;
-    type: string;
+    type: CapsuleType;
     title: string;
   }): Promise<void> {
     try {
-      const capsuleType = capsule.type === 'VIDEO' ? 'Video' : 'Audio';
+      const typeLabel = capsule.type === CapsuleType.VIDEO ? 'Video' : 'Audio';
       await this.notificationService.create({
         userId: capsule.createdBy,
         type: NotificationType.CAPSULE_GENERATED,
-        title: `${capsuleType} capsule ready`,
-        message: `Your ${capsuleType} capsule "${capsule.title}" has been generated and is ready to view.`,
+        title: `${typeLabel} capsule ready`,
+        message: `Your ${typeLabel} capsule "${capsule.title}" has been generated and is ready to view.`,
         metadata: {
           capsuleId: capsule.id,
-          capsuleType,
+          capsuleType: typeLabel,
           capsuleTitle: capsule.title,
         },
       });

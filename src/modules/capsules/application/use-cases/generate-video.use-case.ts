@@ -22,7 +22,7 @@ export class GenerateVideoUseCase {
     private readonly scriptGenerator: ScriptGeneratorService,
   ) {
     this.monthlyLimit =
-      parseInt(process.env.VIDEO_MAX_CAPSULES_PER_MONTH ?? '', 40) ||
+      parseInt(process.env.VIDEO_MAX_CAPSULES_PER_MONTH ?? '', 10) ||
       DEFAULT_MONTHLY_QUOTA;
   }
 
@@ -53,8 +53,6 @@ export class GenerateVideoUseCase {
       );
     }
 
-    console.log('capsule.script', capsule.script);
-
     const result: GenerateVideoScriptResult =
       await this.scriptGenerator.convertScriptToScenes(
         capsule.script,
@@ -70,8 +68,6 @@ export class GenerateVideoUseCase {
       scenesJson: result.scriptJson,
     };
 
-    console.log('result.scriptJson', result.scriptJson);
-    console.log('capsule.generationMetadata', capsule.generationMetadata);
     capsule.startGeneration();
     await this.capsuleRepo.save(capsule);
 

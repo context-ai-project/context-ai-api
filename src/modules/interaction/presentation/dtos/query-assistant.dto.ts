@@ -107,6 +107,16 @@ export class QueryAssistantDto {
   @Max(MAX_SIMILARITY)
   @IsOptional()
   minSimilarity?: number;
+
+  @ApiProperty({
+    description:
+      'UI language (BCP-47 code) so the assistant replies in the correct language',
+    example: 'es',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 /**

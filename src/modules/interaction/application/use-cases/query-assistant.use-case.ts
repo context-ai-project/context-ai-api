@@ -77,6 +77,8 @@ export interface QueryAssistantInput {
     name: string | null;
     phone: string | null;
   };
+  /** UI language so the assistant replies in the user's selected language */
+  language?: string;
 }
 
 /**
@@ -183,6 +185,9 @@ export class QueryAssistantUseCase {
       ...(input.sectorContact !== undefined && {
         sectorContactName: input.sectorContact.name,
         sectorContactPhone: input.sectorContact.phone,
+      }),
+      ...(input.language !== undefined && {
+        language: input.language,
       }),
     } as RagQueryInput;
 

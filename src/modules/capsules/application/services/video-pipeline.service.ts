@@ -177,11 +177,7 @@ export class VideoPipelineService {
     progress: number,
     step: string,
   ): Promise<void> {
-    capsule.generationMetadata = {
-      ...capsule.generationMetadata,
-      progress,
-      step,
-    };
+    capsule.updateGenerationProgress(progress, step);
     await this.capsuleRepo.save(capsule);
   }
 
@@ -324,7 +320,7 @@ export class VideoPipelineService {
 
     try {
       capsule.failGeneration({
-        reason: message,
+        message,
         failedAt: new Date().toISOString(),
       });
       await this.capsuleRepo.save(capsule);

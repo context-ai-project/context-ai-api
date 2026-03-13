@@ -147,7 +147,7 @@ describe('GenerateVideoUseCase', () => {
 
       const quota = await useCase.getQuotaInfo();
 
-      expect(quota).toEqual({ used: 3, limit: 20, remaining: 17 }); // limit=40 from VIDEO_MAX_CAPSULES_PER_MONTH env
+      expect(quota).toEqual({ used: 3, limit: 40, remaining: 37 });
     });
   });
 });

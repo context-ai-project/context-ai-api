@@ -25,6 +25,11 @@ const VIDEO_SCRIPT_MAX_TOKENS = 8192;
 const MAX_SCENES = 8;
 const MAX_SCRIPT_WORDS = 250;
 
+const FALLBACK_QUERIES: Record<string, string> = {
+  es: 'principales conceptos y puntos clave del documento',
+  en: 'main concepts and key points of the document',
+};
+
 export interface GenerateScriptInput {
   sourceIds: string[];
   sectorId: string;
@@ -59,7 +64,7 @@ export class ScriptGeneratorService {
       `Generating script for sector ${input.sectorId} with ${input.sourceIds.length} source(s)`,
     );
 
-    const context = await this.buildRagContext(input);
+    const context = await this.buildRagContext(input, input.language);
     const prompt = this.buildAudioPrompt(
       context,
       input.introText,
@@ -102,7 +107,7 @@ export class ScriptGeneratorService {
       `Generating video script (scenes) for sector ${input.sectorId}`,
     );
 
-    const context = await this.buildRagContext(input);
+    const context = await this.buildRagContext(input, input.language);
     const prompt = this.buildVideoScenesPrompt(
       context,
       input.introText,
@@ -180,11 +185,15 @@ export class ScriptGeneratorService {
   // Private helpers
   // ──────────────────────────────────────────────
 
-  private async buildRagContext(input: GenerateScriptInput): Promise<string> {
+  private async buildRagContext(
+    input: GenerateScriptInput,
+    language?: string,
+  ): Promise<string> {
     try {
+      const langKey = language?.slice(0, 2) ?? 'es';
       const queryText = input.introText?.trim()
         ? input.introText
-        : 'principales conceptos y puntos clave del documento';
+        : (FALLBACK_QUERIES[langKey] ?? FALLBACK_QUERIES['es']);
 
       const embedding = await this.embeddingService.generateEmbedding(
         queryText,
@@ -268,13 +277,40 @@ export class ScriptGeneratorService {
     }
   }
 
+  private buildLangInstruction(
+    language?: string,
+    variant: 'audio' | 'video' | 'scenes' = 'audio',
+  ): string {
+    if (language) {
+      const scope =
+        variant === 'audio'
+          ? 'Every single word, sentence, and paragraph MUST be in'
+          : 'This includes ALL "textToNarrate" narrations, ALL "titleOverlay" titles, and ALL "visualPrompt" descriptions. Do NOT use any other language';
+      return `**LANGUAGE — MANDATORY RULE**: You MUST ${variant === 'audio' ? 'write the ENTIRE script' : 'generate the ENTIRE JSON response'} strictly in "${language}". ${scope} under any circumstance${variant === 'audio' ? ', regardless of the language of the source documents' : ''}.`;
+    }
+    return variant === 'scenes'
+      ? 'Write in the same language as the script.'
+      : 'Write in the same language as the source documents.';
+  }
+
+  private buildContextSections(
+    context: string,
+    introText: string | null | undefined,
+  ): { contextSection: string; introSection: string } {
+    const contextSection = context
+      ? `<documents>\n${context}\n</documents>\n\n`
+      : '';
+    const introSection = introText?.trim()
+      ? `<author_note>\n${introText.trim()}\n</author_note>\n\n`
+      : '';
+    return { contextSection, introSection };
+  }
+
   private buildScriptToScenesPrompt(
     narrativeScript: string,
     language?: string,
   ): string {
-    const langInstruction = language
-      ? `**LANGUAGE — MANDATORY RULE**: You MUST generate the ENTIRE JSON response strictly in "${language}". This includes ALL "textToNarrate" narrations, ALL "titleOverlay" titles, and ALL "visualPrompt" descriptions. Do NOT use any other language under any circumstance.`
-      : 'Write in the same language as the script.';
+    const langInstruction = this.buildLangInstruction(language, 'scenes');
 
     return `You are an expert instructional designer. Transform the following narrative script into a structured video script with ${MAX_SCENES} scenes maximum.
 
@@ -322,17 +358,11 @@ Return ONLY a JSON array. Each element must have exactly these fields:
     introText: string | null | undefined,
     language?: string,
   ): string {
-    const langInstruction = language
-      ? `**LANGUAGE — MANDATORY RULE**: You MUST generate the ENTIRE JSON response strictly in "${language}". This includes ALL "textToNarrate" narrations, ALL "titleOverlay" titles, and ALL "visualPrompt" descriptions. Do NOT use any other language under any circumstance.`
-      : 'Write in the same language as the source documents.';
-
-    const contextSection = context
-      ? `<documents>\n${context}\n</documents>\n\n`
-      : '';
-
-    const introSection = introText?.trim()
-      ? `<author_note>\n${introText.trim()}\n</author_note>\n\n`
-      : '';
+    const langInstruction = this.buildLangInstruction(language, 'video');
+    const { contextSection, introSection } = this.buildContextSections(
+      context,
+      introText,
+    );
 
     return `You are an expert instructional designer. Transform the provided documents into a structured video script with ${MAX_SCENES} scenes maximum.
 
@@ -358,17 +388,11 @@ Return ONLY a JSON array. Each element must have exactly these fields:
     introText: string | null | undefined,
     language?: string,
   ): string {
-    const langInstruction = language
-      ? `**LANGUAGE — MANDATORY RULE**: You MUST write the ENTIRE script strictly in "${language}". Every single word, sentence, and paragraph MUST be in "${language}". Do NOT use any other language under any circumstance, regardless of the language of the source documents.`
-      : 'Write the script in the same language as the source documents.';
-
-    const contextSection = context
-      ? `<documents>\n${context}\n</documents>\n\n`
-      : '';
-
-    const introSection = introText?.trim()
-      ? `<author_note>\n${introText.trim()}\n</author_note>\n\n`
-      : '';
+    const langInstruction = this.buildLangInstruction(language, 'audio');
+    const { contextSection, introSection } = this.buildContextSections(
+      context,
+      introText,
+    );
 
     return `You are a skilled audiobook narrator, an expert, empathetic and content synthesizer. Your goal is to act as a genuine "thought partner" for the user and transform the provided documents into a clear, engaging audio script.
              

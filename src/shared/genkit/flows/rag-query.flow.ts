@@ -67,6 +67,8 @@ export const ragQueryInputSchema = z.object({
   /** Contact info of the person responsible for the sector */
   sectorContactName: z.string().nullable().optional(),
   sectorContactPhone: z.string().nullable().optional(),
+  /** UI language (BCP-47) so fallback/conversational replies match the user's locale */
+  language: z.string().optional(),
 });
 
 export type RagQueryInput = z.infer<typeof ragQueryInputSchema>;
@@ -263,11 +265,15 @@ INSTRUCTIONS:
 EXPANDED QUERY:`;
 }
 
-/**
- * Fallback response when LLM also fails (last resort)
- */
-const STATIC_FALLBACK_RESPONSE =
-  "I don't have information about that in the current documentation. Please contact HR or your manager for more specific guidance.";
+const STATIC_FALLBACK_RESPONSES: Record<string, string> = {
+  en: "I don't have information about that in the current documentation. Please contact HR or your manager for more specific guidance.",
+  es: 'No encontré información específica sobre tu consulta en nuestra base de conocimiento. Por favor, contacta a RRHH o a tu responsable para obtener orientación más específica.',
+};
+
+function getStaticFallback(language?: string): string {
+  const key = language?.slice(0, 2) ?? 'en';
+  return STATIC_FALLBACK_RESPONSES[key] ?? STATIC_FALLBACK_RESPONSES['en'];
+}
 
 /**
  * RAG Query Service
@@ -373,6 +379,7 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
     sectorName?: string,
     contactName?: string | null,
     contactPhone?: string | null,
+    language?: string,
   ): Promise<string> {
     try {
       const prompt = buildFallbackPrompt(
@@ -391,7 +398,7 @@ export function createRagQueryService(vectorSearch: VectorSearchFn) {
       });
       return result.text;
     } catch {
-      return STATIC_FALLBACK_RESPONSE;
+      return getStaticFallback(language);
     }
   }
 
@@ -494,11 +501,17 @@ Reply with ONLY one word: CONVERSATIONAL or SUBSTANTIVE`;
     }
   }
 
+  const CONVERSATIONAL_FALLBACKS: Record<string, string> = {
+    en: "You're welcome! How else can I help you?",
+    es: '¡De nada! ¿En qué más puedo ayudarte?',
+  };
+
   /**
    * Generate a direct conversational reply without searching the knowledge base.
    */
   async function generateConversationalResponse(
     query: string,
+    language?: string,
   ): Promise<string> {
     try {
       const prompt = buildConversationalPrompt(query);
@@ -509,7 +522,8 @@ Reply with ONLY one word: CONVERSATIONAL or SUBSTANTIVE`;
       });
       return result.text.trim();
     } catch {
-      return '¡De nada! ¿En qué más puedo ayudarte?';
+      const key = language?.slice(0, 2) ?? 'en';
+      return CONVERSATIONAL_FALLBACKS[key] ?? CONVERSATIONAL_FALLBACKS['en'];
     }
   }
 
@@ -526,8 +540,10 @@ Reply with ONLY one word: CONVERSATIONAL or SUBSTANTIVE`;
       validatedInput.rawUserMessage ?? validatedInput.query;
     const conversational = await isConversationalQuery(messageToClassify);
     if (conversational) {
-      const conversationalReply =
-        await generateConversationalResponse(messageToClassify);
+      const conversationalReply = await generateConversationalResponse(
+        messageToClassify,
+        validatedInput.language,
+      );
       return {
         response: conversationalReply,
         responseType: RagResponseType.CONVERSATIONAL,
@@ -594,6 +610,7 @@ Reply with ONLY one word: CONVERSATIONAL or SUBSTANTIVE`;
         undefined,
         validatedInput.sectorContactName,
         validatedInput.sectorContactPhone,
+        validatedInput.language,
       );
 
       return {

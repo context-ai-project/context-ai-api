@@ -41,6 +41,7 @@ import {
   UpdateCapsuleRequestDto,
   CapsuleResponseDto,
   PaginatedCapsulesResponseDto,
+  ListCapsulesQueryDto,
   GenerateScriptRequestDto,
   GenerateAudioRequestDto,
   VoiceInfoResponseDto,
@@ -50,13 +51,10 @@ import {
 } from './dtos/capsule.dto';
 import { CapsuleDtoMapper } from './mappers/capsule-dto.mapper';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
-import { CapsuleStatus } from '@shared/types/enums/capsule-status.enum';
 import { CapsuleType } from '@shared/types/enums/capsule-type.enum';
 import type { IAudioGenerator } from '../domain/services/audio-generator.interface';
 import type { IMediaStorage } from '../domain/services/media-storage.interface';
-
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
+import { PAGINATION } from '@shared/constants';
 
 const API_AUTH_DESC = 'Authentication required — missing or invalid JWT token';
 const API_FORBIDDEN_DESC = 'Access denied — insufficient permissions';
@@ -164,31 +162,19 @@ export class CapsulesController {
   @ApiOperation({
     summary: 'List capsules with optional filters and pagination',
   })
-  @ApiQuery({ name: 'sectorId', required: false })
-  @ApiQuery({ name: 'status', required: false, enum: CapsuleStatus })
-  @ApiQuery({ name: 'type', required: false, enum: CapsuleType })
-  @ApiQuery({ name: 'search', required: false })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, type: PaginatedCapsulesResponseDto })
   @ApiUnauthorizedResponse({ description: API_AUTH_DESC })
   async list(
-    @Query('sectorId') sectorId?: string,
-    @Query('status') status?: CapsuleStatus,
-    @Query('type') type?: CapsuleType,
-    @Query('search') search?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('onlyActive') onlyActive?: string,
+    @Query() query: ListCapsulesQueryDto,
   ): Promise<PaginatedCapsulesResponseDto> {
     const result = await this.listCapsulesUseCase.execute({
-      sectorId,
-      status,
-      type,
-      search,
-      page: page ? parseInt(page, 10) : DEFAULT_PAGE,
-      limit: limit ? parseInt(limit, 10) : DEFAULT_LIMIT,
-      onlyActive: onlyActive === 'true',
+      sectorId: query.sectorId,
+      status: query.status,
+      type: query.type,
+      search: query.search,
+      page: query.page ? parseInt(query.page, 10) : PAGINATION.DEFAULT_PAGE,
+      limit: query.limit ? parseInt(query.limit, 10) : PAGINATION.DEFAULT_LIMIT,
+      onlyActive: query.onlyActive === 'true',
     });
 
     return {
@@ -459,20 +445,15 @@ export class CapsulesController {
     if (capsule.audioUrl) response.audioUrl = capsule.audioUrl;
     if (capsule.videoUrl) response.videoUrl = capsule.videoUrl;
 
-    const meta = capsule.generationMetadata;
-    if (meta && typeof meta['progress'] === 'number') {
-      response.progress = meta['progress'];
-    }
-    if (meta && typeof meta['step'] === 'string') {
-      response.currentStep = meta['step'];
-    }
+    const progress = capsule.generationProgress;
+    if (progress !== undefined) response.progress = progress;
 
-    if (capsule.status === CapsuleStatus.FAILED && meta?.['error']) {
-      const err = meta['error'] as Record<string, unknown>;
+    const step = capsule.generationStep;
+    if (step) response.currentStep = step;
+
+    if (capsule.isFailed()) {
       response.errorMessage =
-        (err['reason'] as string | undefined) ??
-        (err['message'] as string | undefined) ??
-        'Generation failed';
+        capsule.generationErrorMessage ?? 'Generation failed';
     }
 
     return response;

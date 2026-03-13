@@ -18,6 +18,18 @@ const IMAGE_EFFECTS: string[] = [
   'slideLeft',
 ];
 
+const OVERLAY = {
+  FONT_SIZE_PX: 32,
+  FONT_WEIGHT: 600,
+  BG_ALPHA: 0.55,
+  PADDING_V_PX: 12,
+  PADDING_H_PX: 28,
+  BORDER_RADIUS_PX: 8,
+  ASSET_WIDTH: 600,
+  ASSET_HEIGHT: 80,
+  Y_OFFSET: 0.05,
+} as const;
+
 interface ShotstackClip {
   asset: Record<string, unknown>;
   start: number;
@@ -160,17 +172,22 @@ export class ShotstackRendererService implements IVideoRenderer {
       if (scene.titleOverlay) {
         const html =
           `<div style="font-family:'Montserrat',Helvetica,sans-serif;` +
-          `font-size:32px;font-weight:600;color:#FFFFFF;` +
-          `background:rgba(0,0,0,0.55);padding:12px 28px;` +
-          `border-radius:8px;text-align:center;">` +
+          `font-size:${OVERLAY.FONT_SIZE_PX}px;font-weight:${OVERLAY.FONT_WEIGHT};color:#FFFFFF;` +
+          `background:rgba(0,0,0,${OVERLAY.BG_ALPHA});padding:${OVERLAY.PADDING_V_PX}px ${OVERLAY.PADDING_H_PX}px;` +
+          `border-radius:${OVERLAY.BORDER_RADIUS_PX}px;text-align:center;">` +
           `${this.escapeHtml(scene.titleOverlay)}</div>`;
 
         textClips.push({
-          asset: { type: 'html', html, width: 600, height: 80 },
+          asset: {
+            type: 'html',
+            html,
+            width: OVERLAY.ASSET_WIDTH,
+            height: OVERLAY.ASSET_HEIGHT,
+          },
           start,
           length,
           position: 'bottom',
-          offset: { y: 0.05 },
+          offset: { y: OVERLAY.Y_OFFSET },
           transition: { in: 'fade', out: 'fade' },
         });
       }

@@ -8,6 +8,7 @@ import type {
 import { Capsule } from '../../domain/entities/capsule.entity';
 import { CapsuleStatus } from '@shared/types/enums/capsule-status.enum';
 import { CapsuleType } from '@shared/types/enums/capsule-type.enum';
+import { PAGINATION } from '@shared/constants';
 
 export interface ListCapsulesInput {
   sectorId?: string;
@@ -39,11 +40,11 @@ export class ListCapsulesUseCase {
     private readonly capsuleRepository: ICapsuleRepository,
   ) {}
 
-  private static readonly DEFAULT_PAGE = 1;
-  private static readonly DEFAULT_LIMIT = 20;
-  private static readonly MAX_LIMIT = 50;
-  private static readonly MIN_PAGE = 1;
-  private static readonly MIN_LIMIT = 1;
+  private static readonly DEFAULT_PAGE = PAGINATION.DEFAULT_PAGE;
+  private static readonly DEFAULT_LIMIT = PAGINATION.DEFAULT_LIMIT;
+  private static readonly MAX_LIMIT = PAGINATION.MAX_LIMIT;
+  private static readonly MIN_PAGE = PAGINATION.MIN_PAGE;
+  private static readonly MIN_LIMIT = PAGINATION.MIN_LIMIT;
 
   async execute(input: ListCapsulesInput): Promise<PaginatedResult<Capsule>> {
     const page = Math.max(

@@ -262,6 +262,36 @@ export class Capsule {
     this.updatedAt = new Date();
   }
 
+  // ==================== Generation Metadata Accessors ====================
+
+  public get generationProgress(): number | undefined {
+    const meta = this.generationMetadata;
+    if (meta && typeof meta['progress'] === 'number') return meta['progress'];
+    return undefined;
+  }
+
+  public get generationStep(): string | undefined {
+    const meta = this.generationMetadata;
+    if (meta && typeof meta['step'] === 'string') return meta['step'];
+    return undefined;
+  }
+
+  public get generationErrorMessage(): string | undefined {
+    const meta = this.generationMetadata;
+    if (!meta?.['error']) return undefined;
+    const err = meta['error'] as Record<string, unknown>;
+    return (err['message'] as string | undefined) ?? 'Generation failed';
+  }
+
+  public updateGenerationProgress(progress: number, step: string): void {
+    this.generationMetadata = {
+      ...this.generationMetadata,
+      progress,
+      step,
+    };
+    this.updatedAt = new Date();
+  }
+
   /**
    * Publishes the capsule making it visible to end users.
    * Only allowed from COMPLETED status.

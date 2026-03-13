@@ -234,7 +234,6 @@ export class InteractionController {
         // Contact info is optional — silently skip if lookup fails
       }
 
-      // Execute use case — userId comes from JWT session, not from body
       const result = await this.queryAssistantUseCase.execute({
         userContext: { userId, sectorId: dto.sectorId },
         query: dto.query,
@@ -244,6 +243,7 @@ export class InteractionController {
           minSimilarity: dto.minSimilarity,
         },
         sectorContact,
+        language: dto.language,
       });
 
       const response = InteractionDtoMapper.toQueryResponse(result);

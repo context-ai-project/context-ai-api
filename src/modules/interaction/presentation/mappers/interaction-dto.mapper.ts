@@ -51,10 +51,10 @@ export class InteractionDtoMapper {
         }
       : undefined;
 
-    // Map responseType string to enum
     const responseTypeMap: Record<string, RagResponseType> = {
       answer: RagResponseType.ANSWER,
       no_context: RagResponseType.NO_CONTEXT,
+      conversational: RagResponseType.CONVERSATIONAL,
       error: RagResponseType.ERROR,
     };
     const responseType =

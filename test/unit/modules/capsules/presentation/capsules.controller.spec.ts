@@ -132,7 +132,7 @@ describe('CapsulesController', () => {
         limit: 20,
       });
 
-      const result = await controller.list();
+      const result = await controller.list({});
 
       expect(mockListUC.execute).toHaveBeenCalledWith(
         expect.objectContaining({ page: 1, limit: 20 }),
@@ -144,7 +144,7 @@ describe('CapsulesController', () => {
     it('parses page and limit query params', async () => {
       mockListUC.execute.mockResolvedValue({ data: [], total: 0, page: 2, limit: 5 });
 
-      await controller.list(undefined, undefined, undefined, undefined, '2', '5');
+      await controller.list({ page: '2', limit: '5' });
 
       expect(mockListUC.execute).toHaveBeenCalledWith(
         expect.objectContaining({ page: 2, limit: 5 }),
@@ -154,7 +154,7 @@ describe('CapsulesController', () => {
     it('passes onlyActive flag when truthy string', async () => {
       mockListUC.execute.mockResolvedValue({ data: [], total: 0, page: 1, limit: 20 });
 
-      await controller.list(undefined, undefined, undefined, undefined, undefined, undefined, 'true');
+      await controller.list({ onlyActive: 'true' });
 
       expect(mockListUC.execute).toHaveBeenCalledWith(
         expect.objectContaining({ onlyActive: true }),
@@ -385,7 +385,7 @@ describe('CapsulesController', () => {
     it('exposes errorMessage from metadata when status is FAILED', async () => {
       const capsule = makeCapsule({
         status: CapsuleStatus.FAILED,
-        generationMetadata: { error: { reason: 'Shotstack timeout' } },
+        generationMetadata: { error: { message: 'Shotstack timeout' } },
       });
       mockGetUC.execute.mockResolvedValue(capsule);
 
