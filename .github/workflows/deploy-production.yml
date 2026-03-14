@@ -135,11 +135,11 @@ jobs:
             LOG_LEVEL=info
             GCS_BUCKET_CAPSULES=${{ secrets.GCS_BUCKET_CAPSULES }}
             GCS_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-            SHOTSTACK_ENVIRONMENT=v1
-            GCP_LOCATION=us-central1
+            SHOTSTACK_ENVIRONMENT=stage
+            GCP_LOCATION=europe-west1
             CLOUD_RUN_SERVICE_URL=${{ secrets.CLOUD_RUN_SERVICE_URL }}
             CLOUD_TASKS_QUEUE=capsule-video-pipeline
-            VIDEO_MAX_CAPSULES_PER_MONTH=10
+            VIDEO_MAX_CAPSULES_PER_MONTH=40
           secrets: |
             DB_PASSWORD=DB_PASSWORD:latest
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
