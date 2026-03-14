@@ -19,4 +19,7 @@ export enum NotificationType {
   // v2 — Documents (prepared for extension)
   DOCUMENT_PROCESSED = 'document.processed',
   DOCUMENT_FAILED = 'document.failed',
+
+  // v2 — Capsules
+  CAPSULE_GENERATED = 'capsule.generated',
 }

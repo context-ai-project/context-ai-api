@@ -54,11 +54,40 @@ describe('SectorRepository', () => {
   });
 
   describe('save', () => {
-    it('should save and return domain entity', async () => {
+    it('should save new sector without id', async () => {
       const model = createModel();
       mockTypeOrmRepo.save.mockResolvedValue(model);
 
       const sector = new Sector({ name: 'HR', description: 'Company policies and employee handbook', icon: SectorIcon.USERS });
+
+      const result = await repository.save(sector);
+
+      expect(result.name).toBe('Human Resources');
+      expect(mockTypeOrmRepo.save).toHaveBeenCalled();
+    });
+
+    it('should update existing sector when id exists and found in DB', async () => {
+      const existingModel = createModel();
+      // save() mutates existingModel.name, then returns it
+      mockTypeOrmRepo.findOne.mockResolvedValue(existingModel);
+      mockTypeOrmRepo.save.mockImplementation((m: SectorModel) => Promise.resolve(m));
+
+      const sector = new Sector({ name: 'Updated HR', description: 'Updated description text', icon: SectorIcon.USERS });
+      sector.id = sectorId;
+
+      const result = await repository.save(sector);
+
+      expect(result.name).toBe('Updated HR');
+      expect(mockTypeOrmRepo.findOne).toHaveBeenCalledWith({ where: { id: sectorId } });
+    });
+
+    it('should create new sector when id exists but not found in DB', async () => {
+      const model = createModel();
+      mockTypeOrmRepo.findOne.mockResolvedValue(null);
+      mockTypeOrmRepo.save.mockResolvedValue(model);
+
+      const sector = new Sector({ name: 'HR Department', description: 'Company policies and employee handbook', icon: SectorIcon.USERS });
+      sector.id = 'new-uuid';
 
       const result = await repository.save(sector);
 
@@ -102,6 +131,24 @@ describe('SectorRepository', () => {
       const result = await repository.findByName('Nonexistent');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('findByIds', () => {
+    it('should return empty array for empty ids', async () => {
+      const result = await repository.findByIds([]);
+      expect(result).toEqual([]);
+      expect(mockTypeOrmRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('should return sectors for given ids', async () => {
+      const models = [createModel()];
+      mockTypeOrmRepo.find.mockResolvedValue(models);
+
+      const result = await repository.findByIds([sectorId]);
+
+      expect(result).toHaveLength(1);
+      expect(mockTypeOrmRepo.find).toHaveBeenCalled();
     });
   });
 

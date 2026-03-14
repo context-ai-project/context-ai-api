@@ -129,6 +129,7 @@ describe('IngestDocumentUseCase', () => {
       };
 
       const parsedContent = 'Test content for PDF document';
+      const parsedContentForEmbedding = 'Test content for PDF document';
       const mockChunks = [
         {
           content: 'Test content for PDF document',
@@ -140,9 +141,10 @@ describe('IngestDocumentUseCase', () => {
       ];
       const mockEmbedding = Array(3072).fill(0.1);
 
-      // Mock service responses
+      // Mock service responses — ParsedDocument now returns both content and contentForEmbedding
       mockParserService.parse.mockResolvedValue({
         content: parsedContent,
+        contentForEmbedding: parsedContentForEmbedding,
         metadata: {
           sourceType: SourceType.PDF,
           parsedAt: new Date(),
@@ -190,7 +192,8 @@ describe('IngestDocumentUseCase', () => {
         dto.buffer,
         dto.sourceType,
       );
-      expect(mockChunkingService.chunk).toHaveBeenCalledWith(parsedContent);
+      // The use case passes contentForEmbedding (normalized) to the chunker
+      expect(mockChunkingService.chunk).toHaveBeenCalledWith(parsedContentForEmbedding);
       expect(
         mockEmbeddingService.generateDocumentEmbeddings,
       ).toHaveBeenCalled();

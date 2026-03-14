@@ -50,7 +50,7 @@ export class KnowledgeSourceModel {
 
   @Column({
     type: 'enum',
-    enum: ['PENDING', 'PROCESSING', 'PROCESSED', 'FAILED'],
+    enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],
     default: 'PENDING',
   })
   status!: SourceStatus;

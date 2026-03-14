@@ -135,6 +135,11 @@ jobs:
             LOG_LEVEL=info
             GCS_BUCKET_CAPSULES=${{ secrets.GCS_BUCKET_CAPSULES }}
             GCS_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            SHOTSTACK_ENVIRONMENT=stage
+            GCP_LOCATION=europe-west1
+            CLOUD_RUN_SERVICE_URL=${{ secrets.CLOUD_RUN_SERVICE_URL }}
+            CLOUD_TASKS_QUEUE=capsule-video-pipeline
+            VIDEO_MAX_CAPSULES_PER_MONTH=40
           secrets: |
             DB_PASSWORD=DB_PASSWORD:latest
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
@@ -149,6 +154,8 @@ jobs:
             SENTRY_DSN=SENTRY_DSN:latest
             INTERNAL_API_KEY=INTERNAL_API_KEY:latest
             ELEVENLABS_API_KEY=ELEVENLABS_API_KEY:latest
+            GOOGLE_CAPSULES_API_KEY=GOOGLE_CAPSULES_API_KEY:latest
+            SHOTSTACK_API_KEY=SHOTSTACK_API_KEY:latest
           flags: |
             --port=3001
             --memory=512Mi
@@ -156,7 +163,7 @@ jobs:
             --min-instances=0
             --max-instances=3
             --concurrency=80
-            --timeout=300
+            --timeout=600
             --allow-unauthenticated
 
       - name: Smoke Test

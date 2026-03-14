@@ -1,4 +1,5 @@
 export { CHARS_PER_TOKEN_ESTIMATE } from './tokenization.constants';
+export { PAGINATION } from './pagination.constants';
 
 /**
  * Number of characters shown for IDs (userId, jti, etc.) in logs.
