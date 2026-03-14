@@ -90,7 +90,9 @@ export class IngestDocumentUseCase {
 
       const parsed = await this.parseDocument(dto);
       savedSource = await this.createAndPersistSource(dto, parsed);
-      const { chunks, embeddings } = await this.chunkAndEmbed(parsed.content);
+      const { chunks, embeddings } = await this.chunkAndEmbed(
+        parsed.contentForEmbedding,
+      );
       const savedFragments = await this.persistFragments(
         chunks,
         savedSource.id!,
@@ -136,9 +138,11 @@ export class IngestDocumentUseCase {
   /**
    * Parses the raw document buffer into structured content
    */
-  private async parseDocument(
-    dto: IngestDocumentDto,
-  ): Promise<{ content: string; metadata: Record<string, unknown> }> {
+  private async parseDocument(dto: IngestDocumentDto): Promise<{
+    content: string;
+    contentForEmbedding: string;
+    metadata: Record<string, unknown>;
+  }> {
     this.logger.debug('Parsing document...');
     return this.parserService.parse(dto.buffer, dto.sourceType);
   }

@@ -115,6 +115,46 @@ export class CapsuleResponseDto {
   sources?: CapsuleSourceRefResponseDto[];
 }
 
+export class ListCapsulesQueryDto {
+  @ApiPropertyOptional({ description: 'Filter by sector' })
+  @IsOptional()
+  @IsString()
+  sectorId?: string;
+
+  @ApiPropertyOptional({ enum: CapsuleStatus, description: 'Filter by status' })
+  @IsOptional()
+  @IsEnum(CapsuleStatus)
+  status?: CapsuleStatus;
+
+  @ApiPropertyOptional({ enum: CapsuleType, description: 'Filter by type' })
+  @IsOptional()
+  @IsEnum(CapsuleType)
+  type?: CapsuleType;
+
+  @ApiPropertyOptional({ description: 'Search by title' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Page number (1-based)', example: '1' })
+  @IsOptional()
+  @IsString()
+  page?: string;
+
+  @ApiPropertyOptional({ description: 'Items per page', example: '20' })
+  @IsOptional()
+  @IsString()
+  limit?: string;
+
+  @ApiPropertyOptional({
+    description: 'Only return ACTIVE capsules',
+    example: 'true',
+  })
+  @IsOptional()
+  @IsString()
+  onlyActive?: string;
+}
+
 export class PaginatedCapsulesResponseDto {
   @ApiProperty({ type: [CapsuleResponseDto] }) data!: CapsuleResponseDto[];
   @ApiProperty() total!: number;
@@ -129,6 +169,7 @@ export class CapsuleStatusResponseDto {
   @ApiPropertyOptional() progress?: number;
   @ApiPropertyOptional() errorMessage?: string;
   @ApiPropertyOptional() audioUrl?: string;
+  @ApiPropertyOptional() videoUrl?: string;
 }
 
 export class GenerateScriptRequestDto {
@@ -151,6 +192,15 @@ export class GenerateAudioRequestDto {
   @IsString()
   @MaxLength(VOICE_ID_MAX)
   voiceId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Updated script to persist before generation (avoids race conditions)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(SCRIPT_MAX)
+  script?: string;
 }
 
 export class VoiceInfoResponseDto {

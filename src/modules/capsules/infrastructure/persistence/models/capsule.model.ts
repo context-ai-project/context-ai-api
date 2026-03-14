@@ -49,7 +49,7 @@ export class CapsuleModel {
 
   @Column({
     type: 'varchar',
-    length: 15,
+    length: 20,
     default: CapsuleStatus.DRAFT,
   })
   status!: CapsuleStatus;

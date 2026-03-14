@@ -8,6 +8,10 @@ import {
 import type { ICapsuleRepository } from '../../domain/repositories/capsule.repository.interface';
 import type { IAudioGenerator } from '../../domain/services/audio-generator.interface';
 import type { IMediaStorage } from '../../domain/services/media-storage.interface';
+import { NotificationService } from '../../../notifications/application/notification.service';
+import { NotificationType } from '@shared/types';
+import { CapsuleType } from '@shared/types/enums/capsule-type.enum';
+import { extractErrorMessage } from '@shared/utils';
 
 // Storage path convention
 const AUDIO_STORAGE_PATH = (capsuleId: string) =>
@@ -19,14 +23,14 @@ const AUDIO_CONTENT_TYPE = 'audio/mpeg';
  *
  * Orchestrates the full audio generation pipeline:
  * 1. Validates capsule has script and voiceId
- * 2. Transitions status → GENERATING (synchronous — fast)
+ * 2. Transitions status → GENERATING_ASSETS (synchronous — fast)
  * 3. Synthesizes audio via IAudioGenerator (ElevenLabs)
  * 4. Uploads result to IMediaStorage (GCS)
  * 5. Transitions status → COMPLETED with audioUrl and duration
  * 6. On failure: transitions to FAILED, preserves script
  *
  * The controller calls `startAndProcess()` which:
- * - Awaits the validation + GENERATING transition (returns instantly to client)
+ * - Awaits the validation + GENERATING_ASSETS transition (returns instantly to client)
  * - Runs the heavy pipeline in the background (fire-and-forget)
  */
 @Injectable()
@@ -40,10 +44,11 @@ export class GenerateAudioUseCase {
     private readonly audioGenerator: IAudioGenerator,
     @Inject('IMediaStorage')
     private readonly mediaStorage: IMediaStorage,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
-   * Phase 1 (synchronous): validate inputs and transition to GENERATING.
+   * Phase 1 (synchronous): validate inputs and transition to GENERATING_ASSETS.
    * Called by the controller — returns quickly so the HTTP 202 fires immediately.
    *
    * Phase 2 (background): kicks off the heavy TTS + upload pipeline.
@@ -66,7 +71,7 @@ export class GenerateAudioUseCase {
   }
 
   /**
-   * Validates the capsule and transitions it to GENERATING status.
+   * Validates the capsule and transitions it to GENERATING_ASSETS status.
    * This is the synchronous, fast part that runs before HTTP 202.
    */
   private async validateAndStart(
@@ -96,12 +101,11 @@ export class GenerateAudioUseCase {
       );
     }
 
-    // Transition to GENERATING and persist
     capsule.startGeneration();
     await this.capsuleRepository.save(capsule);
 
     this.logger.log(
-      `Capsule ${capsuleId} transitioned to GENERATING — starting background pipeline`,
+      `Capsule ${capsuleId} transitioned to GENERATING_ASSETS — starting background pipeline`,
     );
   }
 
@@ -178,6 +182,7 @@ export class GenerateAudioUseCase {
 
       await this.capsuleRepository.save(capsule);
 
+      await this.notifyGenerationComplete(capsule);
       this.logger.log(`Audio generation completed for capsule: ${capsuleId}`);
     } catch (error: unknown) {
       this.logger.error(
@@ -185,14 +190,39 @@ export class GenerateAudioUseCase {
         error instanceof Error ? error.stack : String(error),
       );
 
-      // Only transition to FAILED if the capsule is still in GENERATING status.
-      if (capsule.isGenerating()) {
+      if (capsule.isGeneratingAssets()) {
         capsule.failGeneration({
           message: error instanceof Error ? error.message : String(error),
           failedAt: new Date().toISOString(),
         });
         await this.capsuleRepository.save(capsule);
       }
+    }
+  }
+
+  private async notifyGenerationComplete(capsule: {
+    id?: string;
+    createdBy: string;
+    type: CapsuleType;
+    title: string;
+  }): Promise<void> {
+    try {
+      const typeLabel = capsule.type === CapsuleType.VIDEO ? 'Video' : 'Audio';
+      await this.notificationService.create({
+        userId: capsule.createdBy,
+        type: NotificationType.CAPSULE_GENERATED,
+        title: `${typeLabel} capsule ready`,
+        message: `Your ${typeLabel} capsule "${capsule.title}" has been generated and is ready to view.`,
+        metadata: {
+          capsuleId: capsule.id,
+          capsuleType: typeLabel,
+          capsuleTitle: capsule.title,
+        },
+      });
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Failed to send generation notification: ${extractErrorMessage(error)}`,
+      );
     }
   }
 }

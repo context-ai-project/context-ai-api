@@ -1,33 +1,57 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { ConversationRepository } from '@modules/interaction/infrastructure/persistence/repositories/conversation.repository';
-import { ConversationModel } from '@modules/interaction/infrastructure/persistence/models/conversation.model';
-import { MessageModel } from '@modules/interaction/infrastructure/persistence/models/message.model';
-import { Conversation } from '@modules/interaction/domain/entities/conversation.entity';
+import { DataSource } from 'typeorm';
+import { ConversationRepository } from '../../../../../../../src/modules/interaction/infrastructure/persistence/repositories/conversation.repository';
+import { ConversationModel } from '../../../../../../../src/modules/interaction/infrastructure/persistence/models/conversation.model';
+import { MessageModel } from '../../../../../../../src/modules/interaction/infrastructure/persistence/models/message.model';
+import { Conversation } from '../../../../../../../src/modules/interaction/domain/entities/conversation.entity';
+import { Message } from '../../../../../../../src/modules/interaction/domain/entities/message.entity';
+
+const CONVERSATION_ID = '550e8400-e29b-41d4-a716-446655440000';
+const USER_ID = '660e8400-e29b-41d4-a716-446655440001';
+const SECTOR_ID = '770e8400-e29b-41d4-a716-446655440002';
+const NOW = new Date('2026-01-15T12:00:00Z');
+
+function createConversationModel(
+  overrides?: Partial<ConversationModel>,
+): ConversationModel {
+  const model = new ConversationModel();
+  model.id = CONVERSATION_ID;
+  model.userId = USER_ID;
+  model.sectorId = SECTOR_ID;
+  model.messages = [];
+  model.createdAt = NOW;
+  model.updatedAt = NOW;
+  model.deletedAt = null as unknown as Date;
+  Object.assign(model, overrides);
+  return model;
+}
 
 describe('ConversationRepository', () => {
   let repository: ConversationRepository;
-  let conversationRepo: jest.Mocked<Repository<ConversationModel>>;
-  let messageRepo: jest.Mocked<Repository<MessageModel>>;
-  let dataSource: jest.Mocked<DataSource>;
 
-  const mockConversationRepo = {
-    save: jest.fn(),
-    findOne: jest.fn(),
-    createQueryBuilder: jest.fn(),
-    softDelete: jest.fn(),
-    delete: jest.fn(),
-    find: jest.fn(),
-    count: jest.fn(),
-    update: jest.fn(),
+  const mockConvQueryBuilder = {
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    offset: jest.fn().mockReturnThis(),
+    getMany: jest.fn(),
   };
 
-  const mockMessageRepo = {
+  const mockConvRepo = {
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
-    delete: jest.fn(),
+    softDelete: jest.fn(),
+    count: jest.fn(),
+    update: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockConvQueryBuilder),
+  };
+
+  const mockMsgRepo = {
+    save: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockQueryRunner = {
@@ -37,7 +61,7 @@ describe('ConversationRepository', () => {
     rollbackTransaction: jest.fn(),
     release: jest.fn(),
     manager: {
-      save: jest.fn(),
+      getRepository: jest.fn(),
     },
   };
 
@@ -51,219 +75,281 @@ describe('ConversationRepository', () => {
         ConversationRepository,
         {
           provide: getRepositoryToken(ConversationModel),
-          useValue: mockConversationRepo,
+          useValue: mockConvRepo,
         },
         {
           provide: getRepositoryToken(MessageModel),
-          useValue: mockMessageRepo,
+          useValue: mockMsgRepo,
         },
-        {
-          provide: DataSource,
-          useValue: mockDataSource,
-        },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
     repository = module.get<ConversationRepository>(ConversationRepository);
-    conversationRepo = module.get(getRepositoryToken(ConversationModel));
-    messageRepo = module.get(getRepositoryToken(MessageModel));
-    dataSource = module.get(DataSource);
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
+    mockConvRepo.createQueryBuilder.mockReturnValue(mockConvQueryBuilder);
+    mockDataSource.createQueryRunner.mockReturnValue(mockQueryRunner);
   });
 
   describe('save', () => {
-    it('should save a conversation', async () => {
+    it('should save and return domain entity', async () => {
+      const model = createConversationModel();
+      mockConvRepo.save.mockResolvedValue(model);
+
       const conversation = new Conversation({
-        userId: '550e8400-e29b-41d4-a716-446655440999',
-        sectorId: '440e8400-e29b-41d4-a716-446655440000',
-        title: 'Test Conversation',
-        metadata: {},
+        id: CONVERSATION_ID,
+        userId: USER_ID,
+        sectorId: SECTOR_ID,
       });
-
-      const savedModel: ConversationModel = {
-        id: 'conv-id',
-        userId: conversation.userId,
-        sectorId: conversation.sectorId,
-        title: conversation.title,
-        metadata: conversation.metadata,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-        messages: [],
-      };
-
-      mockConversationRepo.save.mockResolvedValue(savedModel);
 
       const result = await repository.save(conversation);
 
-      expect(result).toBeInstanceOf(Conversation);
-      expect(mockConversationRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: conversation.userId,
-          sectorId: conversation.sectorId,
-        }),
-        { reload: true },
-      );
+      expect(result.id).toBe(CONVERSATION_ID);
     });
   });
 
   describe('findById', () => {
-    it('should find a conversation by id with messages', async () => {
-      const model: ConversationModel = {
-        id: 'conv-id',
-        userId: '550e8400-e29b-41d4-a716-446655440999',
-        sectorId: '440e8400-e29b-41d4-a716-446655440000',
-        title: 'Test Conversation',
-        metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-        messages: [
-          {
-            id: 'msg-1',
-            conversationId: 'conv-id',
-            role: 'user',
-            content: 'Hello',
-            metadata: {},
-            createdAt: new Date(),
-            conversation: null as unknown as ConversationModel,
-          },
-        ],
-      };
+    it('should return domain entity when found', async () => {
+      mockConvRepo.findOne.mockResolvedValue(createConversationModel());
 
-      mockConversationRepo.findOne.mockResolvedValue(model);
+      const result = await repository.findById(CONVERSATION_ID);
 
-      const result = await repository.findById('conv-id');
-
-      expect(result).toBeInstanceOf(Conversation);
-      expect(result?.id).toBe('conv-id');
-      expect(mockConversationRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'conv-id' },
-        relations: ['messages'],
-        order: {
-          messages: {
-            createdAt: 'ASC',
-          },
-        },
-      });
+      expect(result).toBeDefined();
+      expect(result!.id).toBe(CONVERSATION_ID);
     });
 
-    it('should return undefined if conversation not found', async () => {
-      mockConversationRepo.findOne.mockResolvedValue(null);
+    it('should return undefined when not found', async () => {
+      mockConvRepo.findOne.mockResolvedValue(null);
 
-      const result = await repository.findById('non-existent');
+      const result = await repository.findById('nonexistent');
 
       expect(result).toBeUndefined();
     });
   });
 
   describe('findByUserId', () => {
-    it('should find conversations by user id', async () => {
-      const mockQueryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([]),
-      };
+    it('should return conversations with default options', async () => {
+      mockConvQueryBuilder.getMany.mockResolvedValue([
+        createConversationModel(),
+      ]);
 
-      mockConversationRepo.createQueryBuilder.mockReturnValue(
-        mockQueryBuilder as never,
+      const result = await repository.findByUserId(USER_ID);
+
+      expect(result).toHaveLength(1);
+      expect(mockConvQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'conversation.deleted_at IS NULL',
       );
-
-      const result = await repository.findByUserId(
-        '550e8400-e29b-41d4-a716-446655440999',
-      );
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(mockQueryBuilder.where).toHaveBeenCalled();
-      expect(mockQueryBuilder.getMany).toHaveBeenCalled();
     });
 
-    it('should respect pagination options', async () => {
-      const mockQueryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([]),
-      };
+    it('should include inactive when option is set', async () => {
+      mockConvQueryBuilder.getMany.mockResolvedValue([]);
 
-      mockConversationRepo.createQueryBuilder.mockReturnValue(
-        mockQueryBuilder as never,
+      await repository.findByUserId(USER_ID, { includeInactive: true });
+
+      expect(mockConvQueryBuilder.andWhere).not.toHaveBeenCalled();
+    });
+
+    it('should apply custom limit and offset', async () => {
+      mockConvQueryBuilder.getMany.mockResolvedValue([]);
+
+      await repository.findByUserId(USER_ID, { limit: 10, offset: 5 });
+
+      expect(mockConvQueryBuilder.limit).toHaveBeenCalledWith(10);
+      expect(mockConvQueryBuilder.offset).toHaveBeenCalledWith(5);
+    });
+  });
+
+  describe('findBySectorId', () => {
+    it('should return conversations for a sector', async () => {
+      mockConvRepo.find.mockResolvedValue([createConversationModel()]);
+
+      const result = await repository.findBySectorId(SECTOR_ID);
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('should apply custom pagination', async () => {
+      mockConvRepo.find.mockResolvedValue([]);
+
+      await repository.findBySectorId(SECTOR_ID, { limit: 5, offset: 10 });
+
+      expect(mockConvRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 5, skip: 10 }),
       );
+    });
+  });
 
-      await repository.findByUserId('550e8400-e29b-41d4-a716-446655440999', {
-        limit: 10,
-        offset: 20,
+  describe('findByUserAndSector', () => {
+    it('should return conversation when found', async () => {
+      mockConvRepo.findOne.mockResolvedValue(createConversationModel());
+
+      const result = await repository.findByUserAndSector(USER_ID, SECTOR_ID);
+
+      expect(result).toBeDefined();
+    });
+
+    it('should return undefined when not found', async () => {
+      mockConvRepo.findOne.mockResolvedValue(null);
+
+      const result = await repository.findByUserAndSector(USER_ID, SECTOR_ID);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('addMessage', () => {
+    it('should add message and return updated conversation', async () => {
+      const model = createConversationModel();
+      mockConvRepo.findOne
+        .mockResolvedValueOnce(model)
+        .mockResolvedValueOnce(model);
+      mockMsgRepo.save.mockResolvedValue({});
+      mockConvRepo.update.mockResolvedValue({ affected: 1 });
+
+      const message = new Message({
+        conversationId: CONVERSATION_ID,
+        role: 'user',
+        content: 'Hello',
       });
 
-      expect(mockQueryBuilder.limit).toHaveBeenCalledWith(10);
-      expect(mockQueryBuilder.offset).toHaveBeenCalledWith(20);
+      const result = await repository.addMessage(CONVERSATION_ID, message);
+
+      expect(result).toBeDefined();
+      expect(mockMsgRepo.save).toHaveBeenCalled();
+    });
+
+    it('should throw when conversation not found', async () => {
+      mockConvRepo.findOne.mockResolvedValue(null);
+
+      const message = new Message({
+        conversationId: 'nonexistent',
+        role: 'user',
+        content: 'Hello',
+      });
+
+      await expect(
+        repository.addMessage('nonexistent', message),
+      ).rejects.toThrow('Conversation not found');
+    });
+
+    it('should throw when conversation disappears after update', async () => {
+      const model = createConversationModel();
+      mockConvRepo.findOne
+        .mockResolvedValueOnce(model)
+        .mockResolvedValueOnce(null);
+      mockMsgRepo.save.mockResolvedValue({});
+      mockConvRepo.update.mockResolvedValue({ affected: 1 });
+
+      const message = new Message({
+        conversationId: CONVERSATION_ID,
+        role: 'user',
+        content: 'Hello',
+      });
+
+      await expect(
+        repository.addMessage(CONVERSATION_ID, message),
+      ).rejects.toThrow('Conversation not found after update');
+    });
+  });
+
+  describe('getMessages', () => {
+    it('should return messages for conversation', async () => {
+      const msgModel = new MessageModel();
+      msgModel.id = 'msg-1';
+      msgModel.conversationId = CONVERSATION_ID;
+      msgModel.role = 'user';
+      msgModel.content = 'Hello';
+      msgModel.createdAt = NOW;
+      mockMsgRepo.find.mockResolvedValue([msgModel]);
+
+      const result = await repository.getMessages(CONVERSATION_ID);
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('should apply pagination options', async () => {
+      mockMsgRepo.find.mockResolvedValue([]);
+
+      await repository.getMessages(CONVERSATION_ID, { limit: 5, offset: 10 });
+
+      expect(mockMsgRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 5, skip: 10 }),
+      );
     });
   });
 
   describe('delete', () => {
-    it('should soft delete a conversation by default', async () => {
-      mockConversationRepo.softDelete.mockResolvedValue({
-        affected: 1,
-        raw: {},
-        generatedMaps: [],
-      });
+    it('should soft-delete conversation', async () => {
+      await repository.delete(CONVERSATION_ID);
 
-      await repository.delete('conv-id');
-
-      expect(mockConversationRepo.softDelete).toHaveBeenCalledWith('conv-id');
-    });
-  });
-
-  // Note: addMessage tests are complex due to transaction handling
-  // These will be covered by integration tests
-
-  describe('findBySectorId', () => {
-    it('should find conversations by sector id', async () => {
-      mockConversationRepo.find.mockResolvedValue([]);
-
-      const result = await repository.findBySectorId(
-        '440e8400-e29b-41d4-a716-446655440000',
-      );
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(mockConversationRepo.find).toHaveBeenCalled();
+      expect(mockConvRepo.softDelete).toHaveBeenCalledWith(CONVERSATION_ID);
     });
   });
 
   describe('countByUserId', () => {
-    it('should count conversations by user id', async () => {
-      mockConversationRepo.count.mockResolvedValue(5);
+    it('should count non-deleted conversations for user', async () => {
+      mockConvRepo.count.mockResolvedValue(3);
 
-      const result = await repository.countByUserId(
-        '550e8400-e29b-41d4-a716-446655440999',
-      );
+      const result = await repository.countByUserId(USER_ID);
 
-      expect(result).toBe(5);
-      expect(mockConversationRepo.count).toHaveBeenCalled();
+      expect(result).toBe(3);
+    });
+  });
+
+  describe('countAll', () => {
+    it('should count all non-deleted conversations', async () => {
+      mockConvRepo.count.mockResolvedValue(15);
+
+      const result = await repository.countAll();
+
+      expect(result).toBe(15);
     });
   });
 
   describe('findActiveConversations', () => {
-    it('should find active conversations', async () => {
-      mockConversationRepo.find.mockResolvedValue([]);
+    it('should find active conversations with default threshold', async () => {
+      mockConvRepo.find.mockResolvedValue([createConversationModel()]);
 
-      const result = await repository.findActiveConversations(
-        '550e8400-e29b-41d4-a716-446655440999',
-        '440e8400-e29b-41d4-a716-446655440000',
-      );
+      const result = await repository.findActiveConversations(USER_ID);
 
-      expect(Array.isArray(result)).toBe(true);
-      expect(mockConversationRepo.find).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+    });
+
+    it('should apply custom hours threshold', async () => {
+      mockConvRepo.find.mockResolvedValue([]);
+
+      await repository.findActiveConversations(USER_ID, 48);
+
+      expect(mockConvRepo.find).toHaveBeenCalled();
+    });
+  });
+
+  describe('transaction', () => {
+    it('should commit on success', async () => {
+      mockQueryRunner.manager.getRepository
+        .mockReturnValueOnce(mockConvRepo)
+        .mockReturnValueOnce(mockMsgRepo);
+
+      const result = await repository.transaction(async () => 'result');
+
+      expect(result).toBe('result');
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should rollback on error', async () => {
+      mockQueryRunner.manager.getRepository
+        .mockReturnValueOnce(mockConvRepo)
+        .mockReturnValueOnce(mockMsgRepo);
+
+      await expect(
+        repository.transaction(async () => {
+          throw new Error('TX error');
+        }),
+      ).rejects.toThrow('TX error');
+
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
     });
   });
 });

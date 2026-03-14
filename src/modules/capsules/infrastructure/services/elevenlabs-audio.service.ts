@@ -20,6 +20,9 @@ const AUDIO_CONTENT_TYPE = 'audio/mpeg';
 const HTTP_OK = 200;
 const SHARED_VOICES_PAGE_SIZE = 50;
 
+// Voices provided by ElevenLabs out-of-the-box — not added by the user
+const PREMADE_CATEGORY = 'premade';
+
 // MP3 duration calculation from buffer size
 // ElevenLabs produces 128 kbps CBR MP3s → 128,000 bits/s → 16,000 bytes/s
 const MP3_BYTES_PER_SECOND = 16_000;
@@ -149,7 +152,13 @@ export class ElevenLabsAudioService implements IAudioGenerator {
 
       const data = (await response.json()) as { voices: ElevenLabsVoice[] };
 
-      return data.voices.map((v) => ({
+      // Return only voices the user has explicitly added or created in ElevenLabs
+      // (i.e. not the default premade voices provided by ElevenLabs)
+      const userVoices = data.voices.filter(
+        (v) => v.category !== PREMADE_CATEGORY,
+      );
+
+      return userVoices.map((v) => ({
         id: v.voice_id,
         name: v.name,
         category: v.category,

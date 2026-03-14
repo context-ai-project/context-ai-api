@@ -88,4 +88,10 @@ export interface ICapsuleRepository {
     sectorId: string,
     status: CapsuleStatus,
   ): Promise<number>;
+
+  /**
+   * Counts video capsules (type VIDEO) created in the current calendar month.
+   * Used for monthly video generation quota enforcement.
+   */
+  countVideoCapsulesThisMonth(): Promise<number>;
 }

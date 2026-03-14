@@ -78,15 +78,11 @@ export class DocumentParserService {
    */
   private async parsePdf(buffer: Buffer): Promise<ParsedDocument> {
     try {
-      // Parse PDF using pdf-parse (official Genkit pattern)
-      // Pattern: const data = await pdf(dataBuffer);
       const data = (await pdf(buffer)) as PdfParseResult;
 
-      // Normalize the extracted text
-      const content = this.normalizeContent(data.text);
+      const rawText = this.preserveStructure(data.text);
+      const embeddingText = this.normalizeForEmbedding(data.text);
 
-      // Extract metadata using Map to avoid bracket-notation security warnings
-      // Guard against missing data.info (some PDFs omit metadata)
       const info: Record<string, unknown> =
         data.info && typeof data.info === 'object' ? data.info : {};
 
@@ -112,17 +108,16 @@ export class DocumentParserService {
 
       const pages: number = data.numpages;
 
-      const parsedMetadata: ParsedDocument['metadata'] = {
-        sourceType: SourceType.PDF,
-        parsedAt: new Date().toISOString(),
-        originalSize: buffer.length,
-        pages,
-        info: pdfInfo,
-      };
-
       return {
-        content,
-        metadata: parsedMetadata,
+        content: rawText,
+        contentForEmbedding: embeddingText,
+        metadata: {
+          sourceType: SourceType.PDF,
+          parsedAt: new Date().toISOString(),
+          originalSize: buffer.length,
+          pages,
+          info: pdfInfo,
+        },
       };
     } catch (error) {
       throw new Error(`Failed to parse PDF: ${extractErrorMessage(error)}`);
@@ -136,22 +131,19 @@ export class DocumentParserService {
    */
   private parseMarkdown(buffer: Buffer): Promise<ParsedDocument> {
     try {
-      const markdownText = buffer.toString('utf-8');
+      const markdownText = buffer.toString('utf-8').trim();
 
-      // Strip markdown syntax to get plain text
       const plainText = this.stripMarkdownSyntax(markdownText);
-
-      const content = this.normalizeContent(plainText);
-
-      const parsedMetadata: ParsedDocument['metadata'] = {
-        sourceType: SourceType.MARKDOWN,
-        parsedAt: new Date().toISOString(),
-        originalSize: buffer.length,
-      };
+      const embeddingText = this.normalizeForEmbedding(plainText);
 
       return Promise.resolve({
-        content,
-        metadata: parsedMetadata,
+        content: markdownText,
+        contentForEmbedding: embeddingText,
+        metadata: {
+          sourceType: SourceType.MARKDOWN,
+          parsedAt: new Date().toISOString(),
+          originalSize: buffer.length,
+        },
       });
     } catch (error) {
       return Promise.reject(
@@ -175,20 +167,23 @@ export class DocumentParserService {
   }
 
   /**
-   * Normalizes content by removing excessive whitespace and line breaks
-   * @param content - The content to normalize
-   * @returns Normalized content
+   * Preserves paragraph structure while cleaning up excessive blank lines.
+   * Used for content stored for user display.
    */
-  private normalizeContent(content: string): string {
-    return (
-      content
-        // Replace multiple spaces with single space
-        .replace(/\s+/g, ' ')
-        // Replace multiple line breaks with double line break
-        .replace(/\n{3,}/g, '\n\n')
-        // Trim leading and trailing whitespace
-        .trim()
-    );
+  private preserveStructure(content: string): string {
+    return content
+      .replace(/\r\n/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  /**
+   * Aggressively normalizes content for embedding/chunking.
+   * Collapses all whitespace into single spaces for cleaner text chunks.
+   */
+  private normalizeForEmbedding(content: string): string {
+    return content.replace(/\s+/g, ' ').trim();
   }
 
   /**
@@ -224,7 +219,10 @@ export class DocumentParserService {
  * Parsed document result
  */
 export interface ParsedDocument {
+  /** Original content preserved for user display (with formatting) */
   content: string;
+  /** Stripped/normalized content optimized for chunking and embedding */
+  contentForEmbedding: string;
   metadata: {
     sourceType: SourceType;
     parsedAt: string;

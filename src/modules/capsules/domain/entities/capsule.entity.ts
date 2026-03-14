@@ -23,6 +23,7 @@ export interface CapsuleSourceRef {
  * - Status transitions are strictly controlled
  * - Script generation requires DRAFT or COMPLETED status
  * - Audio generation requires a non-empty script and a voiceId
+ * - Video generation requires a valid scenes JSON script
  * - Publishing requires COMPLETED status
  * - Archiving is allowed from ACTIVE or COMPLETED
  */
@@ -107,8 +108,12 @@ export class Capsule {
     return this.status === CapsuleStatus.DRAFT;
   }
 
-  public isGenerating(): boolean {
-    return this.status === CapsuleStatus.GENERATING;
+  public isGeneratingAssets(): boolean {
+    return this.status === CapsuleStatus.GENERATING_ASSETS;
+  }
+
+  public isRendering(): boolean {
+    return this.status === CapsuleStatus.RENDERING;
   }
 
   public isCompleted(): boolean {
@@ -144,6 +149,16 @@ export class Capsule {
     );
   }
 
+  public isVideoType(): boolean {
+    return this.type === CapsuleType.VIDEO;
+  }
+
+  public canGenerateVideo(): boolean {
+    if (!this.canGenerateScript()) return false;
+    if (!this.isVideoType()) return false;
+    return !!this.script && this.script.trim().length > 0;
+  }
+
   // ==================== State Transitions ====================
 
   /**
@@ -157,13 +172,27 @@ export class Capsule {
           `Allowed statuses: DRAFT, COMPLETED, FAILED`,
       );
     }
-    this.status = CapsuleStatus.GENERATING;
+    this.status = CapsuleStatus.GENERATING_ASSETS;
+    this.updatedAt = new Date();
+  }
+
+  /**
+   * Moves from asset generation to video rendering (Shotstack).
+   * Only allowed from GENERATING_ASSETS.
+   */
+  public startRendering(): void {
+    if (!this.isGeneratingAssets()) {
+      throw new Error(
+        `Cannot start rendering from status "${this.status}". Expected: GENERATING_ASSETS`,
+      );
+    }
+    this.status = CapsuleStatus.RENDERING;
     this.updatedAt = new Date();
   }
 
   /**
    * Marks the generation pipeline as successfully completed.
-   * Called after audio (Block A) or video (Block B) is uploaded.
+   * Allowed from GENERATING_ASSETS (audio) or RENDERING (video).
    */
   public completeGeneration(data: {
     audioUrl?: string;
@@ -172,9 +201,10 @@ export class Capsule {
     durationSeconds?: number;
     metadata?: Record<string, unknown>;
   }): void {
-    if (!this.isGenerating()) {
+    if (!this.isGeneratingAssets() && !this.isRendering()) {
       throw new Error(
-        `Cannot complete generation from status "${this.status}". Expected: GENERATING`,
+        `Cannot complete generation from status "${this.status}". ` +
+          `Expected: GENERATING_ASSETS or RENDERING`,
       );
     }
     if (data.audioUrl) this.audioUrl = data.audioUrl;
@@ -189,12 +219,13 @@ export class Capsule {
 
   /**
    * Marks the generation pipeline as failed.
-   * The script is preserved so the user can retry.
+   * Allowed from GENERATING_ASSETS or RENDERING.
    */
   public failGeneration(errorDetails?: Record<string, unknown>): void {
-    if (!this.isGenerating()) {
+    if (!this.isGeneratingAssets() && !this.isRendering()) {
       throw new Error(
-        `Cannot mark generation as failed from status "${this.status}". Expected: GENERATING`,
+        `Cannot mark generation as failed from status "${this.status}". ` +
+          `Expected: GENERATING_ASSETS or RENDERING`,
       );
     }
     if (errorDetails) {
@@ -231,6 +262,36 @@ export class Capsule {
     this.updatedAt = new Date();
   }
 
+  // ==================== Generation Metadata Accessors ====================
+
+  public get generationProgress(): number | undefined {
+    const meta = this.generationMetadata;
+    if (meta && typeof meta['progress'] === 'number') return meta['progress'];
+    return undefined;
+  }
+
+  public get generationStep(): string | undefined {
+    const meta = this.generationMetadata;
+    if (meta && typeof meta['step'] === 'string') return meta['step'];
+    return undefined;
+  }
+
+  public get generationErrorMessage(): string | undefined {
+    const meta = this.generationMetadata;
+    if (!meta?.['error']) return undefined;
+    const err = meta['error'] as Record<string, unknown>;
+    return (err['message'] as string | undefined) ?? 'Generation failed';
+  }
+
+  public updateGenerationProgress(progress: number, step: string): void {
+    this.generationMetadata = {
+      ...this.generationMetadata,
+      progress,
+      step,
+    };
+    this.updatedAt = new Date();
+  }
+
   /**
    * Publishes the capsule making it visible to end users.
    * Only allowed from COMPLETED status.
@@ -248,7 +309,6 @@ export class Capsule {
 
   /**
    * Archives the capsule making it invisible to end users.
-   * Semantic transition used by the "Archive" action in the player UI.
    * Allowed from ACTIVE or COMPLETED.
    */
   public archive(): void {
@@ -263,8 +323,6 @@ export class Capsule {
 
   /**
    * Soft-deletes the capsule regardless of its current status.
-   * Used by the "Delete" action in the UI — any non-archived capsule can be deleted.
-   * (DRAFT, GENERATING, COMPLETED, ACTIVE, FAILED → ARCHIVED)
    */
   public softDelete(): void {
     if (this.isArchived()) {
