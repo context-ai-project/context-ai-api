@@ -21,6 +21,11 @@ Backend API para **Context.ai**, un sistema de gestión de conocimiento basado e
 - **Auditoría**: Registro automático de eventos de seguridad y acciones de usuario
 - **Rate Limiting**: Protección contra abuso y DDoS por endpoint con `@nestjs/throttler`
 - **Documentación API**: Swagger UI interactiva con autenticación JWT integrada
+- **Cápsulas multimedia (audio y vídeo)**: Creación de cápsulas de audio (TTS con ElevenLabs) y de vídeo (guion generado por IA, imágenes Imagen 3, montaje con Shotstack); almacenamiento en GCS; pipeline asíncrono (Cloud Tasks en producción)
+- **Invitaciones de usuarios**: Flujo de invitación por correo (Auth0 M2M + user tickets), sin registro público
+- **Notificaciones in-app**: Notificaciones event-driven, marcado de leídas y contador
+- **Gestión de sectores (CRUD)**: Creación, edición y activación/desactivación de sectores (espacios de conocimiento por departamento)
+- **Estadísticas para administradores**: Endpoint de métricas de uso para el dashboard de administración
 
 ## 🏗️ Arquitectura
 
@@ -42,7 +47,7 @@ Este proyecto sigue **Clean Architecture** con 4 capas:
 | **Lenguaje** | TypeScript | 5.7 |
 | **Runtime** | Node.js | 22+ |
 | **Framework** | NestJS | 11 |
-| **Package Manager** | pnpm | 8+ |
+| **Package Manager** | pnpm | 10+ |
 
 ### Datos y AI
 
@@ -92,12 +97,13 @@ Este proyecto sigue una estrategia de branching por fases del MVP con ramas `mai
 ## 📋 Requisitos
 
 - Node.js 22+
-- pnpm 8+
+- pnpm 10+
 - Docker & Docker Compose
 - PostgreSQL 16
 - Cuenta de [Pinecone](https://www.pinecone.io/) (vector store para embeddings)
 - Cuenta de [Auth0](https://auth0.com/) (autenticación OAuth2/JWT) — ver [docs/AUTH0_SETUP.md](./docs/AUTH0_SETUP.md)
-- Proyecto de **Google Cloud Platform** con Vertex AI habilitado — autenticación via Application Default Credentials (ADC)
+- Proyecto de **Google Cloud Platform** con Vertex AI habilitado — autenticación via Application Default Credentials (ADC). En local ejecutar `gcloud auth application-default login`.
+- Para que la API arranque sin error: **ElevenLabs** (TTS), **Shotstack** (vídeo), **GCS** (bucket y proyecto) y sus variables en `.env`. Ver [docs/ENVIRONMENT_VARIABLES.md](./docs/ENVIRONMENT_VARIABLES.md).
 
 ## 🛠️ Setup Local
 
@@ -184,8 +190,6 @@ pnpm migration:run
 pnpm seed:rbac
 
 # Para limpiar y re-sembrar (útil en desarrollo)
-pnpm run seed:rbac:clear
-o
 pnpm seed:rbac --clear
 ```
 
@@ -273,11 +277,32 @@ src/
 │   │   ├── application/       #   Use Case (QueryAssistant)
 │   │   ├── infrastructure/    #   Repositorios y mappers
 │   │   └── presentation/      #   Controller y DTOs
-│   └── users/                 # 👤 Gestión de usuarios
-│       ├── domain/            #   Entidad User
-│       ├── application/       #   UserService
-│       ├── infrastructure/    #   Repositorio y modelo TypeORM
-│       └── api/               #   Controller
+│   ├── users/                 # 👤 Gestión de usuarios
+│   │   ├── domain/            #   Entidad User
+│   │   ├── application/       #   UserService, AdminUserService
+│   │   ├── infrastructure/    #   Repositorio y modelo TypeORM
+│   │   └── api/               #   Controllers (users, admin)
+│   ├── sectors/               # 📂 CRUD de sectores (activación/desactivación)
+│   │   ├── domain/            #   Entidad Sector
+│   │   ├── application/       #   Use Cases (Create, Update)
+│   │   ├── infrastructure/    #   Repositorio y modelo TypeORM
+│   │   └── presentation/      #   Controller y DTOs
+│   ├── capsules/              # 🎙️ Cápsulas audio/vídeo (ElevenLabs, Shotstack, GCS, Imagen 3)
+│   │   ├── domain/            #   Entidad Capsule, interfaces (IAudioGenerator, IVideoRenderer, etc.)
+│   │   ├── application/       #   Use Cases (CRUD, GenerateScript, GenerateAudio, GenerateVideo), VideoPipelineService
+│   │   ├── infrastructure/    #   ElevenLabs, GCS, Shotstack, Cloud Tasks, repositorio
+│   │   └── presentation/      #   CapsulesController, InternalCapsulesController
+│   ├── notifications/         # 🔔 Notificaciones in-app (event-driven)
+│   │   ├── application/       #   NotificationService, listeners
+│   │   ├── infrastructure/    #   Repositorio y modelo TypeORM
+│   │   └── presentation/      #   NotificationController
+│   ├── invitations/           # ✉️ Invitaciones de usuarios (Auth0 M2M, user tickets)
+│   │   ├── domain/            #   Eventos de invitación
+│   │   ├── application/       #   InvitationService
+│   │   ├── infrastructure/    #   Repositorio, Auth0 Management
+│   │   └── presentation/      #   InvitationController
+│   └── stats/                 # 📊 Estadísticas para administradores
+│       └── presentation/      #   StatsController, DTOs
 ├── shared/                    # 🔧 Código compartido
 │   ├── genkit/                #   Configuración de Google Genkit (LLM + Embeddings)
 │   │   └── flows/             #   RAG Query Flow
@@ -297,7 +322,7 @@ src/
 └── main.ts                    # 🚀 Entry point
 ```
 
-> Cada módulo de negocio (`knowledge/`, `interaction/`) sigue **Clean Architecture** con las 4 capas. Los módulos de soporte (`auth/`, `users/`, `audit/`) siguen una estructura simplificada adaptada a sus necesidades.
+> Cada módulo de negocio (`knowledge/`, `interaction/`, `capsules/`) sigue **Clean Architecture** con las 4 capas. Los módulos de soporte (`auth/`, `users/`, `audit/`, `sectors/`, `notifications/`, `invitations/`, `stats/`) siguen una estructura simplificada adaptada a sus necesidades.
 
 ## 🔐 Autenticación y Autorización
 
@@ -315,7 +340,7 @@ src/
 | `@nestjs/core` + `@nestjs/common` | Framework NestJS |
 | `@nestjs/typeorm` + `pg` | ORM y driver PostgreSQL |
 | `@pinecone-database/pinecone` | SDK de Pinecone (vector store) |
-| `genkit` + `@genkit-ai/google-genai` | Google Genkit para LLM y embeddings (Vertex AI backend) |
+| `genkit` + `@genkit-ai/ai` + `@genkit-ai/core` + `@genkit-ai/google-genai` | Google Genkit para LLM y embeddings (Vertex AI backend) |
 | `@nestjs/passport` + `passport-jwt` + `jwks-rsa` | Autenticación JWT con JWKS (Auth0) |
 | `@nestjs/throttler` | Rate limiting por endpoint |
 | `@nestjs/swagger` | Documentación API (OpenAPI/Swagger) |
@@ -351,6 +376,7 @@ src/
 | [RATE_LIMITING.md](./docs/RATE_LIMITING.md) | Configuración de rate limiting |
 | [RBAC_SEEDING_STRATEGY.md](./docs/RBAC_SEEDING_STRATEGY.md) | Estrategia de seeding de roles y permisos |
 | [SECURITY_GUIDELINES.md](./docs/SECURITY_GUIDELINES.md) | Directrices de seguridad y OWASP |
+| [SECURITY.md](./docs/SECURITY.md) | Política de seguridad del proyecto |
 | [SNYK-SETUP.md](./docs/SNYK-SETUP.md) | Configuración de Snyk para seguridad |
 | [SWAGGER.md](./docs/SWAGGER.md) | Guía de documentación de API (Swagger) |
 | [TESTING_GUIDELINES.md](./docs/TESTING_GUIDELINES.md) | Estándares de testing (AAA, cobertura) |

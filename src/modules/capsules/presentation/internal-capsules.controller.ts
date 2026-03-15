@@ -9,11 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiExcludeController } from '@nestjs/swagger';
+import { IsString, IsNotEmpty } from 'class-validator';
 import { Public } from '../../auth/decorators/public.decorator';
 import { InternalApiKeyGuard } from '../../auth/guards/internal-api-key.guard';
 import { VideoPipelineService } from '../application/services/video-pipeline.service';
 
 class ProcessVideoBodyDto {
+  @IsString()
+  @IsNotEmpty()
   voiceId!: string;
 }
 
