@@ -1,9 +1,9 @@
 /**
  * Capsules Genkit Configuration
  *
- * Re-exports the shared Genkit singleton (GOOGLE_API_KEY) so that the
- * Capsules module (ScriptGeneratorService, Imagen 3) uses the same instance
- * as the RAG/Knowledge pipeline — no separate key or instance required.
+ * Re-exports the shared Genkit singleton (Vertex AI) so that the
+ * Capsules module (ScriptGeneratorService) uses the same instance
+ * as the RAG/Knowledge pipeline.
  *
  * Used by:
  * - ScriptGeneratorService (script + structured scenes generation)

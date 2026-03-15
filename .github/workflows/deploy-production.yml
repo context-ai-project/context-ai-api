@@ -127,12 +127,14 @@ jobs:
             DB_USERNAME=${{ secrets.DB_USERNAME }}
             DB_DATABASE=contextai
             DB_SSL_REJECT_UNAUTHORIZED=false
-            PINECONE_INDEX=context-ai
+            PINECONE_INDEX=context-ai-prod
+            PINECONE_HOST=${{ secrets.PINECONE_HOST }}
             FRONTEND_URL=${{ secrets.FRONTEND_URL }}
             ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}
             RATE_LIMIT_WINDOW_MS=60000
             RATE_LIMIT_MAX_REQUESTS=100
             LOG_LEVEL=info
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
             GCS_BUCKET_CAPSULES=${{ secrets.GCS_BUCKET_CAPSULES }}
             GCS_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
             SHOTSTACK_ENVIRONMENT=stage
@@ -142,7 +144,6 @@ jobs:
             VIDEO_MAX_CAPSULES_PER_MONTH=40
           secrets: |
             DB_PASSWORD=DB_PASSWORD:latest
-            GOOGLE_API_KEY=GOOGLE_API_KEY:latest
             PINECONE_API_KEY=PINECONE_API_KEY:latest
             AUTH0_DOMAIN=AUTH0_DOMAIN:latest
             AUTH0_AUDIENCE=AUTH0_AUDIENCE:latest
@@ -154,7 +155,6 @@ jobs:
             SENTRY_DSN=SENTRY_DSN:latest
             INTERNAL_API_KEY=INTERNAL_API_KEY:latest
             ELEVENLABS_API_KEY=ELEVENLABS_API_KEY:latest
-            GOOGLE_CAPSULES_API_KEY=GOOGLE_CAPSULES_API_KEY:latest
             SHOTSTACK_API_KEY=SHOTSTACK_API_KEY:latest
           flags: |
             --port=3001

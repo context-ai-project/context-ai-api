@@ -55,9 +55,20 @@ import { PineconeVectorStore } from '../services/pinecone-vector-store.service';
         pineconeClient: Pinecone,
         configService: ConfigService,
       ): PineconeVectorStore => {
+        const logger = new Logger('PineconeModule');
         const indexName =
           configService.get<string>('PINECONE_INDEX') ?? 'context-ai';
-        return new PineconeVectorStore(pineconeClient, indexName);
+        const indexHost = configService.get<string>('PINECONE_HOST');
+
+        if (!indexHost) {
+          logger.warn(
+            'PINECONE_HOST is not set. The SDK will call describeIndex on every init, ' +
+              'which is slower and fails if the index does not exist. ' +
+              'Set PINECONE_HOST to the data-plane host shown in the Pinecone console.',
+          );
+        }
+
+        return new PineconeVectorStore(pineconeClient, indexName, indexHost);
       },
       inject: ['PINECONE_CLIENT', ConfigService],
     },

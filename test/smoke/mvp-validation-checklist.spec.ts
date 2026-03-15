@@ -317,7 +317,7 @@ describe('MVP Validation Checklist (Phase 7.12)', () => {
         'DATABASE_NAME',
         'PINECONE_API_KEY',
         'PINECONE_INDEX_NAME',
-        'GOOGLE_API_KEY',
+        'GCP_PROJECT_ID',
         'AUTH0_DOMAIN',
         'AUTH0_AUDIENCE',
       ];

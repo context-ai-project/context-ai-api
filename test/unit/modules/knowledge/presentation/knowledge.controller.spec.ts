@@ -7,7 +7,7 @@ jest.mock('genkit', () => ({
 }));
 
 jest.mock('@genkit-ai/google-genai', () => ({
-  googleAI: jest.fn(),
+  vertexAI: jest.fn(),
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';

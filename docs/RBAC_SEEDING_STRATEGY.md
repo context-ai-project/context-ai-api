@@ -18,7 +18,7 @@ Esta guía describe la estrategia de inicialización de datos de RBAC (Roles y P
 
 Context.ai utiliza un sistema de **RBAC (Role-Based Access Control)** con:
 - **3 Roles**: `admin`, `manager`, `user`
-- **10 Permisos**: organizados por recurso (chat, knowledge, profile, users, system)
+- **14 Permisos**: organizados por recurso (chat, knowledge, profile, users, system, capsule)
 - **Asignaciones**: Permisos asignados a roles según nivel de acceso
 
 Estos datos son **críticos** para el funcionamiento del sistema de autorización.
@@ -27,41 +27,38 @@ Estos datos son **críticos** para el funcionamiento del sistema de autorizació
 
 ## Arquitectura de Seeding
 
-### Dos Mecanismos Complementarios
+### Responsabilidades separadas: Migraciones vs Seeder
 
-#### 1. **Migraciones SQL** (Primario)
+> **Importante**: Las migraciones y el seeder tienen responsabilidades **distintas y complementarias**. Ambos son necesarios.
 
-**Ubicación**: `migrations/init/003_rbac_tables.sql`
+#### 1. **Migraciones TypeORM** — crean el schema
 
-**Características**:
-- ✅ Se ejecuta con `pnpm migration:run`
-- ✅ Idempotente: usa `ON CONFLICT DO NOTHING`
-- ✅ Rápido y confiable
-- ✅ Ideal para producción y CI/CD
+**Ubicación**: `src/migrations/1708100000000-CreateRBACTables.ts`
 
-```sql
--- Ejemplo de idempotencia
-INSERT INTO roles (name, description, is_system_role) VALUES
-  ('admin', 'Full system access and management capabilities', true),
-  ('manager', 'Knowledge management and user oversight', true),
-  ('user', 'Basic user access with read permissions', true)
-ON CONFLICT (name) DO NOTHING;
-```
+**Qué hacen**:
+- ✅ Crean las **tablas** `roles`, `permissions`, `role_permissions`, `user_roles`
+- ❌ **No insertan datos** (ni roles, ni permisos, ni asociaciones)
+- ✅ Ejecutadas con `pnpm migration:run`
+- ✅ Versionadas y con rollback (`pnpm migration:revert`)
 
-#### 2. **Seeder Programático** (Secundario)
+#### 2. **Seeder Programático** — inserta los datos
 
 **Ubicación**: `src/modules/auth/application/services/rbac-seeder.service.ts`
 
-**Características**:
+**Qué hace**:
+- ✅ Inserta los 3 roles (`admin`, `manager`, `user`)
+- ✅ Inserta los 14 permisos
+- ✅ Asigna permisos a roles
+- ✅ Es idempotente: omite registros que ya existen
 - ✅ Ejecutable vía CLI: `pnpm seed:rbac`
-- ✅ Idempotente: valida existencia antes de insertar
-- ✅ Útil para desarrollo y testing
-- ✅ Puede limpiar datos: `pnpm seed:rbac --clear`
+- ✅ Puede limpiar y re-sembrar: `pnpm seed:rbac --clear`
 
 ```typescript
 // Servicio NestJS exportable
-await seederService.seed(); // Retorna estadísticas
+await seederService.seed(); // Retorna estadísticas de lo creado
 ```
+
+> **Conclusión**: `pnpm migration:run` crea las tablas vacías. `pnpm seed:rbac` rellena esas tablas con los datos necesarios. **Ambos comandos son requeridos** en todos los environments para que el sistema de autorización funcione.
 
 ---
 
@@ -69,29 +66,31 @@ await seederService.seed(); // Retorna estadísticas
 
 ### 🏭 **Production**
 
-**Método Recomendado**: Migraciones SQL
+**Comandos requeridos** (en este orden):
 
 ```bash
-# Durante deployment
+# 1. Crear tablas RBAC (schema)
 pnpm migration:run
+
+# 2. Insertar roles, permisos y asignaciones (datos)
+pnpm seed:rbac
 ```
 
-**Ventajas**:
-- ⚡ Más rápido (queries SQL directos)
-- 🔒 Más seguro (transaccional)
-- 📊 Traceable (migrations log)
-- 🔄 Rollback sencillo
-
 **Consideraciones**:
-- Las migraciones se ejecutan **automáticamente** en el pipeline CI/CD
-- No es necesario ejecutar el seeder programático
-- Los datos de RBAC se tratan como **schema**, no como data
+- Ambos comandos son necesarios en el primer deploy y cada vez que se añaden permisos nuevos
+- El seeder es **idempotente**: se puede ejecutar múltiples veces sin duplicar datos
+- Los datos de RBAC (roles/permisos) se consideran **configuración del sistema**, no datos de usuario
 
 **Pipeline Ejemplo**:
 ```yaml
 # .github/workflows/deploy.yml
 - name: Run Migrations
   run: pnpm migration:run
+  env:
+    NODE_ENV: production
+
+- name: Seed RBAC
+  run: pnpm seed:rbac
   env:
     NODE_ENV: production
 ```
@@ -234,9 +233,9 @@ services:
 
 | Nombre | Descripción | Permisos |
 |--------|-------------|----------|
-| `admin` | Administrador del sistema | **Todos** (10 permisos) |
-| `manager` | Gestor de conocimiento | 8 permisos (sin `users:manage`, `system:admin`) |
-| `user` | Usuario estándar | 4 permisos básicos |
+| `admin` | Administrador del sistema | **Todos** (14 permisos) |
+| `manager` | Gestor de conocimiento y cápsulas | 12 permisos (sin `users:manage`, `system:admin`) |
+| `user` | Usuario estándar | 5 permisos básicos |
 
 ### Permisos
 
@@ -260,16 +259,23 @@ services:
 #### System
 - `system:admin` - Acceso administrativo completo al sistema
 
+#### Capsule (v2 — Audio/Video Capsules)
+- `capsule:read` - Ver y reproducir cápsulas de audio
+- `capsule:create` - Crear cápsulas y disparar generación por IA
+- `capsule:update` - Editar metadatos y scripts de cápsulas
+- `capsule:delete` - Archivar y eliminar cápsulas
+
 ### Asignación de Permisos
 
 ```
-USER ROLE:
+USER ROLE (5 permisos):
 ├── chat:read
 ├── knowledge:read
 ├── profile:read
-└── profile:update
+├── profile:update
+└── capsule:read
 
-MANAGER ROLE (hereda USER + adicionales):
+MANAGER ROLE (12 permisos):
 ├── chat:read
 ├── knowledge:read
 ├── knowledge:create
@@ -277,9 +283,13 @@ MANAGER ROLE (hereda USER + adicionales):
 ├── knowledge:delete
 ├── profile:read
 ├── profile:update
-└── users:read
+├── users:read
+├── capsule:read
+├── capsule:create
+├── capsule:update
+└── capsule:delete
 
-ADMIN ROLE (todos):
+ADMIN ROLE (14 permisos — todos):
 ├── chat:read
 ├── knowledge:read
 ├── knowledge:create
@@ -289,7 +299,11 @@ ADMIN ROLE (todos):
 ├── profile:update
 ├── users:read
 ├── users:manage
-└── system:admin
+├── system:admin
+├── capsule:read
+├── capsule:create
+├── capsule:update
+└── capsule:delete
 ```
 
 ---
@@ -385,11 +399,12 @@ pnpm seed:rbac --clear
 # En CI/CD pipeline
 pnpm install --frozen-lockfile
 pnpm build
-pnpm migration:run  # Incluye RBAC seeding
+pnpm migration:run  # Crea las tablas (schema)
+pnpm seed:rbac      # Inserta roles, permisos y asignaciones (datos)
 pnpm start:prod
 ```
 
-**No es necesario** ejecutar `pnpm seed:rbac` porque las migraciones ya incluyen los datos.
+> **Importante**: Ambos comandos son necesarios. `migration:run` crea las tablas vacías; `seed:rbac` las rellena con los datos de RBAC.
 
 ---
 

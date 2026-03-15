@@ -306,31 +306,98 @@ The backend logs authentication events via Audit Logging (Issue 6.15):
 
 ---
 
-## 🔄 Frontend Integration
+## 🖥️ Step 5: Create Auth0 Application for the Frontend
 
-The frontend (Next.js) uses **NextAuth.js** with Auth0 provider.
+The frontend (Next.js + NextAuth.js) requires its own Auth0 application, **separate** from the M2M application of the backend. This is the application that users see when logging in.
 
-### Required Frontend Variables
+1. **Navigate**: `Applications` → `Applications` → `Create Application`
+2. **Name**: `Context.AI Frontend`
+3. **Type**: **Regular Web Application** (not SPA, not Native, not M2M)
+4. Click **Create**
+
+### Configure the Application Settings
+
+In the **Settings** tab of the newly created application:
+
+| Field | Value (development) |
+|-------|---------------------|
+| **Allowed Callback URLs** | `http://localhost:3000/api/auth/callback/auth0` |
+| **Allowed Logout URLs** | `http://localhost:3000` |
+| **Allowed Web Origins** | `http://localhost:3000` |
+
+> For production, add the production URLs alongside the localhost ones (comma-separated).
+
+5. Scroll down and click **Save Changes**
+
+### Get the Frontend Credentials
+
+From the **Settings** tab copy:
+- **Domain** → used for `AUTH0_ISSUER_BASE_URL` and `AUTH0_ISSUER`
+- **Client ID** → `AUTH0_CLIENT_ID`
+- **Client Secret** → `AUTH0_CLIENT_SECRET`
+
+### Configure Frontend Environment Variables
 
 ```bash
-# .env.local (Frontend)
-AUTH0_SECRET=<generate-with-openssl-rand-hex-32>
+# context-ai-front/.env.local
+
+# AUTH_SECRET: encrypts NextAuth.js v5 sessions. Generate with: openssl rand -hex 32
+AUTH_SECRET=<generate-with-openssl-rand-hex-32>
+
+# AUTH0_SECRET: used by legacy auth0 config (src/lib/auth0.config.ts). Can be same as AUTH_SECRET.
+AUTH0_SECRET=<same-value-as-AUTH_SECRET>
+
+AUTH0_BASE_URL=http://localhost:3000
+AUTH0_ISSUER_BASE_URL=https://your-tenant.auth0.com   # from Step 1 (no trailing slash)
+AUTH0_ISSUER=https://your-tenant.auth0.com             # same value, used by NextAuth.js v5
+AUTH0_CLIENT_ID=<from-frontend-application-settings>
+AUTH0_CLIENT_SECRET=<from-frontend-application-settings>
+AUTH0_AUDIENCE=https://api.contextai.com               # same identifier as Step 2
+```
+
+### Summary of Auth0 Applications
+
+| Application | Type | Used by | Purpose |
+|-------------|------|---------|---------|
+| Context.AI API | API / Resource Server | Backend | Defines audience and permissions |
+| Context.AI Frontend | Regular Web Application | Frontend (NextAuth.js) | User login flow (OAuth2/OIDC) |
+| Context.AI Backend M2M | Machine to Machine | Backend | Create users via Invitations API |
+
+---
+
+## 🔄 Frontend Integration
+
+The frontend (Next.js) uses **NextAuth.js v5** with the Auth0 provider configured in `src/auth.ts`.
+
+### Variable Reference
+
+```bash
+# context-ai-front/.env.local
+
+# NextAuth.js v5 session secret (REQUIRED)
+AUTH_SECRET=<generate-with-openssl-rand-hex-32>
+
+# Legacy auth0.config.ts compatibility (can be same as AUTH_SECRET)
+AUTH0_SECRET=<same-value-as-AUTH_SECRET>
+
 AUTH0_BASE_URL=http://localhost:3000
 AUTH0_ISSUER_BASE_URL=https://your-tenant.auth0.com
-AUTH0_CLIENT_ID=<from-auth0-spa-application>
-AUTH0_CLIENT_SECRET=<from-auth0-spa-application>
+AUTH0_ISSUER=https://your-tenant.auth0.com
+AUTH0_CLIENT_ID=<from-frontend-application-settings>
+AUTH0_CLIENT_SECRET=<from-frontend-application-settings>
 AUTH0_AUDIENCE=https://api.contextai.com
 ```
 
-**Note**: The frontend uses a **different application** (SPA type) in Auth0, while the backend validates tokens from that SPA.
+**Note**: The frontend uses the **Regular Web Application** created in Step 5. The backend (Step 3) uses the M2M application. Both share the same Auth0 tenant and API audience.
 
 ---
 
 ## 🚀 Deployment Checklist
 
 - [ ] Create Auth0 tenant (production)
-- [ ] Create Auth0 API with permissions
-- [ ] Create M2M Application with `create:users`, `create:user_tickets`, `read:users` scopes
+- [ ] Create Auth0 API with permissions (Step 2)
+- [ ] Create Frontend Regular Web Application (Step 5) — configure Callback/Logout/Web Origin URLs
+- [ ] Create M2M Application with `create:users`, `create:user_tickets`, `read:users` scopes (Step 3)
 - [ ] Disable public signup in Auth0 Database Connection
 - [ ] Configure all `AUTH0_MGMT_*` environment variables in hosting platform
 - [ ] Ensure `FRONTEND_URL` points to production domain

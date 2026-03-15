@@ -5,20 +5,21 @@ import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
  *
  * Creates the initial database schema for the Knowledge Context module:
  * - knowledge_sources: Stores document metadata and content
- * - fragments: Stores document chunks with vector embeddings
+ * - fragments: Stores document chunks (text); embeddings were later moved to Pinecone
  *
  * Features:
  * - UUIDs for primary keys
  * - Timestamps (created_at, updated_at, deleted_at)
  * - Soft delete support
- * - Vector column for embeddings (pgvector)
+ * - Historically included pgvector extension and embedding column; these were removed
+ *   in a later migration (RemovePgvectorEmbeddings). Vector storage is now in Pinecone.
  * - Foreign key constraints
  * - Indexes for performance
  * - Check constraints for data integrity
  */
 export class CreateKnowledgeTables1707265200000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Enable pgvector extension
+    // Enable pgvector extension (legacy; removed in RemovePgvectorEmbeddings migration; vectors now in Pinecone)
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS vector`);
 
     // Create knowledge_sources table
