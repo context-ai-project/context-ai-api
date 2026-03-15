@@ -14,30 +14,30 @@ jest.mock('genkit', () => ({
 }));
 
 jest.mock('@genkit-ai/google-genai', () => ({
-  googleAI: jest.fn(),
+  vertexAI: jest.fn(),
 }));
 
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { vertexAI } from '@genkit-ai/google-genai';
 
 describe('EmbeddingService', () => {
   let service: EmbeddingService;
   const mockGenkitFactory = genkit as jest.MockedFunction<typeof genkit>;
-  const mockGoogleAI = googleAI as jest.MockedFunction<typeof googleAI>;
+  const mockVertexAI = vertexAI as jest.MockedFunction<typeof vertexAI>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockEmbedFn.mockClear();
 
-    // Set default API key for tests
-    process.env.GOOGLE_API_KEY = 'test-api-key';
+    // Set default project ID for tests
+    process.env.GCP_PROJECT_ID = 'test-project';
 
     service = new EmbeddingService();
   });
 
   afterEach(() => {
     // Clean up
-    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GCP_PROJECT_ID;
   });
 
   describe('Configuration', () => {
@@ -46,7 +46,7 @@ describe('EmbeddingService', () => {
       const config = service.getConfig();
 
       // Assert
-      expect(config.model).toBe('googleai/gemini-embedding-001');
+      expect(config.model).toBe('vertexai/gemini-embedding-001');
       expect(config.dimensions).toBe(3072);
       expect(config.batchSize).toBe(100);
       expect(config).not.toHaveProperty('apiKey'); // Security: apiKey should not be exposed
@@ -55,7 +55,7 @@ describe('EmbeddingService', () => {
     it('should accept custom configuration', () => {
       // Arrange
       const customService = new EmbeddingService({
-        model: 'googleai/gemini-embedding-001',
+        model: 'vertexai/gemini-embedding-001',
         dimensions: 1536,
         batchSize: 50,
       });
@@ -64,7 +64,7 @@ describe('EmbeddingService', () => {
       const config = customService.getConfig();
 
       // Assert
-      expect(config.model).toBe('googleai/gemini-embedding-001');
+      expect(config.model).toBe('vertexai/gemini-embedding-001');
       expect(config.dimensions).toBe(1536);
       expect(config.batchSize).toBe(50);
     });
@@ -133,7 +133,7 @@ describe('EmbeddingService', () => {
       expect(embedding).toHaveLength(3072);
       expect(mockEmbedFn).toHaveBeenCalledTimes(1);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: text,
         options: {
           outputDimensionality: 3072,
@@ -156,10 +156,10 @@ describe('EmbeddingService', () => {
     });
 
     it('should use the shared Genkit instance regardless of local env vars', async () => {
-      // The service delegates API key management to the shared Genkit singleton
-      // (genkit.config.ts), so a missing local GOOGLE_API_KEY does not prevent
+      // The service delegates project config to the shared Genkit singleton
+      // (genkit.config.ts), so a missing local GCP_PROJECT_ID does not prevent
       // calling embed — validation happens at module initialisation level.
-      delete process.env.GOOGLE_API_KEY;
+      delete process.env.GCP_PROJECT_ID;
       const serviceWithoutKey = new EmbeddingService();
       const text = 'Test text';
       const mockEmbedding = Array(3072).fill(0.1);
@@ -338,7 +338,7 @@ describe('EmbeddingService', () => {
 
       // Assert
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: text,
         options: {
           outputDimensionality: 1536,
@@ -452,7 +452,7 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: text,
         options: {
           outputDimensionality: 3072,
@@ -476,7 +476,7 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: text,
         options: {
           outputDimensionality: 3072,
@@ -496,7 +496,7 @@ describe('EmbeddingService', () => {
 
       // Assert
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: text,
         options: {
           outputDimensionality: 3072,
@@ -518,7 +518,7 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: docText,
         options: {
           outputDimensionality: 3072,
@@ -539,7 +539,7 @@ describe('EmbeddingService', () => {
       // Assert
       expect(embedding).toEqual(mockEmbedding);
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: queryText,
         options: {
           outputDimensionality: 3072,
@@ -562,7 +562,7 @@ describe('EmbeddingService', () => {
       expect(mockEmbedFn).toHaveBeenCalledTimes(3);
       // Check first call has correct taskType
       expect(mockEmbedFn).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: 'Document 1',
         options: {
           outputDimensionality: 3072,

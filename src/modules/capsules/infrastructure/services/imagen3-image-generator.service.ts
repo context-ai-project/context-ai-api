@@ -18,13 +18,11 @@ export class Imagen3ImageGeneratorService implements IImageGenerator {
   private readonly client: GoogleGenAI;
 
   constructor() {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        'GOOGLE_API_KEY environment variable is required for image generation',
-      );
-    }
-    this.client = new GoogleGenAI({ apiKey });
+    this.client = new GoogleGenAI({
+      vertexai: true,
+      project: process.env.GCP_PROJECT_ID,
+      location: process.env.GCP_LOCATION ?? 'europe-west1',
+    });
   }
 
   async generateImage(prompt: string): Promise<Buffer> {

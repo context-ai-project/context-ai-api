@@ -1,6 +1,7 @@
 #!/bin/bash
 # Script de verificación del setup de Context.ai API
-# Verifica que Docker, PostgreSQL y el servidor estén funcionando correctamente
+# Verifica que Docker, PostgreSQL y (opcionalmente) el servidor estén funcionando correctamente.
+# Vector store: Pinecone (externo)
 
 set -e
 
@@ -13,7 +14,6 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Función para imprimir resultados
 print_result() {
     if [ $1 -eq 0 ]; then
         echo -e "${GREEN}✅ $2${NC}"
@@ -37,65 +37,49 @@ else
 fi
 echo ""
 
-# 2. Verificar Docker Compose
-echo "2️⃣  Verificando Docker Compose..."
-docker compose ps | grep contextai-db &> /dev/null
-if [ $? -eq 0 ]; then
-    print_result 0 "PostgreSQL container corriendo"
+# 2. Verificar contenedor PostgreSQL (context-ai-postgres)
+echo "2️⃣  Verificando contenedor PostgreSQL..."
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^context-ai-postgres$'; then
+    print_result 0 "Contenedor context-ai-postgres está corriendo"
 else
-    print_warning "PostgreSQL container no está corriendo. Ejecuta: docker compose up -d"
+    print_warning "Contenedor context-ai-postgres no está corriendo. Ejecuta: docker compose up -d (o pnpm db:create)"
 fi
 echo ""
 
-# 3. Verificar PostgreSQL Health
-echo "3️⃣  Verificando PostgreSQL health..."
-HEALTH=$(docker inspect --format='{{.State.Health.Status}}' contextai-db 2>/dev/null || echo "not found")
+# 3. Verificar salud de PostgreSQL (context_ai_user / context_ai_db)
+echo "3️⃣  Verificando PostgreSQL..."
+HEALTH=$(docker inspect --format='{{.State.Health.Status}}' context-ai-postgres 2>/dev/null || echo "not found")
 if [ "$HEALTH" = "healthy" ]; then
     print_result 0 "PostgreSQL está healthy"
 elif [ "$HEALTH" = "not found" ]; then
-    print_warning "Container no encontrado"
+    print_warning "Contenedor no encontrado"
 else
-    print_warning "PostgreSQL health: $HEALTH"
+    # Intentar conexión directa por si healthcheck aún no ha pasado
+    if docker exec context-ai-postgres pg_isready -U context_ai_user -d context_ai_db &>/dev/null; then
+        print_result 0 "PostgreSQL acepta conexiones (context_ai_user / context_ai_db)"
+    else
+        print_warning "PostgreSQL health: $HEALTH"
+    fi
 fi
 echo ""
 
-# 4. Verificar extensiones de PostgreSQL
-echo "4️⃣  Verificando extensiones de PostgreSQL..."
-docker exec contextai-db psql -U contextai_user -d contextai -c "\dx" | grep vector &> /dev/null
-if [ $? -eq 0 ]; then
-    print_result 0 "pgvector extension instalada"
-else
-    print_result 1 "pgvector extension no encontrada"
-fi
-echo ""
-
-# 5. Verificar que el servidor esté corriendo
-echo "5️⃣  Verificando servidor NestJS..."
+# 4. Verificar que el servidor esté respondiendo (opcional)
+echo "4️⃣  Verificando servidor NestJS..."
 response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/v1 2>/dev/null || echo "000")
-if [ "$response" = "200" ]; then
+if [ "$response" = "200" ] || [ "$response" = "401" ]; then
     print_result 0 "Servidor respondiendo en http://localhost:3001/api/v1"
 else
     print_warning "Servidor no responde (HTTP $response). ¿Está corriendo? Ejecuta: pnpm start:dev"
 fi
 echo ""
 
-# 6. Verificar Swagger
-echo "6️⃣  Verificando Swagger UI..."
+# 5. Verificar Swagger (opcional)
+echo "5️⃣  Verificando Swagger UI..."
 swagger_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/docs 2>/dev/null || echo "000")
 if [ "$swagger_response" = "200" ]; then
     print_result 0 "Swagger UI accesible en http://localhost:3001/api/docs"
 else
-    print_warning "Swagger UI no accesible"
-fi
-echo ""
-
-# 7. Verificar OpenAPI spec
-echo "7️⃣  Verificando OpenAPI specification..."
-openapi_response=$(curl -s http://localhost:3001/api/docs-json 2>/dev/null | grep -o "Context.ai API" || echo "")
-if [ ! -z "$openapi_response" ]; then
-    print_result 0 "OpenAPI spec generada correctamente"
-else
-    print_warning "OpenAPI spec no encontrada"
+    print_warning "Swagger UI no accesible (ejecuta pnpm start:dev si aún no está corriendo)"
 fi
 echo ""
 
@@ -107,11 +91,10 @@ echo ""
 echo "📝 URLs útiles:"
 echo "   API: http://localhost:3001/api/v1"
 echo "   Swagger: http://localhost:3001/api/docs"
-echo "   DB: localhost:5433 (contextai/contextai_user/dev_password)"
+echo "   DB: localhost:5433 (context_ai_user / context_ai_db)"
 echo ""
 echo "🔧 Comandos útiles:"
 echo "   docker compose ps        - Ver estado de containers"
 echo "   docker compose logs -f   - Ver logs de PostgreSQL"
 echo "   pnpm start:dev          - Iniciar servidor en modo desarrollo"
 echo ""
-

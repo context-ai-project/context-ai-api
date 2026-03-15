@@ -86,10 +86,17 @@ export class PineconeVectorStore implements IVectorStore {
   constructor(
     private readonly pinecone: Pinecone,
     private readonly indexName: string,
+    indexHost?: string,
   ) {
-    this.index = this.pinecone.index({ name: this.indexName });
+    this.index = indexHost
+      ? this.pinecone.index({ name: this.indexName, host: indexHost })
+      : this.pinecone.index({ name: this.indexName });
+
     this.logger.log(
-      `PineconeVectorStore initialized with index: ${this.indexName}`,
+      `PineconeVectorStore initialized with index: ${this.indexName}` +
+        (indexHost
+          ? ` (host: ${indexHost})`
+          : ' (host will be resolved via control plane)'),
     );
   }
 

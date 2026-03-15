@@ -98,7 +98,8 @@ pnpm db:drop
 
 # Then recreate
 pnpm db:create
-pnpm migration:run
+pnpm migration:run  # Crea las tablas (schema vacío)
+pnpm seed:rbac      # Vuelve a insertar roles, permisos y asignaciones
 ```
 
 ### Access PgAdmin (Optional)
@@ -163,6 +164,48 @@ Stores document chunks (text only). Vector embeddings are stored in Pinecone.
 **Foreign Keys:**
 - `fk_fragments_source_id` references `knowledge_sources(id)` ON DELETE CASCADE
 
+## Pinecone Setup
+
+Pinecone es el servicio externo de vector store. El índice debe crearse **manualmente** antes de ejecutar la aplicación.
+
+### 1. Crear una cuenta en Pinecone
+
+Ve a [app.pinecone.io](https://app.pinecone.io/) y crea una cuenta gratuita.
+
+### 2. Crear el índice
+
+Una vez dentro del dashboard de Pinecone:
+
+1. Haz clic en **Create Index**
+2. Rellena los campos con estos valores exactos:
+
+| Campo | Valor |
+|-------|-------|
+| **Index Name** | `context-ai` (o el valor que pongas en `PINECONE_INDEX`) |
+| **Dimensions** | `3072` (obligatorio — tamaño del modelo `gemini-embedding-001`) |
+| **Metric** | `cosine` |
+| **Index Type** | Serverless (recomendado para desarrollo) |
+| **Cloud Provider** | AWS |
+| **Region** | `us-east-1` (u otra disponible en el plan gratuito) |
+
+3. Haz clic en **Create Index** y espera a que el estado sea **Ready**
+
+### 3. Obtener el API Key
+
+1. En el panel lateral de Pinecone → **API Keys**
+2. Copia la clave por defecto o crea una nueva
+3. Pégala en `context-ai-api/.env` como `PINECONE_API_KEY`
+
+### 4. Configurar las variables de entorno
+
+```env
+# context-ai-api/.env
+PINECONE_API_KEY=your_pinecone_api_key_here
+PINECONE_INDEX=context-ai   # debe coincidir con el nombre del índice creado
+```
+
+---
+
 ## Vector Search
 
 Vector embeddings are managed by **Pinecone** (external managed service), not PostgreSQL.
@@ -184,6 +227,7 @@ Vector embeddings are managed by **Pinecone** (external managed service), not Po
 - **Index**: Configured via `PINECONE_INDEX` env variable
 - **Namespaces**: Each sector (`sectorId`) maps to a Pinecone namespace for multi-tenant isolation
 - **Dimensions**: 3072 (gemini-embedding-001)
+- **Metric**: cosine
 
 ## Troubleshooting
 
@@ -197,7 +241,7 @@ docker ps | grep postgres
 docker logs context-ai-postgres
 
 # Restart
-docker-compose restart postgres
+docker compose restart postgres
 ```
 
 ### Migration fails

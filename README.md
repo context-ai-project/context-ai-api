@@ -51,8 +51,8 @@ Este proyecto sigue **Clean Architecture** con 4 capas:
 | **Base de datos** | PostgreSQL | 16 (relacional) |
 | **Vector Store** | Pinecone | Búsqueda semántica de embeddings |
 | **ORM** | TypeORM | Migraciones y mapeo objeto-relacional |
-| **LLM** | Google Genkit + Gemini 2.5 Flash | Chat y respuestas RAG |
-| **Embeddings** | gemini-embedding-001 | Vectores de 3072 dimensiones |
+| **LLM** | Google Genkit + Gemini 2.5 Flash (Vertex AI) | Chat y respuestas RAG |
+| **Embeddings** | gemini-embedding-001 (Vertex AI) | Vectores de 3072 dimensiones |
 | **Validación schemas** | Zod | Validación de entrada/salida del flujo RAG |
 
 ### Seguridad y Autenticación
@@ -97,7 +97,7 @@ Este proyecto sigue una estrategia de branching por fases del MVP con ramas `mai
 - PostgreSQL 16
 - Cuenta de [Pinecone](https://www.pinecone.io/) (vector store para embeddings)
 - Cuenta de [Auth0](https://auth0.com/) (autenticación OAuth2/JWT) — ver [docs/AUTH0_SETUP.md](./docs/AUTH0_SETUP.md)
-- Google API Key (para Genkit / Gemini 2.5 Flash) — ver [docs/ENVIRONMENT_VARIABLES.md](./docs/ENVIRONMENT_VARIABLES.md)
+- Proyecto de **Google Cloud Platform** con Vertex AI habilitado — autenticación via Application Default Credentials (ADC)
 
 ## 🛠️ Setup Local
 
@@ -125,20 +125,24 @@ echo "@context-ai-project:registry=https://npm.pkg.github.com/" >> ~/.npmrc
 pnpm install
 ```
 
+Al instalar se ejecuta el hook `prepare` (Husky) para configurar los Git hooks. Es normal; si el directorio aún no es un repositorio git, Husky puede mostrar un aviso sin bloquear la instalación.
+
 ### 3. Configurar variables de entorno
 
 ```bash
 cp .env.example .env
-# Editar .env con tus credenciales
+# Editar .env con tus credenciales (Auth0, Pinecone, GCP, INTERNAL_API_KEY y variables de Capsules)
 ```
+
+**Importante:** La API carga el módulo de cápsulas (audio/vídeo) al arrancar. Para que el servidor inicie sin error debes rellenar también: `ELEVENLABS_API_KEY`, `GCS_BUCKET_CAPSULES`, `GCS_PROJECT_ID` y `SHOTSTACK_API_KEY`. Ver [docs/ENVIRONMENT_VARIABLES.md](./docs/ENVIRONMENT_VARIABLES.md).
 
 ### 4. Iniciar base de datos
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-**Nota**: El contenedor usa el puerto `5433` (mapeado a `5432` interno) para evitar conflictos con instalaciones locales de PostgreSQL.
+Si el comando no existe (solo tienes el binario antiguo), usa `docker-compose up -d`. El contenedor usa el puerto `5433` (mapeado a `5432` interno) para evitar conflictos con instalaciones locales de PostgreSQL.
 
 ### 5. Verificar el setup
 
@@ -146,7 +150,7 @@ docker-compose up -d
 ./scripts/verify-setup.sh
 ```
 
-Este script verifica que Docker, PostgreSQL, el servidor y Swagger estén funcionando correctamente.
+Este script verifica que Docker, PostgreSQL, el servidor y Swagger estén funcionando correctamente. **En Windows** no está disponible; comprueba manualmente: (1) `docker ps` y que el contenedor `context-ai-postgres` esté en ejecución, (2) puerto 5433 accesible, (3) que la API responda en `http://localhost:3001/api/v1` tras iniciar el servidor.
 
 ### 6. Desarrollo local del paquete compartido (opcional)
 
@@ -180,15 +184,17 @@ pnpm migration:run
 pnpm seed:rbac
 
 # Para limpiar y re-sembrar (útil en desarrollo)
+pnpm run seed:rbac:clear
+o
 pnpm seed:rbac --clear
 ```
 
 Este comando crea:
 - 3 roles: `admin`, `manager`, `user`
-- 10 permisos: chat, knowledge, profile, users, system
+- 14 permisos: chat, knowledge, profile, users, system, capsule (v2)
 - Asignación de permisos a roles según nivel de acceso
 
-**📋 Nota**: Este paso es **requerido** para que el sistema de autorización funcione correctamente.
+**📋 Nota**: Este paso es **requerido** para que el sistema de autorización funcione correctamente. Sin él, los endpoints protegidos por RBAC pueden devolver 403 aunque el token Auth0 sea válido.
 
 📚 Ver [docs/RBAC_SEEDING_STRATEGY.md](./docs/RBAC_SEEDING_STRATEGY.md) para detalles sobre la estrategia por environment.
 
@@ -309,7 +315,7 @@ src/
 | `@nestjs/core` + `@nestjs/common` | Framework NestJS |
 | `@nestjs/typeorm` + `pg` | ORM y driver PostgreSQL |
 | `@pinecone-database/pinecone` | SDK de Pinecone (vector store) |
-| `genkit` + `@genkit-ai/google-genai` | Google Genkit para LLM y embeddings |
+| `genkit` + `@genkit-ai/google-genai` | Google Genkit para LLM y embeddings (Vertex AI backend) |
 | `@nestjs/passport` + `passport-jwt` + `jwks-rsa` | Autenticación JWT con JWKS (Auth0) |
 | `@nestjs/throttler` | Rate limiting por endpoint |
 | `@nestjs/swagger` | Documentación API (OpenAPI/Swagger) |

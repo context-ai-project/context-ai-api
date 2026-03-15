@@ -41,15 +41,20 @@ AUTH0_MGMT_CLIENT_SECRET=your-m2m-client-secret
 # Generate with: openssl rand -hex 32
 INTERNAL_API_KEY=generate-with-openssl-rand-hex-32
 
-# ── Google AI / Genkit (REQUIRED) ───────────────────────────
-# Get from https://aistudio.google.com/app/apikey
-GOOGLE_API_KEY=your_google_api_key_here
+# ── Google AI / Genkit via Vertex AI ─────────────────────────
+# Uses Application Default Credentials (ADC):
+#   Local:      gcloud auth application-default login
+#   Cloud Run:  automatic via service account
+# The service account needs the "Vertex AI User" role.
+GCP_PROJECT_ID=your-gcp-project-id
 GENKIT_ENV=dev
 
 # ── Pinecone Vector Store (REQUIRED) ────────────────────────
 # Get from https://app.pinecone.io/
 PINECONE_API_KEY=your_pinecone_api_key_here
 PINECONE_INDEX=context-ai
+# Data-plane host (from Pinecone console → index details). Skips control-plane describeIndex call.
+PINECONE_HOST=
 
 # ── CORS & Security ─────────────────────────────────────────
 FRONTEND_URL=http://localhost:3000
@@ -70,11 +75,6 @@ GCS_BUCKET_CAPSULES=context-ai-capsules-dev
 GCS_PROJECT_ID=your-gcp-project-id
 # Path to service account JSON key (optional in GKE/Cloud Run — uses workload identity)
 # GCS_KEY_FILE=/path/to/service-account-key.json
-
-# ── Google AI — v2 Capsules (scripts + Imagen 3 images) ──
-# Separate API key for capsule generation (isolated from RAG chat quota)
-# Get from https://aistudio.google.com/app/apikey
-# GOOGLE_CAPSULES_API_KEY=your_capsules_api_key_here
 
 # ── Shotstack — v2 Video Assembly (REQUIRED for video generation) ──
 # Get from https://dashboard.shotstack.io/
