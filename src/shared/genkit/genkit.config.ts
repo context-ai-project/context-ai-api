@@ -5,39 +5,32 @@
  * - Gemini 2.5 Flash for LLM operations
  * - gemini-embedding-001 for embeddings (3072 dimensions)
  *
- * Environment variables required:
- * - GOOGLE_API_KEY: API key for Google AI services
- * - GENKIT_ENV: Environment (dev/prod, optional)
+ * Authentication:
+ * - Production (Cloud Run): Uses Application Default Credentials (ADC)
+ *   from the service account automatically.
+ * - Local: Uses ADC from `gcloud auth application-default login`.
+ *
+ * Environment variables:
+ * - GCP_PROJECT_ID: Google Cloud project ID (required)
+ * - GCP_LOCATION: Vertex AI region (defaults to europe-west1)
  */
 
 import { genkit as genkitCore, type Genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { vertexAI } from '@genkit-ai/google-genai';
+
+const DEFAULT_LOCATION = 'europe-west1';
 
 /**
- * Validate required environment variables
- */
-function validateEnvironment(): void {
-  if (!process.env.GOOGLE_API_KEY) {
-    throw new Error(
-      'GOOGLE_API_KEY environment variable is required. ' +
-        'Please add it to your .env file.',
-    );
-  }
-}
-
-/**
- * Initialize Genkit with Google AI plugin
+ * Initialize Genkit with Vertex AI plugin
  *
  * @returns Configured Genkit instance
  */
 export function genkit(): Genkit {
-  // Validate environment before initialization
-  validateEnvironment();
-
   return genkitCore({
     plugins: [
-      googleAI({
-        apiKey: process.env.GOOGLE_API_KEY,
+      vertexAI({
+        projectId: process.env.GCP_PROJECT_ID,
+        location: process.env.GCP_LOCATION ?? DEFAULT_LOCATION,
       }),
     ],
   });
@@ -49,15 +42,15 @@ export function genkit(): Genkit {
 export const GENKIT_CONFIG = {
   /**
    * Default LLM model for chat and RAG responses
-   * Using Gemini 2.5 Flash - latest stable model (Feb 2026)
+   * Using Gemini 2.5 Flash via Vertex AI
    */
-  LLM_MODEL: 'googleai/gemini-2.5-flash' as const,
+  LLM_MODEL: 'vertexai/gemini-2.5-flash' as const,
 
   /**
    * Default embedding model for vector generation
    * Produces 3072-dimensional vectors
    */
-  EMBEDDING_MODEL: 'googleai/gemini-embedding-001' as const,
+  EMBEDDING_MODEL: 'vertexai/gemini-embedding-001' as const,
 
   /**
    * Embedding dimensions

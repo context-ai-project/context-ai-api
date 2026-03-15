@@ -5,7 +5,7 @@ import { extractErrorMessage, extractErrorStack } from '@shared/utils';
 import { CHARS_PER_TOKEN_ESTIMATE } from '@shared/constants';
 
 // Constants for embedding configuration (OWASP: Magic Numbers)
-const DEFAULT_EMBEDDING_MODEL = 'googleai/gemini-embedding-001';
+const DEFAULT_EMBEDDING_MODEL = 'vertexai/gemini-embedding-001';
 const DEFAULT_EMBEDDING_DIMENSIONS = 3072;
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_TOKEN_LIMIT = 2048; // Gemini embedding model token limit
@@ -306,7 +306,7 @@ export class EmbeddingService {
  */
 export interface EmbeddingConfig {
   /**
-   * The embedding model to use (e.g., 'googleai/gemini-embedding-001')
+   * The embedding model to use (e.g., 'vertexai/gemini-embedding-001')
    */
   model: string;
 

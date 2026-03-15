@@ -56,9 +56,9 @@ This document describes the architecture principles, patterns, and system design
 | **Language** | TypeScript (strict mode) | Type safety and developer experience |
 | **Database** | PostgreSQL 16 | Relational data (users, sources, fragments, conversations) |
 | **Vector DB** | Pinecone | Vector similarity search for RAG |
-| **AI Framework** | Google Genkit | LLM orchestration and embeddings |
-| **LLM Model** | Gemini 2.5 Flash | Chat and RAG response generation |
-| **Embedding Model** | gemini-embedding-001 (3072 dim) | Document and query vectorization |
+| **AI Framework** | Google Genkit + Vertex AI | LLM orchestration and embeddings (ADC auth, no API key) |
+| **LLM Model** | Gemini 2.5 Flash (Vertex AI) | Chat and RAG response generation |
+| **Embedding Model** | gemini-embedding-001 (Vertex AI, 3072 dim) | Document and query vectorization |
 | **ORM** | TypeORM | Database access and migrations |
 | **Auth** | Auth0 (OAuth2 + JWT RS256) | Identity provider and authentication |
 | **Authorization** | Custom RBAC | Role-based access control (3 roles, 10 permissions) |
@@ -109,8 +109,6 @@ Presentation → Application → Domain ← Infrastructure
                                 └──────────┘
                           (implements interfaces)
 ```
-
-> Infrastructure depends on Domain **interfaces**, not the other way around. This enables swapping implementations (e.g., pgvector → Pinecone) without changing business logic.
 
 ---
 
@@ -388,8 +386,8 @@ shared/
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `LLM_MODEL` | `googleai/gemini-2.5-flash` | LLM for chat and RAG responses |
-| `EMBEDDING_MODEL` | `googleai/gemini-embedding-001` | Embedding generation (3072 dim) |
+| `LLM_MODEL` | `vertexai/gemini-2.5-flash` | LLM for chat and RAG responses |
+| `EMBEDDING_MODEL` | `vertexai/gemini-embedding-001` | Embedding generation (3072 dim) |
 | `EMBEDDING_DIMENSIONS` | `3072` | Vector dimensions for Pinecone index |
 | `GENERATION_DEFAULTS` | temp: 0.7, tokens: 2048 | Creative generation config |
 | `RAG_GENERATION_CONFIG` | temp: 0.3, tokens: 1024 | Conservative/factual RAG config |

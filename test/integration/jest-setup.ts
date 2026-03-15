@@ -20,13 +20,13 @@ process.env.TEST_DB_PASSWORD = process.env.TEST_DB_PASSWORD || 'dev_password';
 process.env.TEST_DB_DATABASE = process.env.TEST_DB_DATABASE || 'contextai';
 process.env.TEST_DB_LOGGING = process.env.TEST_DB_LOGGING || 'false';
 
-// Google API Key for Genkit (use real key from .env for integration tests)
+// GCP Project ID for Genkit/Vertex AI (use real project from .env for integration tests)
 // If not set, use dummy value (tests will be skipped or fail gracefully)
-if (!process.env.GOOGLE_API_KEY) {
+if (!process.env.GCP_PROJECT_ID) {
   console.warn(
-    '⚠️  GOOGLE_API_KEY not found in .env - Genkit integration tests may fail',
+    '⚠️  GCP_PROJECT_ID not found in .env - Genkit integration tests may fail',
   );
-  process.env.GOOGLE_API_KEY = 'test-api-key';
+  process.env.GCP_PROJECT_ID = 'test-project';
 }
 
 // Increase timeout for database operations

@@ -414,7 +414,7 @@ const value = object[key]; // Unsafe!
 | `INTERNAL_API_KEY` | Server-to-server shared secret | `openssl rand -hex 32` |
 | `DB_HOST` | PostgreSQL host | `localhost` |
 | `DB_PASSWORD` | PostgreSQL password | `***` |
-| `GOOGLE_API_KEY` | Google AI API key | `AIza...` |
+| `GCP_PROJECT_ID` | Google Cloud project ID (Vertex AI) | `my-project` |
 | `PINECONE_API_KEY` | Pinecone vector store API key | `pcsk_...` |
 
 ### Security Rules

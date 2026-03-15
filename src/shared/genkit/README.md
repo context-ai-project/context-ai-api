@@ -8,28 +8,44 @@ Google Genkit is our AI framework for:
 - **LLM Operations**: Gemini 2.5 Flash for chat and RAG responses
 - **Embeddings**: gemini-embedding-001 for vector generation (3072 dimensions)
 
+All AI calls route through **Vertex AI** (Google Cloud), authenticated via
+Application Default Credentials (ADC) — no API keys required.
+
 ## Files
 
 - `genkit.config.ts` - Main configuration and initialization
+- `capsules-genkit.config.ts` - Re-exports for capsule module
 - `flows/` - Genkit flows (RAG query flow, etc.)
+- `evaluators/` - RAG evaluation (faithfulness, relevancy)
 
 ## Configuration
 
 ### Environment Variables
 
 Required:
-- `GOOGLE_API_KEY` - API key for Google AI services ([Get key](https://aistudio.google.com/app/apikey))
+- `GCP_PROJECT_ID` - Google Cloud project ID
+- `GCP_LOCATION` - Vertex AI region (default: `europe-west1`)
 
 Optional:
 - `GENKIT_ENV` - Environment (dev/prod, default: dev)
 
+### Authentication
+
+**Local development**:
+```bash
+gcloud auth application-default login
+```
+
+**Production (Cloud Run)**: Automatic via the service account.
+The service account needs the **Vertex AI User** (`roles/aiplatform.user`) role.
+
 ### Models
 
-**LLM Model**: `googleai/gemini-2.5-flash`
-- Used for: Chat responses, RAG generation
+**LLM Model**: `vertexai/gemini-2.5-flash`
+- Used for: Chat responses, RAG generation, script generation
 - Configuration: See `GENKIT_CONFIG.LLM_MODEL`
 
-**Embedding Model**: `googleai/gemini-embedding-001`
+**Embedding Model**: `vertexai/gemini-embedding-001`
 - Dimensions: 3072
 - Used for: Document chunking, semantic search
 - Configuration: See `GENKIT_CONFIG.EMBEDDING_MODEL`
@@ -99,8 +115,8 @@ Integration tests are located in `test/integration/genkit/`.
 ### Running Genkit Tests
 
 ```bash
-# Requires real GOOGLE_API_KEY
-export GOOGLE_API_KEY=your-api-key-here
+# Requires ADC authentication
+gcloud auth application-default login
 
 # Run integration tests
 pnpm test:integration -- genkit
@@ -117,8 +133,8 @@ jest.mock('@shared/genkit/genkit.config', () => ({
     embed: jest.fn().mockResolvedValue(new Array(3072).fill(0.1)),
   })),
   GENKIT_CONFIG: {
-    LLM_MODEL: 'googleai/gemini-2.5-flash',
-    EMBEDDING_MODEL: 'googleai/gemini-embedding-001',
+    LLM_MODEL: 'vertexai/gemini-2.5-flash',
+    EMBEDDING_MODEL: 'vertexai/gemini-embedding-001',
     EMBEDDING_DIMENSIONS: 3072,
   },
 }));
@@ -145,7 +161,7 @@ Set `GENKIT_ENV=dev` to enable verbose logging.
 ### Embedding Generation
 - **Batch processing**: Generate embeddings in batches when possible
 - **Caching**: Cache embeddings for unchanged content
-- **Rate limiting**: Respect Google AI rate limits
+- **Rate limiting**: Vertex AI has generous quotas with pay-as-you-go billing
 
 ### LLM Generation
 - **Context size**: Gemini 2.5 Flash supports large context (up to 1M tokens)
@@ -153,31 +169,30 @@ Set `GENKIT_ENV=dev` to enable verbose logging.
 
 ## Security
 
-- ⚠️ **NEVER** commit `GOOGLE_API_KEY` to version control
-- ⚠️ Store API keys in environment variables or secrets management
-- ⚠️ Rotate API keys regularly
-- ⚠️ Use different keys for dev/staging/production
+- Vertex AI uses ADC — no API keys to manage or rotate
+- Service account permissions follow the principle of least privilege
+- Different service accounts for dev/staging/production
 
 ## Resources
 
 - [Genkit Documentation](https://genkit.dev/docs)
-- [Google AI Studio](https://aistudio.google.com/)
-- [Gemini API Docs](https://ai.google.dev/docs)
-- [gemini-embedding-001](https://ai.google.dev/gemini-api/docs/embeddings)
+- [Vertex AI Genkit Plugin](https://genkit.dev/docs/plugins/vertex-ai)
+- [Vertex AI Documentation](https://cloud.google.com/vertex-ai/docs)
+- [gemini-embedding-001](https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings)
 
 ## Troubleshooting
 
-### Error: "GOOGLE_API_KEY environment variable is required"
-**Solution**: Add `GOOGLE_API_KEY` to your `.env` file
+### Error: "Could not load the default credentials"
+**Solution**: Run `gcloud auth application-default login` for local development.
+
+### Error: "Permission denied on Vertex AI"
+**Solution**: Ensure the service account has `roles/aiplatform.user`.
 
 ### Error: "Model not found"
-**Solution**: Verify model names in `GENKIT_CONFIG` match Google AI models
-
-### Error: "API key invalid"
-**Solution**: Generate a new API key from Google AI Studio
+**Solution**: Verify model names in `GENKIT_CONFIG` match Vertex AI models.
 
 ### Slow embedding generation
-**Solution**: 
+**Solution**:
 1. Batch embed multiple texts together
 2. Cache embeddings in database
 3. Use connection pooling
@@ -185,7 +200,7 @@ Set `GENKIT_ENV=dev` to enable verbose logging.
 ## Future Enhancements
 
 - [x] Migrated to Gemini 2.5 Flash (faster, cost-effective)
+- [x] Migrated from Google AI to Vertex AI (no API key limits)
 - [ ] Implement embedding caching layer
 - [ ] Add telemetry and observability
 - [ ] Support for custom Genkit plugins
-

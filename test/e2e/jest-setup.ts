@@ -15,9 +15,9 @@ process.env.DATABASE_USER = process.env.TEST_DB_USERNAME || 'contextai_user';
 process.env.DATABASE_PASSWORD = process.env.TEST_DB_PASSWORD || 'dev_password';
 process.env.DATABASE_NAME = process.env.TEST_DB_DATABASE || 'contextai';
 
-// Set test API keys (use dummy values for tests)
-process.env.GOOGLE_API_KEY =
-  process.env.GOOGLE_API_KEY || 'test-api-key';
+// Set test project ID for Vertex AI (use dummy value for tests)
+process.env.GCP_PROJECT_ID =
+  process.env.GCP_PROJECT_ID || 'test-project';
 
 // Increase timeout for E2E tests (they can be slower)
 jest.setTimeout(30000);

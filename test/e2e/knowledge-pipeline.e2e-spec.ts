@@ -34,7 +34,7 @@ jest.mock('genkit', () => ({
 }));
 
 jest.mock('@genkit-ai/google-genai', () => ({
-  googleAI: jest.fn(),
+  vertexAI: jest.fn(),
 }));
 
 // Mock pdfjs-dist

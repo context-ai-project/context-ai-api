@@ -106,12 +106,12 @@ describe('RAG Query Flow', () => {
       mockEmbed.mockResolvedValue(mockEmbedding);
 
       const embedding = await mockGenkit.embed({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: query,
       });
 
       expect(mockEmbed).toHaveBeenCalledWith({
-        embedder: 'googleai/gemini-embedding-001',
+        embedder: 'vertexai/gemini-embedding-001',
         content: query,
       });
       expect(embedding).toEqual(mockEmbedding);
@@ -183,7 +183,7 @@ Answer:`;
       mockGenerate.mockResolvedValue(mockResponse);
 
       const result = await mockGenkit.generate({
-        model: 'googleai/gemini-2.5-flash',
+        model: 'vertexai/gemini-2.5-flash',
         prompt,
         config: {
           temperature: 0.3,
@@ -235,7 +235,7 @@ Answer:`;
 
       await expect(
         mockGenkit.embed({
-          embedder: 'googleai/gemini-embedding-001',
+          embedder: 'vertexai/gemini-embedding-001',
           content: 'Test query',
         }),
       ).rejects.toThrow('Embedding service unavailable');
@@ -248,7 +248,7 @@ Answer:`;
 
       await expect(
         mockGenkit.generate({
-          model: 'googleai/gemini-2.5-flash',
+          model: 'vertexai/gemini-2.5-flash',
           prompt: 'Test prompt',
         }),
       ).rejects.toThrow('LLM service temporarily unavailable');

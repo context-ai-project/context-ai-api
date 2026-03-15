@@ -6,9 +6,9 @@ describe('Genkit Setup Integration Tests', () => {
 
   beforeAll(() => {
     // Ensure required environment variables are set
-    if (!process.env.GOOGLE_API_KEY) {
+    if (!process.env.GCP_PROJECT_ID) {
       throw new Error(
-        'GOOGLE_API_KEY environment variable is required for Genkit tests',
+        'GCP_PROJECT_ID environment variable is required for Genkit tests',
       );
     }
     ai = genkit();
@@ -22,9 +22,9 @@ describe('Genkit Setup Integration Tests', () => {
   describe('Configuration', () => {
     it('should initialize Genkit successfully', () => {
       expect(ai).toBeDefined();
-      expect(GENKIT_CONFIG.LLM_MODEL).toBe('googleai/gemini-2.5-flash');
+      expect(GENKIT_CONFIG.LLM_MODEL).toBe('vertexai/gemini-2.5-flash');
       expect(GENKIT_CONFIG.EMBEDDING_MODEL).toBe(
-        'googleai/gemini-embedding-001',
+        'vertexai/gemini-embedding-001',
       );
       expect(GENKIT_CONFIG.EMBEDDING_DIMENSIONS).toBe(3072);
     });
