@@ -30,6 +30,10 @@ const FALLBACK_QUERIES: Record<string, string> = {
   en: 'main concepts and key points of the document',
 };
 
+/** Retry on 429 (Vertex AI temporary contention / TPM-RPM limit). */
+const GEMINI_429_RETRY_WAIT_MS = 15_000;
+const GEMINI_429_MAX_RETRIES = 3;
+
 export interface GenerateScriptInput {
   sourceIds: string[];
   sectorId: string;
@@ -59,6 +63,43 @@ export class ScriptGeneratorService {
     private readonly embeddingService: EmbeddingService,
   ) {}
 
+  /**
+   * Calls Gemini generateContent with retry on 429 (Resource Exhausted).
+   * Vertex AI 429 means temporary contention / TPM-RPM limit, not daily quota exhausted.
+   */
+  private async callGenerateWithRetry(
+    prompt: string,
+    config: { temperature: number; maxOutputTokens: number },
+  ): Promise<string> {
+    const ai = getCapsuleGenkitInstance();
+    for (let attempt = 0; attempt <= GEMINI_429_MAX_RETRIES; attempt++) {
+      try {
+        const response = await ai.generate({
+          model: GENKIT_CONFIG.LLM_MODEL,
+          prompt,
+          config,
+        });
+        return response.text?.trim() ?? '';
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error);
+        const is429 =
+          message.includes('429') ||
+          message.includes('RESOURCE_EXHAUSTED') ||
+          message.includes('Resource exhausted');
+        if (is429 && attempt < GEMINI_429_MAX_RETRIES) {
+          const waitMs = GEMINI_429_RETRY_WAIT_MS * (attempt + 1);
+          this.logger.warn(
+            `Gemini 429 (attempt ${attempt + 1}/${GEMINI_429_MAX_RETRIES + 1}), waiting ${waitMs / 1000}s before retry`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error('Gemini generateContent failed after retries');
+  }
+
   async generate(input: GenerateScriptInput): Promise<GenerateScriptResult> {
     this.logger.log(
       `Generating script for sector ${input.sectorId} with ${input.sourceIds.length} source(s)`,
@@ -72,17 +113,10 @@ export class ScriptGeneratorService {
     );
 
     try {
-      const ai = getCapsuleGenkitInstance();
-      const response = await ai.generate({
-        model: GENKIT_CONFIG.LLM_MODEL,
-        prompt,
-        config: {
-          temperature: SCRIPT_TEMPERATURE,
-          maxOutputTokens: SCRIPT_MAX_OUTPUT_TOKENS,
-        },
+      const script = await this.callGenerateWithRetry(prompt, {
+        temperature: SCRIPT_TEMPERATURE,
+        maxOutputTokens: SCRIPT_MAX_OUTPUT_TOKENS,
       });
-
-      const script = response.text?.trim() ?? '';
 
       if (!script) {
         throw new Error('LLM returned an empty script');
@@ -115,17 +149,10 @@ export class ScriptGeneratorService {
     );
 
     try {
-      const ai = getCapsuleGenkitInstance();
-      const response = await ai.generate({
-        model: GENKIT_CONFIG.LLM_MODEL,
-        prompt,
-        config: {
-          temperature: VIDEO_SCRIPT_TEMPERATURE,
-          maxOutputTokens: VIDEO_SCRIPT_MAX_TOKENS,
-        },
+      const rawText = await this.callGenerateWithRetry(prompt, {
+        temperature: VIDEO_SCRIPT_TEMPERATURE,
+        maxOutputTokens: VIDEO_SCRIPT_MAX_TOKENS,
       });
-
-      const rawText = response.text?.trim() ?? '';
 
       if (!rawText) {
         throw new Error('LLM returned an empty response for video script');
@@ -150,17 +177,13 @@ export class ScriptGeneratorService {
 
   private async generateDescription(script: string): Promise<string> {
     try {
-      const ai = getCapsuleGenkitInstance();
-      const response = await ai.generate({
-        model: GENKIT_CONFIG.LLM_MODEL,
-        prompt: `Summarize the following audio script in 1-2 sentences (max ${MAX_DESCRIPTION_CHARS} characters). The summary should describe what the capsule covers. Write it in the same language as the script. Output ONLY the summary, nothing else.\n\n${script}`,
-        config: {
+      const description = await this.callGenerateWithRetry(
+        `Summarize the following audio script in 1-2 sentences (max ${MAX_DESCRIPTION_CHARS} characters). The summary should describe what the capsule covers. Write it in the same language as the script. Output ONLY the summary, nothing else.\n\n${script}`,
+        {
           temperature: DESCRIPTION_TEMPERATURE,
           maxOutputTokens: DESCRIPTION_MAX_TOKENS,
         },
-      });
-
-      const description = response.text?.trim() ?? '';
+      );
       if (!description) return '';
 
       if (description.length > MAX_DESCRIPTION_CHARS) {
@@ -247,17 +270,10 @@ export class ScriptGeneratorService {
     const prompt = this.buildScriptToScenesPrompt(narrativeScript, language);
 
     try {
-      const ai = getCapsuleGenkitInstance();
-      const response = await ai.generate({
-        model: GENKIT_CONFIG.LLM_MODEL,
-        prompt,
-        config: {
-          temperature: VIDEO_SCRIPT_TEMPERATURE,
-          maxOutputTokens: VIDEO_SCRIPT_MAX_TOKENS,
-        },
+      const rawText = await this.callGenerateWithRetry(prompt, {
+        temperature: VIDEO_SCRIPT_TEMPERATURE,
+        maxOutputTokens: VIDEO_SCRIPT_MAX_TOKENS,
       });
-
-      const rawText = response.text?.trim() ?? '';
       if (!rawText) {
         throw new Error('LLM returned an empty response for scene conversion');
       }
