@@ -82,7 +82,7 @@ describe('VideoPipelineService', () => {
     );
   });
 
-  it('runs the full pipeline: images + audio → render → download → complete', async () => {
+  it('runs the full pipeline: images (sequential) + audio → render → download → complete', async () => {
     const capsule = makeCapsule();
     mockCapsuleRepo.findById.mockResolvedValue(capsule);
     mockCapsuleRepo.save.mockImplementation((c: Capsule) =>
@@ -129,6 +129,50 @@ describe('VideoPipelineService', () => {
     const savedCapsule = mockCapsuleRepo.save.mock.calls.at(-1)?.[0] as Capsule;
     expect(savedCapsule.status).toBe(CapsuleStatus.COMPLETED);
     expect(savedCapsule.videoUrl).toBeTruthy();
+  });
+
+  it('generates images sequentially, not in parallel', async () => {
+    const capsule = makeCapsule();
+    mockCapsuleRepo.findById.mockResolvedValue(capsule);
+    mockCapsuleRepo.save.mockImplementation((c: Capsule) =>
+      Promise.resolve(c),
+    );
+
+    const callOrder: number[] = [];
+    mockImageGenerator.generateImage.mockImplementation(
+      (prompt: string) =>
+        new Promise<Buffer>((resolve) => {
+          const idx = prompt === 'modern office' ? 0 : 1;
+          callOrder.push(idx);
+          resolve(Buffer.from(`img-${idx}`));
+        }),
+    );
+    mockMediaStorage.upload.mockResolvedValue({
+      path: 'p',
+      url: 'u',
+      contentType: 'image/png',
+      sizeBytes: 100,
+    });
+    mockMediaStorage.getSignedUrl.mockResolvedValue('https://signed');
+    mockAudioGenerator.generateAudio.mockResolvedValue({
+      audioBuffer: Buffer.from('audio'),
+      durationSeconds: 10,
+      contentType: 'audio/mpeg',
+    });
+    mockVideoRenderer.renderVideo.mockResolvedValue('r1');
+    mockVideoRenderer.getRenderStatus.mockResolvedValue({
+      status: 'done',
+      url: 'https://cdn.shotstack.io/final.mp4',
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(Buffer.from('mp4')),
+    });
+    mockMediaStorage.delete.mockResolvedValue(undefined);
+
+    await service.processVideo('cap-1', 'voice-1');
+
+    expect(callOrder).toEqual([0, 1]);
   });
 
   it('marks capsule as FAILED when image generation fails', async () => {

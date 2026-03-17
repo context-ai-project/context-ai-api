@@ -70,14 +70,13 @@ export class VideoPipelineService {
         '';
       const scenes = parseVideoScenes(scenesJson);
 
-      // ── Step 2: Generate images (progress 10% → 40%) ──
+      // ── Step 2: Generate images sequentially (progress 10% → 40%) ──
       await this.updateProgress(capsule, PROGRESS.IMAGES_START, 'IMAGES');
       const imageUploads = await this.generateAndUploadImages(
         capsule,
         scenes.map((s) => s.visualPrompt),
         tempPaths,
       );
-      await this.updateProgress(capsule, PROGRESS.IMAGES_DONE, 'IMAGES');
 
       // ── Step 3: Generate audio (progress 40% → 60%) ──
       await this.updateProgress(capsule, PROGRESS.AUDIO_START, 'AUDIO');
@@ -186,56 +185,34 @@ export class VideoPipelineService {
     prompts: string[],
     tempPaths: string[],
   ): Promise<UploadResult[]> {
-    this.logger.log(`Generating ${prompts.length} images in parallel`);
+    this.logger.log(
+      `Generating ${prompts.length} images sequentially (1 RPM concurrency, 5 RPM limit)`,
+    );
 
-    const results: (UploadResult | null)[] = new Array<UploadResult | null>(
-      prompts.length,
-    ).fill(null);
+    const results: UploadResult[] = [];
+    const progressRange = PROGRESS.IMAGES_DONE - PROGRESS.IMAGES_START;
 
-    const generateOne = async (
-      prompt: string,
-      index: number,
-    ): Promise<void> => {
-      const imageBuffer = await this.imageGenerator.generateImage(prompt);
-      const storagePath = `capsules/${capsule.id}/temp/scene-${index}.png`;
+    for (let i = 0; i < prompts.length; i++) {
+      this.logger.log(`Generating image ${i + 1}/${prompts.length}`);
+
+      const imageBuffer = await this.imageGenerator.generateImage(prompts[i]);
+      const storagePath = `capsules/${capsule.id}/temp/scene-${i}.png`;
       tempPaths.push(storagePath);
-      results[index] = await this.mediaStorage.upload(
+
+      const upload = await this.mediaStorage.upload(
         imageBuffer,
         storagePath,
         'image/png',
       );
-    };
+      results.push(upload);
 
-    // First pass: all in parallel, tolerating individual failures
-    const firstPass = await Promise.allSettled(
-      prompts.map((prompt, index) => generateOne(prompt, index)),
-    );
-
-    // Retry failed images once (Imagen can intermittently return empty results)
-    const failedIndices = firstPass
-      .map((r, i) => (r.status === 'rejected' ? i : -1))
-      .filter((i) => i >= 0);
-
-    if (failedIndices.length > 0) {
-      this.logger.warn(
-        `${failedIndices.length}/${prompts.length} images failed on first attempt — retrying`,
-      );
-      const retries = await Promise.allSettled(
-        failedIndices.map((i) => generateOne(prompts[i], i)),
-      );
-
-      const stillFailed = retries
-        .map((r, idx) => (r.status === 'rejected' ? failedIndices[idx] : -1))
-        .filter((i) => i >= 0);
-
-      if (stillFailed.length > 0) {
-        throw new Error(
-          `Image generation failed for ${stillFailed.length} scenes after retry (indices: ${stillFailed.join(', ')})`,
-        );
-      }
+      const progress =
+        PROGRESS.IMAGES_START +
+        Math.round(((i + 1) / prompts.length) * progressRange);
+      await this.updateProgress(capsule, progress, 'IMAGES');
     }
 
-    return results as UploadResult[];
+    return results;
   }
 
   private async generateAndUploadAudio(
