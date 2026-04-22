@@ -100,7 +100,7 @@ export class VideoPipelineService {
 
       const timelineScenes = scenes.map((scene, i) => ({
         ...scene,
-        imageUrl: signedImageUrls[i],
+        imageUrl: signedImageUrls.at(i) ?? '',
       }));
       const timeline: VideoTimelineRequest = {
         scenes: timelineScenes,
@@ -195,7 +195,9 @@ export class VideoPipelineService {
     for (let i = 0; i < prompts.length; i++) {
       this.logger.log(`Generating image ${i + 1}/${prompts.length}`);
 
-      const imageBuffer = await this.imageGenerator.generateImage(prompts[i]);
+      const imageBuffer = await this.imageGenerator.generateImage(
+        prompts.at(i) ?? '',
+      );
       const storagePath = `capsules/${capsule.id}/temp/scene-${i}.png`;
       tempPaths.push(storagePath);
 

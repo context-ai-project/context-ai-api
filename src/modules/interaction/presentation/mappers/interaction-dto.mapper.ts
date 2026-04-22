@@ -1,4 +1,6 @@
 import type { QueryAssistantOutput } from '../../application/use-cases/query-assistant.use-case';
+
+const ELLIPSIS_LENGTH = 3;
 import type { Conversation } from '../../domain/entities/conversation.entity';
 import { RagResponseType } from '../dtos/query-assistant.dto';
 import type {
@@ -166,7 +168,10 @@ export class InteractionDtoMapper {
     }
 
     return (
-      content.substring(0, InteractionDtoMapper.MAX_TITLE_LENGTH - 3) + '...'
+      content.substring(
+        0,
+        InteractionDtoMapper.MAX_TITLE_LENGTH - ELLIPSIS_LENGTH,
+      ) + '...'
     );
   }
 }

@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LOG_ID_PREFIX } from '@shared/constants';
 
+const CLEANUP_INTERVAL_MINUTES = 10;
+const SECONDS_PER_MINUTE = 60;
+const MS_PER_SECOND = 1_000;
+const MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND;
+
 /**
  * TokenRevocationService
  *
@@ -36,7 +41,7 @@ export class TokenRevocationService {
    * Interval for automatic cleanup of expired tokens
    * Default: 10 minutes
    */
-  private readonly cleanupIntervalMs = 10 * 60 * 1000;
+  private readonly cleanupIntervalMs = CLEANUP_INTERVAL_MINUTES * MS_PER_MINUTE;
 
   constructor() {
     // Start automatic cleanup on service initialization
@@ -63,7 +68,7 @@ export class TokenRevocationService {
     }
 
     // Convert exp (seconds since epoch) to milliseconds
-    const expirationMs = exp * 1000;
+    const expirationMs = exp * MS_PER_SECOND;
 
     // Don't store already-expired tokens
     if (expirationMs <= Date.now()) {
@@ -173,7 +178,7 @@ export class TokenRevocationService {
     }, this.cleanupIntervalMs);
 
     this.logger.log('Automatic token cleanup started', {
-      intervalMinutes: this.cleanupIntervalMs / 60000,
+      intervalMinutes: this.cleanupIntervalMs / MS_PER_MINUTE,
     });
   }
 
