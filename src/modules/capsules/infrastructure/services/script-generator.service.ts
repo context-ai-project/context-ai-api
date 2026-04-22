@@ -33,6 +33,9 @@ const FALLBACK_QUERIES: Record<string, string> = {
 /** Retry on 429 (Vertex AI temporary contention / TPM-RPM limit). */
 const GEMINI_429_RETRY_WAIT_MS = 15_000;
 const GEMINI_429_MAX_RETRIES = 3;
+const MS_PER_SECOND = 1_000;
+/** ISO 639-1 language codes are 2 characters (e.g. 'es', 'en'). */
+const LANG_CODE_LENGTH = 2;
 
 export interface GenerateScriptInput {
   sourceIds: string[];
@@ -89,7 +92,7 @@ export class ScriptGeneratorService {
         if (is429 && attempt < GEMINI_429_MAX_RETRIES) {
           const waitMs = GEMINI_429_RETRY_WAIT_MS * (attempt + 1);
           this.logger.warn(
-            `Gemini 429 (attempt ${attempt + 1}/${GEMINI_429_MAX_RETRIES + 1}), waiting ${waitMs / 1000}s before retry`,
+            `Gemini 429 (attempt ${attempt + 1}/${GEMINI_429_MAX_RETRIES + 1}), waiting ${waitMs / MS_PER_SECOND}s before retry`,
           );
           await new Promise((resolve) => setTimeout(resolve, waitMs));
           continue;
@@ -213,10 +216,11 @@ export class ScriptGeneratorService {
     language?: string,
   ): Promise<string> {
     try {
-      const langKey = language?.slice(0, 2) ?? 'es';
+      const langKey = language?.slice(0, LANG_CODE_LENGTH) ?? 'es';
       const queryText = input.introText?.trim()
         ? input.introText
-        : (FALLBACK_QUERIES[langKey] ?? FALLBACK_QUERIES['es']);
+        : // eslint-disable-next-line security/detect-object-injection
+          (FALLBACK_QUERIES[langKey] ?? FALLBACK_QUERIES['es']);
 
       const embedding = await this.embeddingService.generateEmbedding(
         queryText,

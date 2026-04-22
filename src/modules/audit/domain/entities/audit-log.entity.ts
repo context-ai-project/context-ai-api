@@ -78,6 +78,9 @@ export enum AuditEventType {
   USER_SUSPENDED = 'USER_SUSPENDED',
 }
 
+const IPV4_PARTS_COUNT = 4;
+const IP_LOG_TRUNCATE_LENGTH = 10;
+
 /**
  * Audit Log Entity (Domain Model)
  *
@@ -268,11 +271,11 @@ export class AuditLog {
    */
   private maskIpAddress(ip: string): string {
     const parts = ip.split('.');
-    if (parts.length === 4) {
+    if (parts.length === IPV4_PARTS_COUNT) {
       return `${parts[0]}.${parts[1]}.*.***`;
     }
     // IPv6 or invalid format
-    return ip.substring(0, 10) + '...';
+    return ip.substring(0, IP_LOG_TRUNCATE_LENGTH) + '...';
   }
 
   /**

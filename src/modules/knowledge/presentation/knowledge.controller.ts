@@ -537,6 +537,7 @@ export class KnowledgeController {
     // Extension-based fallback for generic MIME types (e.g. application/octet-stream)
     const extensionMatch = /\.[^.]+$/.exec(filename.toLowerCase());
     const extension = extensionMatch?.[0] ?? '';
+    // eslint-disable-next-line security/detect-object-injection
     const acceptedMimes = EXTENSION_MIME_MAP[extension];
     if (acceptedMimes && acceptedMimes.includes(mimeType)) {
       this.logger.log(

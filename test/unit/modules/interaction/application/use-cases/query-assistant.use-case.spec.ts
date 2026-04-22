@@ -264,9 +264,10 @@ describe('QueryAssistantUseCase', () => {
       });
 
       // Verify RAG flow was called with conversation context
+      // The raw query is kept clean for vector embedding; history is passed in conversationContext
       expect(mockRagQueryFlow).toHaveBeenCalledWith(
         expect.objectContaining({
-          query: expect.stringContaining('Previous question'),
+          conversationContext: expect.stringContaining('Previous question'),
           conversationId: conversation.id,
         }),
       );

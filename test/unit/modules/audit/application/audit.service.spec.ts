@@ -226,7 +226,7 @@ describe('AuditService', () => {
       await service.cleanupOldLogs(retentionDays);
 
       const callArg = repository.deleteOlderThan.mock.calls[0][0] as Date;
-      const daysDiff = Math.floor(
+      const daysDiff = Math.round(
         (Date.now() - callArg.getTime()) / (1000 * 60 * 60 * 24),
       );
 

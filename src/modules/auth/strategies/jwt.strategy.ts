@@ -11,6 +11,11 @@ import { JwtPayload, ValidatedUser } from '../types/jwt-payload.type';
 import { UserService } from '../../users/application/services/user.service';
 import { LOG_ID_PREFIX } from '@shared/constants';
 
+/** Characters of Auth0 subject ID shown in log messages for correlation. */
+const AUTH0_ID_LOG_LENGTH = 15;
+/** A colon-separated permission string has exactly two parts: resource:action. */
+const PERMISSION_PARTS_COUNT = 2;
+
 /**
  * Known RBAC actions used for permission normalization.
  * Defined at module level to avoid re-creating the Set on every request.
@@ -137,7 +142,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
       if (!existingUser) {
         this.logger.warn('User not found in database for auth0 ID', {
-          auth0Id: `${payload.sub.substring(0, 15)}...`,
+          auth0Id: `${payload.sub.substring(0, AUTH0_ID_LOG_LENGTH)}...`,
           timestamp: new Date().toISOString(),
         });
         throw new UnauthorizedException(
@@ -217,7 +222,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    */
   private normalizePermission(permission: string): string {
     const parts = permission.split(':');
-    if (parts.length !== 2) {
+    if (parts.length !== PERMISSION_PARTS_COUNT) {
       return permission; // Not a colon-separated pair, return as-is
     }
 
