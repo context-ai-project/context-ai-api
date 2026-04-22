@@ -6,6 +6,10 @@ import {
 } from '../../domain/entities/audit-log.entity';
 import { AuditLogRepository } from '../../infrastructure/persistence/repositories/audit-log.repository';
 import { extractErrorStack } from '@shared/utils';
+import { LOG_ID_PREFIX } from '@shared/constants';
+
+const IPV4_PARTS_COUNT = 4;
+const IP_LOG_TRUNCATE_LENGTH = 10;
 
 /**
  * Request context for audit logging
@@ -79,7 +83,7 @@ export class AuditService {
       // Log to console for immediate visibility (structured logging)
       this.logger.log('Audit event logged', {
         eventType,
-        userId: userId ? `${userId.substring(0, 8)}...` : null,
+        userId: userId ? `${userId.substring(0, LOG_ID_PREFIX)}...` : null,
         ip: this.maskIp(context.ip ?? 'unknown'),
         timestamp: new Date().toISOString(),
       });
@@ -166,9 +170,9 @@ export class AuditService {
    */
   private maskIp(ip: string): string {
     const parts = ip.split('.');
-    if (parts.length === 4) {
+    if (parts.length === IPV4_PARTS_COUNT) {
       return `${parts[0]}.${parts[1]}.*.***`;
     }
-    return ip.substring(0, 10) + '...';
+    return ip.substring(0, IP_LOG_TRUNCATE_LENGTH) + '...';
   }
 }

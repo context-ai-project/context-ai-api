@@ -19,6 +19,7 @@ import { requireNonEmpty } from '@shared/validators';
 
 // Constants
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
+const HTTP_TOO_MANY_REQUESTS = 429;
 
 /**
  * Safely execute RAG query and validate result using Zod schema.
@@ -34,12 +35,59 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Delay helper for retry backoff */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Returns true when the error is a Vertex AI rate-limit (429) */
+function isRateLimitError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes('resource_exhausted') ||
+      msg.includes('429') ||
+      msg.includes('too many requests') ||
+      ('code' in error &&
+        (error as { code: unknown }).code === HTTP_TOO_MANY_REQUESTS)
+    );
+  }
+  return false;
+}
+
+const RETRY_CONFIG = {
+  maxAttempts: 3,
+  initialDelayMs: 2000, // 2 s → 4 s → 8 s
+  backoffFactor: 2,
+} as const;
+
 async function safeExecuteRagQuery(
   ragQueryFn: RagQueryFlowFunction,
   input: RagQueryInput,
 ): Promise<RagQueryOutput> {
-  const result: unknown = await ragQueryFn(input);
+  let lastError: unknown;
+  let waitMs = RETRY_CONFIG.initialDelayMs;
 
+  for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
+    try {
+      const result: unknown = await ragQueryFn(input);
+      // Validate core result structure using Zod schema — fall through to existing logic
+      return parseRagResult(result);
+    } catch (error: unknown) {
+      lastError = error;
+      if (isRateLimitError(error) && attempt < RETRY_CONFIG.maxAttempts) {
+        await delay(waitMs);
+        waitMs *= RETRY_CONFIG.backoffFactor;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+
+function parseRagResult(result: unknown): RagQueryOutput {
   // Validate core result structure using Zod schema
   const validated = ragQueryOutputSchema.parse(result);
 
@@ -164,18 +212,25 @@ export class QueryAssistantUseCase {
     });
     conversation.addMessage(userMessage);
 
-    // 3. Build query with conversation context
-    const contextualQuery = this.buildContextualQuery(
+    // 3. Build conversation context for the generation prompt
+    // NOTE: conversationContext is passed to the LLM prompt but is NOT embedded.
+    // The raw query is embedded to keep the search vector semantically clean.
+    const conversationContext = this.buildContextualQuery(
       conversation,
       input.query,
     );
 
     // 4. Execute RAG query flow with type-safe wrapper
     const ragQueryInput = {
-      query: contextualQuery,
+      // Use raw user query for embedding — keeps the vector semantically focused
+      query: input.query,
       rawUserMessage: input.query,
       sectorId: input.userContext.sectorId,
       conversationId: conversation.id,
+      // Pass conversation history separately so it's used only in the generation prompt
+      ...(conversationContext !== input.query && {
+        conversationContext,
+      }),
       ...(input.searchOptions?.maxResults !== undefined && {
         maxResults: input.searchOptions.maxResults,
       }),

@@ -18,7 +18,10 @@ export class CloudTasksDispatcher implements ITaskDispatcher {
     this.client = new CloudTasksClient();
 
     const project = process.env.GCS_PROJECT_ID ?? '';
-    const location = process.env.GCP_LOCATION ?? 'us-central1';
+    const location =
+      process.env.CLOUD_TASKS_LOCATION ??
+      process.env.GCP_LOCATION ??
+      'us-central1';
     const queue = process.env.CLOUD_TASKS_QUEUE ?? 'capsule-video-pipeline';
     this.serviceUrl = process.env.CLOUD_RUN_SERVICE_URL ?? '';
     this.internalApiKey = process.env.INTERNAL_API_KEY ?? '';
